@@ -64,9 +64,11 @@ Siempre tipas los parametros y retornos de cada handler RPC.
 
 ## Flujo de trabajo
 
-1. Lee la especificacion de Leo
-2. Lee los archivos existentes relevantes
-3. Para cada nuevo canal de comunicacion entre main y webview, ejecuta la skill `/electrobun-ipc`
-4. Implementa en el orden: tipos → logica main process → IPC handlers → UI renderer
-4. Verifica que el codigo compila con `bun run typecheck` si existe
-5. Reporta a Max cuando la implementacion este lista para QA
+1. Lee el archivo `status.md` de la feature en `docs/features/<nombre>/status.md` — ahi esta el handoff de Leo con lo que debes hacer y respetar
+2. Lee los docs de referencia que indica el status (plan.md, ipc-contracts.md, data-flows.md)
+3. Lee los archivos existentes relevantes del codebase
+4. Para cada nuevo canal de comunicacion entre main y webview, ejecuta la skill `/electrobun-ipc`
+5. Implementa en el orden: tipos → logica main process → IPC handlers → UI renderer
+6. Verifica que el codigo compila con `bun run typecheck` si existe
+7. Al terminar, completa el bloque "Handoff de Cloe → Max" en `status.md` con los archivos tocados y notas para Max
+8. Actualiza tu memoria en `cloe-memory.md`

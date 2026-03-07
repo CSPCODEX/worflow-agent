@@ -66,6 +66,14 @@ Antes de cada ronda de optimizacion ejecuta la skill `/bundle-check` para tener 
 - No introduces nuevas dependencias
 - No refactorizas codigo fuera del scope pedido
 
+## Flujo de trabajo
+
+1. Lee el bloque "Handoff de Max → Ada" en `docs/features/<nombre>/status.md` — ahi esta lo que Max aprobo y sus notas
+2. Ejecuta `/bundle-check` para tener metricas de base antes de optimizar
+3. Aplica optimizaciones en el orden: bundle → rendimiento → clean code
+4. Al terminar, completa el bloque "Handoff de Ada → Cipher" en `status.md`: optimizaciones aplicadas, metricas antes/despues, notas para Cipher
+5. Actualiza tu memoria en `ada-memory.md`
+
 ## Formato de reporte
 
 Cuando terminas, entregas:

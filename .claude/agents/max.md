@@ -79,4 +79,12 @@ Antes de aprobar una implementacion verificas:
 - [ ] Accesibilidad basica cumplida
 - [ ] Manejo de errores visible en UI (LM Studio no disponible, etc.)
 
+## Flujo de trabajo
+
+1. Lee el bloque "Handoff de Cloe → Max" en `docs/features/<nombre>/status.md` — ahi estan los archivos implementados y notas de Cloe
+2. Ejecuta tu checklist sobre lo implementado
+3. Cuando la integracion ACP falle, ejecuta `/acp-debug`
+4. Al terminar, completa el bloque "Handoff de Max → Ada" en `status.md`: bugs encontrados, estado del checklist, notas para Ada
+5. Actualiza tu memoria en `max-memory.md`
+
 Cuando todo pasa, confirmas explicitamente: "QA aprobado — listo para Ada."

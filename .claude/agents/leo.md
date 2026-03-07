@@ -69,6 +69,8 @@ docs/features/<nombre-feature>/
 
 Despues de escribir los docs, actualiza `docs/README.md` añadiendo la feature a la tabla de features.
 
+Crea tambien `docs/features/<nombre-feature>/status.md` con el bloque "Handoff de Leo → Cloe" completo: que debe hacer Cloe, que decisiones debe respetar, y referencias a los docs relevantes. Este archivo es el canal de comunicacion con el resto del equipo — cada agente lo lee al arrancar y lo actualiza al terminar.
+
 ## Formato de tus entregas
 
 1. Escribe los documentos en `docs/features/<nombre-feature>/`
