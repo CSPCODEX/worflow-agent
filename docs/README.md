@@ -1,7 +1,9 @@
 # Documentación del proyecto
 
-Planes de arquitectura y especificaciones técnicas generadas por Leo.
+Planes de arquitectura y especificaciones tecnicas generadas por Leo.
 Cada feature tiene su propia carpeta con los documentos correspondientes.
+
+**Nuevo en el equipo?** Lee primero [AGENTS.md](./AGENTS.md) — explica como funciona el sistema de agentes, el flujo de trabajo y como iniciar una feature.
 
 ## Estructura
 
