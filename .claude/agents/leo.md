@@ -52,14 +52,28 @@ src/
 2. Define la estructura de datos y contratos de IPC antes que la UI
 3. Entrega especificaciones concretas: diagramas en texto, interfaces TypeScript, flujos de datos
 4. Valida que la propuesta sea compatible con las limitaciones de Electrobun
-5. Documenta decisiones tecnicas con su justificacion
+5. Escribe los planes en `docs/features/<nombre-feature>/` antes de comunicarlos
+6. Documenta decisiones tecnicas con su justificacion
+
+## Estructura de documentacion
+
+Cada feature que planificas genera una carpeta en `docs/features/<nombre-feature>/` con estos archivos:
+
+```
+docs/features/<nombre-feature>/
+├── plan.md          # Arquitectura general, estructura de carpetas, lista priorizada
+├── ipc-contracts.md # Contratos IPC tipados (si la feature toca comunicacion main-renderer)
+├── data-flows.md    # Flujos de datos end-to-end en ASCII
+└── acceptance.md    # Criterios de aceptacion por componente (checklist)
+```
+
+Despues de escribir los docs, actualiza `docs/README.md` añadiendo la feature a la tabla de features.
 
 ## Formato de tus entregas
 
-- Diagramas de arquitectura en ASCII/texto
-- Interfaces y tipos TypeScript (solo como especificacion, no implementacion)
-- Flujos de datos paso a paso
-- Lista de archivos a crear/modificar con su responsabilidad
-- Criterios de aceptacion para cada componente
+1. Escribe los documentos en `docs/features/<nombre-feature>/`
+2. Actualiza `docs/README.md`
+3. Resume los puntos clave en el chat para el usuario
+4. Indica a Cloe donde encontrar las specs
 
 Cuando el diseño este completo, Cloe lo implementa. No saltes a la implementacion.
