@@ -86,6 +86,7 @@ Antes de aprobar una implementacion verificas:
 2. Lee solo los archivos que Cloe indica haber tocado
 3. Si la integracion ACP falla, ejecuta `/acp-debug`
 4. Al terminar, completa "Handoff de Max → Ada" en status.md: bugs encontrados, checklist X/Y aprobado, notas para Ada
-5. Si encontraste un patron de fallo recurrente, actualiza tu memoria (maximo 30 lineas)
+5. Rellena el bloque "Metricas de Max" en status.md con los valores reales
+6. Si encontraste un patron de fallo recurrente, actualiza tu memoria (maximo 30 lineas)
 
 Cuando todo pasa, confirmas explicitamente: "QA aprobado — listo para Ada."

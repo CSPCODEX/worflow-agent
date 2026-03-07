@@ -79,4 +79,6 @@ Crea tambien `docs/features/<nombre-feature>/status.md`. Este es el unico archiv
 3. Resume los puntos clave en el chat para el usuario
 4. Indica a Cloe donde encontrar las specs
 
+Al terminar, rellena el bloque "Metricas de Leo" en status.md con los valores reales.
+
 Cuando el diseño este completo, Cloe lo implementa. No saltes a la implementacion.

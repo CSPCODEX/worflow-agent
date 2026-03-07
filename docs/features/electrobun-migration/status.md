@@ -49,7 +49,6 @@ export interface CreateSessionResult { success: boolean; sessionId?: string; err
 export interface SendMessageParams { sessionId: string; message: string; }
 export interface SendMessageResult { success: boolean; error?: string; }
 
-// Eventos main -> renderer (streaming)
 export interface AgentMessageChunk { sessionId: string; text: string; }
 export interface AgentMessageEnd { sessionId: string; }
 export interface AgentError { sessionId: string; error: string; }
@@ -61,9 +60,17 @@ export interface AgentError { sessionId: string; error: string; }
 ```typescript
 // main.ts
 electrobun.handle('generateAgent', async (config: AgentConfig): Promise<GenerateAgentResult> => { ... });
-
 // renderer
 const result = await electrobun.invoke('generateAgent', config);
+```
+
+### Metricas de Leo
+```
+archivos_leidos: 6
+archivos_escritos: 5
+rework: no
+iteraciones: 1
+notas: primera sesion, sin contexto previo
 ```
 
 ---
@@ -73,14 +80,20 @@ const result = await electrobun.invoke('generateAgent', config);
 > Pendiente
 
 ```
-Archivos creados/modificados:
--
-Decisiones tomadas durante implementacion:
--
-Que debe verificar Max especificamente:
--
-Algo que no salio como esperaba:
--
+archivos_creados:
+archivos_modificados:
+decisiones_tomadas:
+advertencias_para_max:
+```
+
+### Metricas de Cloe
+```
+archivos_leidos:
+archivos_creados:
+archivos_modificados:
+rework: si/no — motivo:
+iteraciones:
+bloqueantes_encontrados:
 ```
 
 ---
@@ -90,11 +103,18 @@ Algo que no salio como esperaba:
 > Pendiente
 
 ```
-Checklist: 0/7 aprobado
-Bugs encontrados:
--
-Que debe optimizar Ada especificamente:
--
+checklist_aprobado: 0/7
+bugs_criticos:
+bugs_menores:
+advertencias_para_ada:
+```
+
+### Metricas de Max
+```
+archivos_revisados:
+bugs_encontrados:
+rework_solicitado: si/no — motivo:
+iteraciones:
 ```
 
 ---
@@ -104,11 +124,19 @@ Que debe optimizar Ada especificamente:
 > Pendiente
 
 ```
-Optimizaciones aplicadas:
--
-Bundle antes/despues:
-Que debe auditar Cipher especificamente:
--
+optimizaciones_aplicadas:
+bundle_antes:
+bundle_despues:
+advertencias_para_cipher:
+```
+
+### Metricas de Ada
+```
+archivos_modificados:
+mejora_bundle:
+rework: si/no — motivo:
+iteraciones:
+deuda_tecnica_pendiente:
 ```
 
 ---
@@ -118,8 +146,16 @@ Que debe auditar Cipher especificamente:
 > Pendiente
 
 ```
-Estado: pendiente
-Vulnerabilidades criticas:
-Riesgos aceptados:
-Decision: pendiente
+vulnerabilidades_criticas:
+vulnerabilidades_medias:
+riesgos_aceptados:
+decision: pendiente
+```
+
+### Metricas de Cipher
+```
+archivos_auditados:
+vulnerabilidades_encontradas:
+rework_solicitado: si/no — motivo:
+iteraciones:
 ```

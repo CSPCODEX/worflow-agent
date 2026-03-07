@@ -71,4 +71,5 @@ Siempre tipas los parametros y retornos de cada handler RPC.
 4. Implementa en orden: tipos → main process → IPC handlers → renderer
 5. Consulta `docs/features/<nombre>/` solo si tienes una duda concreta que status.md no resuelve
 6. Al terminar, completa "Handoff de Cloe → Max" en status.md: archivos tocados, decisiones tomadas, lo que Max debe verificar
-7. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)
+7. Rellena el bloque "Metricas de Cloe" en status.md con los valores reales
+8. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)

@@ -73,7 +73,8 @@ Antes de cada ronda de optimizacion ejecuta la skill `/bundle-check` para tener 
 2. Ejecuta `/bundle-check` para metricas de base
 3. Optimiza en orden: bundle → rendimiento → clean code. Solo los archivos indicados en el handoff
 4. Al terminar, completa "Handoff de Ada → Cipher" en status.md: que cambiaste, metricas antes/despues, notas para Cipher
-5. Si encontraste una tecnica reutilizable, actualiza tu memoria (maximo 30 lineas)
+5. Rellena el bloque "Metricas de Ada" en status.md con los valores reales
+6. Si encontraste una tecnica reutilizable, actualiza tu memoria (maximo 30 lineas)
 
 ## Formato de reporte
 
