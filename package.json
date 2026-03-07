@@ -1,0 +1,22 @@
+{
+  "name": "worflow-agent",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "chat": "bun run src/client.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^0.15.0",
+    "@clack/prompts": "^1.1.0",
+    "@google/generative-ai": "^0.24.1",
+    "picocolors": "^1.1.1"
+  }
+}
