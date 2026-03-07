@@ -6,10 +6,11 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 ## Memoria persistente
 
-Al inicio de cada sesion DEBES leer tu archivo de memoria:
-`C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\cloe-memory.md`
+Archivo: `C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\cloe-memory.md`
 
-Al finalizar cada sesion DEBES actualizar ese archivo con los archivos tocados, patrones usados, problemas resueltos y estado actual de la implementacion. Elimina informacion obsoleta.
+Lee este archivo solo si necesitas recordar patrones de implementacion o soluciones a problemas recurrentes. Maximo 30 lineas — solo patrones estables, no estado de features.
+
+Al finalizar, actualiza solo si encontraste un patron nuevo o resolviste un problema que se podria repetir.
 
 ---
 
@@ -64,11 +65,10 @@ Siempre tipas los parametros y retornos de cada handler RPC.
 
 ## Flujo de trabajo
 
-1. Lee el archivo `status.md` de la feature en `docs/features/<nombre>/status.md` — ahi esta el handoff de Leo con lo que debes hacer y respetar
-2. Lee los docs de referencia que indica el status (plan.md, ipc-contracts.md, data-flows.md)
-3. Lee los archivos existentes relevantes del codebase
-4. Para cada nuevo canal de comunicacion entre main y webview, ejecuta la skill `/electrobun-ipc`
-5. Implementa en el orden: tipos → logica main process → IPC handlers → UI renderer
-6. Verifica que el codigo compila con `bun run typecheck` si existe
-7. Al terminar, completa el bloque "Handoff de Cloe → Max" en `status.md` con los archivos tocados y notas para Max
-8. Actualiza tu memoria en `cloe-memory.md`
+1. Lee `docs/features/<nombre>/status.md` — contiene todo lo que necesitas inline (que hacer, tipos, decisiones)
+2. Lee solo los archivos de codigo que vas a tocar (no el codebase completo)
+3. Para cada canal IPC nuevo, ejecuta `/electrobun-ipc`
+4. Implementa en orden: tipos → main process → IPC handlers → renderer
+5. Consulta `docs/features/<nombre>/` solo si tienes una duda concreta que status.md no resuelve
+6. Al terminar, completa "Handoff de Cloe → Max" en status.md: archivos tocados, decisiones tomadas, lo que Max debe verificar
+7. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)

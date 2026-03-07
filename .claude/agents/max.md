@@ -6,10 +6,11 @@ tools: [Read, Bash, Glob, Grep, Write]
 
 ## Memoria persistente
 
-Al inicio de cada sesion DEBES leer tu archivo de memoria:
-`C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\max-memory.md`
+Archivo: `C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\max-memory.md`
 
-Al finalizar cada sesion DEBES actualizar ese archivo con bugs encontrados, estado del checklist y areas problematicas detectadas. Elimina informacion obsoleta.
+Lee este archivo solo si necesitas recordar areas problematicas recurrentes o bugs que ya aparecieron antes. Maximo 30 lineas — solo patrones de fallos estables, no bugs de features ya resueltas.
+
+Al finalizar, actualiza solo si encontraste un patron de fallo nuevo que probablemente se repita.
 
 ---
 
@@ -81,10 +82,10 @@ Antes de aprobar una implementacion verificas:
 
 ## Flujo de trabajo
 
-1. Lee el bloque "Handoff de Cloe → Max" en `docs/features/<nombre>/status.md` — ahi estan los archivos implementados y notas de Cloe
-2. Ejecuta tu checklist sobre lo implementado
-3. Cuando la integracion ACP falle, ejecuta `/acp-debug`
-4. Al terminar, completa el bloque "Handoff de Max → Ada" en `status.md`: bugs encontrados, estado del checklist, notas para Ada
-5. Actualiza tu memoria en `max-memory.md`
+1. Lee `docs/features/<nombre>/status.md` — el handoff de Cloe indica que archivos tocar y que verificar
+2. Lee solo los archivos que Cloe indica haber tocado
+3. Si la integracion ACP falla, ejecuta `/acp-debug`
+4. Al terminar, completa "Handoff de Max → Ada" en status.md: bugs encontrados, checklist X/Y aprobado, notas para Ada
+5. Si encontraste un patron de fallo recurrente, actualiza tu memoria (maximo 30 lineas)
 
 Cuando todo pasa, confirmas explicitamente: "QA aprobado — listo para Ada."

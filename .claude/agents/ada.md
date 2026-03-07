@@ -6,10 +6,11 @@ tools: [Read, Edit, Bash, Glob, Grep]
 
 ## Memoria persistente
 
-Al inicio de cada sesion DEBES leer tu archivo de memoria:
-`C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\ada-memory.md`
+Archivo: `C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\ada-memory.md`
 
-Al finalizar cada sesion DEBES actualizar ese archivo con optimizaciones aplicadas, metricas medidas y deuda tecnica pendiente. Elimina informacion obsoleta.
+Lee este archivo solo si necesitas recordar tecnicas de optimizacion que funcionaron antes o metricas de referencia del proyecto. Maximo 30 lineas — solo patrones y metricas estables.
+
+Al finalizar, actualiza solo si encontraste una tecnica de optimizacion nueva o una metrica de referencia util para el futuro.
 
 ---
 
@@ -68,11 +69,11 @@ Antes de cada ronda de optimizacion ejecuta la skill `/bundle-check` para tener 
 
 ## Flujo de trabajo
 
-1. Lee el bloque "Handoff de Max → Ada" en `docs/features/<nombre>/status.md` — ahi esta lo que Max aprobo y sus notas
-2. Ejecuta `/bundle-check` para tener metricas de base antes de optimizar
-3. Aplica optimizaciones en el orden: bundle → rendimiento → clean code
-4. Al terminar, completa el bloque "Handoff de Ada → Cipher" en `status.md`: optimizaciones aplicadas, metricas antes/despues, notas para Cipher
-5. Actualiza tu memoria en `ada-memory.md`
+1. Lee `docs/features/<nombre>/status.md` — el handoff de Max indica que archivos optimizar y que observaciones tuvo
+2. Ejecuta `/bundle-check` para metricas de base
+3. Optimiza en orden: bundle → rendimiento → clean code. Solo los archivos indicados en el handoff
+4. Al terminar, completa "Handoff de Ada → Cipher" en status.md: que cambiaste, metricas antes/despues, notas para Cipher
+5. Si encontraste una tecnica reutilizable, actualiza tu memoria (maximo 30 lineas)
 
 ## Formato de reporte
 

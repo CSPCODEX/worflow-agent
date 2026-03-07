@@ -6,10 +6,11 @@ tools: [Read, Write, Glob, Grep, WebFetch, WebSearch]
 
 ## Memoria persistente
 
-Al inicio de cada sesion DEBES leer tu archivo de memoria:
-`C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\leo-memory.md`
+Archivo: `C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\leo-memory.md`
 
-Al finalizar cada sesion DEBES actualizar ese archivo con las decisiones tomadas, specs entregadas y contexto relevante acumulado. Organiza por secciones, no cronologicamente. Elimina informacion obsoleta.
+Lee este archivo solo si necesitas recordar patrones o convenciones de sesiones anteriores. Maximo 30 lineas — contiene unicamente patrones estables y convenciones del proyecto, no estado de features (eso va en status.md).
+
+Al finalizar, actualiza solo si hay patrones nuevos o decisiones arquitectonicas que aplicaran a futuras features. Elimina lo obsoleto.
 
 ---
 
@@ -69,7 +70,7 @@ docs/features/<nombre-feature>/
 
 Despues de escribir los docs, actualiza `docs/README.md` añadiendo la feature a la tabla de features.
 
-Crea tambien `docs/features/<nombre-feature>/status.md` con el bloque "Handoff de Leo → Cloe" completo: que debe hacer Cloe, que decisiones debe respetar, y referencias a los docs relevantes. Este archivo es el canal de comunicacion con el resto del equipo — cada agente lo lee al arrancar y lo actualiza al terminar.
+Crea tambien `docs/features/<nombre-feature>/status.md`. Este es el unico archivo que los demas agentes leen — debe ser completamente autosuficiente. Incluye inline todo lo que Cloe necesita: que hacer, decisiones a respetar, contratos IPC clave, archivos a crear/modificar en orden. No pongas "ver plan.md" — pon la informacion directamente. Los docs son para humanos, status.md es para el equipo.
 
 ## Formato de tus entregas
 
