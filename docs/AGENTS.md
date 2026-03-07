@@ -65,6 +65,81 @@ Ver docs/features/autenticacion/status.md
 
 ---
 
+## Flujo de bugs
+
+Los bugs siguen un flujo distinto al de features: mas corto, sin arquitectura y sin optimizacion.
+
+```
+/bug <descripcion> → @max → @cloe → @max
+```
+
+### Por que es diferente al flujo de features
+
+| Aspecto | Features | Bugs |
+|---|---|---|
+| Primer agente | Leo (planifica) | Max (diagnostica) |
+| Ada entra | Si (optimiza) | No (prematuro, riesgo de regresion) |
+| Cipher entra | Siempre (pre-release) | Solo si hay implicaciones de seguridad |
+| Documentacion | `docs/features/<nombre>/` | `docs/bugs/<id>-<slug>/` |
+| Trigger | Invocar `@leo` directamente | Skill `/bug <descripcion>` |
+
+### Paso a paso para reportar un bug
+
+**1. Abrir el bug con la skill:**
+
+```
+/bug El panel de agentes no carga cuando LM Studio no esta corriendo
+```
+
+La skill crea automaticamente la rama `bug/<id>-<slug>` y el archivo `docs/bugs/<id>-<slug>/status.md`.
+
+**2. Invocar a Max para diagnosticar:**
+
+```
+@max Diagnostica el bug #042. El status esta en docs/bugs/042-panel-agentes-no-carga-lm-studio/status.md
+```
+
+Max investiga la causa raiz, define el fix propuesto y los criterios de verificacion. Completa la seccion "Handoff Max → Cloe" del status.md.
+
+**3. Invocar a Cloe para implementar el fix:**
+
+```
+@cloe Implementa el fix del bug #042. Las instrucciones estan en docs/bugs/042-panel-agentes-no-carga-lm-studio/status.md
+```
+
+Cloe lee el handoff de Max, implementa el fix y completa la seccion "Handoff Cloe → Max".
+
+**4. Invocar a Max para verificar:**
+
+```
+@max Verifica el fix del bug #042. El handoff de Cloe esta en docs/bugs/042-panel-agentes-no-carga-lm-studio/status.md
+```
+
+Max verifica que el bug esta resuelto y cierra el ciclo. Si el bug persiste, Max marca REABIERTO y se repite el ciclo Cloe → Max.
+
+**5. Cipher — solo si el bug tiene implicaciones de seguridad:**
+
+Si Max marca "Requiere auditoria de Cipher: SI" en el resultado final:
+
+```
+@cipher Audita el bug #042 antes del merge. Ver docs/bugs/042-panel-agentes-no-carga-lm-studio/status.md
+```
+
+Si Max marca "Requiere auditoria de Cipher: NO", hacer merge directamente. No invocar Ada.
+
+### Cuando SI invocar Cipher en un bug
+
+Cipher entra en bugs que involucren:
+- Exposicion de secretos o credenciales
+- Vulnerabilidades de inyeccion (prompt injection, path traversal, etc.)
+- Problemas de autenticacion o autorizacion
+- Fuga de datos de usuario
+- Comunicacion insegura entre procesos
+
+Cipher NO entra en bugs funcionales, de UI, de performance o de integracion sin implicaciones de seguridad.
+
+---
+
 ## Como se comunican los agentes
 
 Los agentes no se llaman directamente. Se comunican a traves de `docs/features/<nombre>/status.md`.
@@ -127,6 +202,7 @@ Las skills son procedimientos reutilizables que los agentes invocan con `/nombre
 
 | Skill | Quien la usa | Cuando |
 |---|---|---|
+| `/bug` | Cualquiera | Al detectar un bug — crea rama, carpeta y status.md del bug |
 | `/electrobun-ipc` | Cloe | Al crear un nuevo canal RPC entre main y webview |
 | `/acp-debug` | Max | Cuando un agente ACP no responde |
 | `/bundle-check` | Ada | Antes de cada ronda de optimizacion |
@@ -198,7 +274,7 @@ Tras 2-3 features, los reportes revelan patrones sistematicos para mejorar el fl
 
 ```bash
 # 1. Crea la rama
-git checkout -b feature/<nombre>
+git switch -c feature/<nombre>
 
 # 2. Invoca a Leo
 @leo <descripcion de la feature>
@@ -274,6 +350,7 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]  # solo los necesarios
 │   ├── ada.md
 │   └── cipher.md
 └── skills/
+    ├── bug.md
     ├── electrobun-ipc.md
     ├── acp-debug.md
     ├── bundle-check.md
@@ -283,14 +360,17 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]  # solo los necesarios
 docs/
 ├── README.md           ← indice de features
 ├── AGENTS.md           ← esta guia
-└── features/
-    └── <nombre>/
-        ├── status.md
-        ├── plan.md
-        ├── ipc-contracts.md
-        ├── data-flows.md
-        ├── acceptance.md
-        └── flow-report.md  (generado por /measure-flow)
+├── features/
+│   └── <nombre>/
+│       ├── status.md
+│       ├── plan.md
+│       ├── ipc-contracts.md
+│       ├── data-flows.md
+│       ├── acceptance.md
+│       └── flow-report.md  (generado por /measure-flow)
+└── bugs/
+    └── <id>-<slug>/
+        └── status.md       (creado por /bug, rellenado por Max y Cloe)
 
 memory/ (C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\)
 ├── leo-memory.md

@@ -52,10 +52,30 @@ This project uses a team of specialized Claude Code agents. **Always follow this
 5. After QA approval, invoke `@ada` to optimize
 6. Before any push to main, invoke `@cipher` to audit
 
+### Bug flow (lightweight)
+
+**Trigger automático:** Cuando el usuario reporte un bug, error, o pida un fix — ya sea pegando un stack trace, describiendo un fallo, o usando palabras como "bug", "error", "falla", "no funciona", "fix" — ejecuta el flujo de bugs automáticamente sin esperar que el usuario escriba `/bug`.
+
+El flujo es:
+
+```
+(usuario reporta bug) → /bug skill → @max → @cloe → @max
+```
+
+**Pasos que Claude ejecuta al detectar un bug:**
+1. Genera el ID (`ls docs/bugs/ | wc -l` + 1, formato `001`)
+2. Genera el slug desde la descripción (lowercase, guiones, máx 5 palabras)
+3. Crea la rama: `git switch -c bug/<id>-<slug>`
+4. Crea `docs/bugs/<id>-<slug>/status.md` con la estructura definida en `.claude/skills/bug.md`
+5. Confirma al usuario con el siguiente paso: `@max Diagnostica el bug #<id>...`
+
+Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de seguridad. Ver `docs/AGENTS.md` para documentación completa.
+
 ### Custom skills (invoke with `/skill-name`)
 
 | Skill | Used by | Purpose |
 |---|---|---|
+| `/bug` | Anyone | Open a bug report — creates branch, folder, and status.md |
 | `/electrobun-ipc` | Cloe | Step-by-step for creating typed RPC channels |
 | `/acp-debug` | Max | Diagnose ACP agent connection issues |
 | `/bundle-check` | Ada | Analyze and audit Electrobun bundle size |
@@ -117,12 +137,15 @@ Architecture plans and technical specifications written by Leo.
 
 ```
 docs/
-└── features/
-    └── <feature-name>/
-        ├── plan.md           # Architecture, folder structure, priority list
-        ├── ipc-contracts.md  # Typed IPC contracts
-        ├── data-flows.md     # End-to-end data flows
-        └── acceptance.md     # Acceptance criteria checklist
+├── features/
+│   └── <feature-name>/
+│       ├── plan.md           # Architecture, folder structure, priority list
+│       ├── ipc-contracts.md  # Typed IPC contracts
+│       ├── data-flows.md     # End-to-end data flows
+│       └── acceptance.md     # Acceptance criteria checklist
+└── bugs/
+    └── <id>-<slug>/
+        └── status.md         # Created by /bug skill, filled by Max and Cloe
 ```
 
 ## Key Notes
