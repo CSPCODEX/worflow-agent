@@ -76,6 +76,7 @@ Co-Authored-By: devlitus <developercarles@gmail.com>
 - Si hay cuerpo, separar del titulo con una linea en blanco
 - El cuerpo explica el "por que", no lista archivos
 - El co-author es SIEMPRE `devlitus <developercarles@gmail.com>` — nunca omitirlo
+- NUNCA añadir `Co-Authored-By: Claude` ni ninguna variante del co-author de Anthropic/Claude
 
 **Ejemplo:**
 

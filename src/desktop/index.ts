@@ -21,7 +21,7 @@ console.log('Worflow Agent desktop starting. View:', viewUrl);
 
 const win = new BrowserWindow({
   title: 'Worflow Agent',
-  frame: { x: 100, y: 100, width: 960, height: 640 },
+  frame: { x: 100, y: 100, width: 1920, height: 1080 },
   url: viewUrl,
   rpc,
   titleBarStyle: 'default',
