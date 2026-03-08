@@ -70,7 +70,9 @@ export function createRpc() {
   // Wire acpManager streaming events to webview via rpc.send
   acpManager.setMessageCallback((type, sessionId, data) => {
     if (type === 'chunk') {
-      (rpc as any).send.agentMessageChunk({ sessionId, text: data! });
+      // encodeURIComponent ensures only ASCII travels through Electrobun's IPC
+      // (the evaluateJavascript fallback path can mangle non-ASCII UTF-8 bytes)
+      (rpc as any).send.agentMessageChunk({ sessionId, text: encodeURIComponent(data!) });
     } else if (type === 'end') {
       (rpc as any).send.agentMessageEnd({ sessionId });
     } else {

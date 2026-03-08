@@ -74,13 +74,22 @@ class {{AGENT_CLASS}} implements Agent {
       const model = await (process.env.LM_STUDIO_MODEL
         ? lmClient.llm.model(process.env.LM_STUDIO_MODEL)
         : lmClient.llm.model());
-      const response = await model.respond([
+      let fullContent = '';
+      for await (const fragment of model.respond([
         { role: 'system', content: SYSTEM_PROMPT },
         ...history,
         { role: 'user', content: userText },
-      ]);
+      ])) {
+        fullContent += fragment.content;
+      }
 
-      const responseText = response.content;
+      // Strip internal reasoning tokens emitted by extended-thinking models:
+      //   <|channel|>final<|message|>...<|end|>  (Qwen / channel-format models)
+      //   <think>...</think>                      (DeepSeek R1 / think-tag models)
+      const channelMatch = fullContent.match(/<\|channel\|>final<\|message\|>([\s\S]*?)(?:<\|end\|>|$)/);
+      const responseText = channelMatch
+        ? channelMatch[1].trim()
+        : fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim() || fullContent;
 
       history.push({ role: 'user', content: userText });
       history.push({ role: 'assistant', content: responseText });
@@ -129,14 +138,23 @@ if (process.stdin.isTTY) {
         const model = await (process.env.LM_STUDIO_MODEL
           ? lmClient.llm.model(process.env.LM_STUDIO_MODEL)
           : lmClient.llm.model());
-        const response = await model.respond([
+        process.stdout.write(`\n{{AGENT_NAME}}: `);
+        let ttyContent = '';
+        for await (const fragment of model.respond([
           { role: 'system', content: SYSTEM_PROMPT },
           ...history,
           { role: 'user', content: trimmed },
-        ]);
-        console.log(`\n{{AGENT_NAME}}: ${response.content}\n`);
+        ])) {
+          ttyContent += fragment.content;
+          process.stdout.write(fragment.content);
+        }
+        process.stdout.write('\n\n');
+        const ttyChannelMatch = ttyContent.match(/<\|channel\|>final<\|message\|>([\s\S]*?)(?:<\|end\|>|$)/);
+        const ttyResponse = ttyChannelMatch
+          ? ttyChannelMatch[1].trim()
+          : ttyContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim() || ttyContent;
         history.push({ role: 'user', content: trimmed });
-        history.push({ role: 'assistant', content: response.content });
+        history.push({ role: 'assistant', content: ttyResponse });
       } catch (e: any) {
         console.error(`[error] ${e.message}`);
       }

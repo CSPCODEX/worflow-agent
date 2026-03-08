@@ -42,8 +42,6 @@ class AcpManager {
         const update = params.update;
         if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text') {
           notify?.('chunk', sessionId, update.content.text);
-        } else if (update.sessionUpdate === 'agent_message_end') {
-          notify?.('end', sessionId);
         }
       }
 
@@ -104,15 +102,18 @@ class AcpManager {
     const session = this.sessions.get(sessionId);
     if (!session) return { success: false, error: `Session not found: ${sessionId}` };
 
-    try {
-      await session.connection.prompt({
-        sessionId: session.acpSessionId,
-        prompt: [{ type: 'text', text: message }],
-      });
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    const notify = this.onMessage;
+
+    session.connection.prompt({
+      sessionId: session.acpSessionId,
+      prompt: [{ type: 'text', text: message }],
+    }).then(() => {
+      notify?.('end', sessionId);
+    }).catch((err: Error) => {
+      notify?.('error', sessionId, err.message);
+    });
+
+    return { success: true };
   }
 
   closeSession(sessionId: string): void {

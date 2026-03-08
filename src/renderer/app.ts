@@ -10,7 +10,8 @@ const rpc = Electroview.defineRPC<AppRPC>({
     requests: {},
     messages: {
       agentMessageChunk: (payload) => {
-        document.dispatchEvent(new CustomEvent('agent:chunk', { detail: payload }));
+        const decoded = { ...payload, text: decodeURIComponent(payload.text) };
+        document.dispatchEvent(new CustomEvent('agent:chunk', { detail: decoded }));
       },
       agentMessageEnd: (payload) => {
         document.dispatchEvent(new CustomEvent('agent:end', { detail: payload }));
