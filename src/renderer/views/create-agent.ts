@@ -61,7 +61,7 @@ export function renderCreateAgent(container: HTMLElement, onDone: DoneCallback) 
     // Listener registered before the RPC call so it is in place when the event arrives.
     // It will fire once and then remove itself.
     function onInstallDone(e: Event) {
-      const { agentName, error } = (e as CustomEvent).detail as { agentName: string; agentDir: string; error?: string };
+      const { agentName, error } = (e as CustomEvent).detail as { agentName: string; error?: string };
       // Only react to the install event for the agent we just created.
       if (agentName !== name) return;
 

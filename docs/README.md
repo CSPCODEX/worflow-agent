@@ -22,3 +22,4 @@ docs/
 | Feature | Estado | Responsable |
 |---|---|---|
 | [electrobun-migration](./features/electrobun-migration/) | En progreso | Cloe |
+| [persistence](./features/persistence/) | Listo para implementacion | Cloe |

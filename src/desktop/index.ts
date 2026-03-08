@@ -3,6 +3,15 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { createRpc } from '../ipc/handlers';
 import { acpManager } from '../ipc/acpManager';
+import { initDatabase } from '../db/database';
+
+try {
+  initDatabase();
+} catch (e: any) {
+  const detail = process.env.NODE_ENV !== 'production' ? `: ${e.message}` : '';
+  console.error(`[Worflow Agent] No se pudo inicializar la base de datos${detail}`);
+  process.exit(1);
+}
 
 const rpc = createRpc();
 

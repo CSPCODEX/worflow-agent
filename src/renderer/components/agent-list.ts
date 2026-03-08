@@ -17,13 +17,16 @@ export function renderAgentList(container: HTMLElement, onSelect: SelectCallback
       container.innerHTML = '';
       for (const agent of result.agents) {
         const item = document.createElement('div');
-        item.className = 'agent-item';
+        const isBroken = agent.status === 'broken';
+        item.className = isBroken ? 'agent-item broken' : 'agent-item';
         item.dataset.agentName = agent.name;
         item.innerHTML = `
           <div class="agent-item-name">${escapeHtml(agent.name)}</div>
           <div class="agent-item-desc">${escapeHtml(agent.description)}</div>
+          ${isBroken ? '<div class="agent-item-broken-badge">Sin conexion</div>' : ''}
         `;
         item.addEventListener('click', () => {
+          if (isBroken) return;
           container.querySelectorAll('.agent-item').forEach(el => el.classList.remove('active'));
           item.classList.add('active');
           onSelect(agent);
