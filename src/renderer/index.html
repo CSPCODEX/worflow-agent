@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none';" />
+  <title>Worflow Agent</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <span class="logo">Worflow</span>
+        <button id="btn-new-agent" class="btn-primary">+ Nuevo</button>
+      </div>
+      <div id="agent-list" class="agent-list"></div>
+    </aside>
+    <main id="main-content" class="main-content">
+      <div class="empty-state">
+        <p>Selecciona un agente o crea uno nuevo.</p>
+      </div>
+    </main>
+  </div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

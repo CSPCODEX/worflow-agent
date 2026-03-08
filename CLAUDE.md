@@ -80,6 +80,7 @@ Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de
 | `/acp-debug` | Max | Diagnose ACP agent connection issues |
 | `/bundle-check` | Ada | Analyze and audit Electrobun bundle size |
 | `/scan-secrets` | Cipher | Scan codebase for exposed secrets |
+| `/commit` | Anyone | Commit siguiendo Conventional Commits con co-author devlitus |
 
 ### Agent memory
 

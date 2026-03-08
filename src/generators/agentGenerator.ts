@@ -4,6 +4,46 @@ import type { AgentConfig } from '../cli/prompts';
 import { createDirectory, writeFile, copyTemplateAndInject } from './fileSystem';
 import { logger } from '../utils/logger';
 
+// Core agent creation without CLI spinners — used by both CLI and desktop IPC
+export const generateAgentCore = async (config: AgentConfig, baseDir: string): Promise<void> => {
+  const templatesDir = path.join(__dirname, '..', 'templates', 'basic-agent');
+  const agentDir = path.join(baseDir, config.name);
+
+  await createDirectory(agentDir);
+
+  await copyTemplateAndInject(
+    path.join(templatesDir, 'package.json.tpl'),
+    path.join(agentDir, 'package.json'),
+    {
+      AGENT_NAME: config.name,
+      AGENT_DESCRIPTION: config.description.replace(/"/g, '\\"'),
+    }
+  );
+
+  const envContent = `LM_STUDIO_MODEL=""\n${config.needsWorkspace ? 'WORKSPACE_DIR="./workspace"' : ''}`;
+  await writeFile(path.join(agentDir, '.env'), envContent);
+
+  if (config.needsWorkspace) {
+    await createDirectory(path.join(agentDir, 'workspace'));
+  }
+
+  const agentClass = config.name.charAt(0).toUpperCase() + config.name.slice(1) + 'Agent';
+  await copyTemplateAndInject(
+    path.join(templatesDir, 'index.ts.tpl'),
+    path.join(agentDir, 'index.ts'),
+    {
+      SYSTEM_ROLE: config.role.replace(/"/g, '\\"').replace(/\n/g, '\\n'),
+      AGENT_NAME: config.name,
+      AGENT_CLASS: agentClass,
+    }
+  );
+
+  const result = spawnSync('bun', ['install'], { cwd: agentDir, stdio: 'pipe' });
+  if (result.status !== 0) {
+    throw new Error('bun install failed in agent directory');
+  }
+};
+
 export const generateAgent = async (config: AgentConfig): Promise<void> => {
   const spinner = logger.createSpinner();
   spinner.start(`Creando el entorno para el agente "${config.name}"...`);

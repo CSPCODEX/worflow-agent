@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "bun run src/index.ts",
-    "chat": "bun run src/client.ts"
+    "chat": "bun run src/client.ts",
+    "desktop": "electrobun dev"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -16,7 +17,7 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.15.0",
     "@clack/prompts": "^1.1.0",
-    "@google/generative-ai": "^0.24.1",
+    "electrobun": "^1.15.1",
     "picocolors": "^1.1.1"
   }
 }
