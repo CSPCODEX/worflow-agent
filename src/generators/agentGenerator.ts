@@ -38,8 +38,14 @@ export const generateAgentCore = async (config: AgentConfig, baseDir: string): P
     }
   );
 
-  const result = spawnSync('bun', ['install'], { cwd: agentDir, stdio: 'pipe' });
-  if (result.status !== 0) {
+  const exitCode = await new Promise<number>((resolve) => {
+    const proc = Bun.spawn(['bun', 'install'], {
+      cwd: agentDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    proc.exited.then(resolve);
+  });
+  if (exitCode !== 0) {
     throw new Error('bun install failed in agent directory');
   }
 };
