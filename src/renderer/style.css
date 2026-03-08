@@ -234,6 +234,9 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+  margin-bottom: 30px;
+  /* Extra space for input area */
 }
 
 .chat-header {
@@ -312,7 +315,9 @@ body {
 }
 
 @keyframes blink {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 
 .chat-input-area {
@@ -321,6 +326,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  flex-shrink: 0;
 }
 
 .chat-input-area textarea {
@@ -386,5 +392,7 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
