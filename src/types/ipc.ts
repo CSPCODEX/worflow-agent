@@ -54,6 +54,12 @@ export interface AgentError {
   error: string;
 }
 
+export interface AgentInstallDone {
+  agentDir: string;
+  agentName: string;
+  error?: string;
+}
+
 export type AppRPC = {
   bun: RPCSchema<{
     requests: {
@@ -71,6 +77,7 @@ export type AppRPC = {
       agentMessageChunk: AgentMessageChunk;
       agentMessageEnd: AgentMessageEnd;
       agentError: AgentError;
+      agentInstallDone: AgentInstallDone;
     };
   }>;
 };

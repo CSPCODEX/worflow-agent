@@ -19,6 +19,9 @@ const rpc = Electroview.defineRPC<AppRPC>({
       agentError: (payload) => {
         document.dispatchEvent(new CustomEvent('agent:error', { detail: payload }));
       },
+      agentInstallDone: (payload) => {
+        document.dispatchEvent(new CustomEvent('agent:install-done', { detail: payload }));
+      },
     },
   },
 });
