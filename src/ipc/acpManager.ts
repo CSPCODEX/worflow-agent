@@ -31,8 +31,8 @@ class AcpManager {
     this.onMessage = cb;
   }
 
-  async createSession(agentName: string): Promise<{ success: boolean; sessionId?: string; error?: string }> {
-    const agentDir = path.join(process.cwd(), agentName);
+  async createSession(agentName: string, agentPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+    const agentDir = agentPath;
     const agentEntry = path.join(agentDir, 'index.ts');
     const sessionId = randomUUID();
     const notify = this.onMessage;

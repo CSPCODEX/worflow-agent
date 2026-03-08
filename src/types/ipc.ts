@@ -5,15 +5,18 @@ export type { AgentConfig } from '../cli/prompts';
 
 export interface GenerateAgentResult {
   success: boolean;
-  agentDir?: string;
   error?: string;
 }
+
+export type AgentStatus = 'active' | 'broken';
 
 export interface AgentInfo {
   name: string;
   description: string;
   hasWorkspace: boolean;
-  path: string;
+  status: AgentStatus;
+  id: string;
+  createdAt: string;
 }
 
 export interface ListAgentsResult {
@@ -60,6 +63,70 @@ export interface AgentInstallDone {
   error?: string;
 }
 
+// --- Conversation & Message types ---
+
+export interface ConversationInfo {
+  id: string;
+  agentId: string;
+  title: string;
+  createdAt: string;
+}
+
+export interface MessageInfo {
+  id: string;
+  conversationId: string;
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateConversationParams {
+  agentId: string;
+  title?: string;
+}
+
+export interface CreateConversationResult {
+  success: boolean;
+  conversation?: ConversationInfo;
+  error?: string;
+}
+
+export interface ListConversationsParams {
+  agentId: string;
+}
+
+export interface ListConversationsResult {
+  conversations: ConversationInfo[];
+}
+
+export interface GetMessagesParams {
+  conversationId: string;
+}
+
+export interface GetMessagesResult {
+  messages: MessageInfo[];
+}
+
+export interface SaveMessageParams {
+  conversationId: string;
+  role: string;
+  content: string;
+}
+
+export interface SaveMessageResult {
+  success: boolean;
+  message?: MessageInfo;
+  error?: string;
+}
+
+export interface DeleteConversationParams {
+  conversationId: string;
+}
+
+export interface DeleteConversationResult {
+  success: boolean;
+}
+
 export type AppRPC = {
   bun: RPCSchema<{
     requests: {
@@ -68,6 +135,11 @@ export type AppRPC = {
       createSession: { params: CreateSessionParams; response: CreateSessionResult };
       sendMessage: { params: SendMessageParams; response: SendMessageResult };
       closeSession: { params: { sessionId: string }; response: void };
+      createConversation: { params: CreateConversationParams; response: CreateConversationResult };
+      listConversations: { params: ListConversationsParams; response: ListConversationsResult };
+      getMessages: { params: GetMessagesParams; response: GetMessagesResult };
+      saveMessage: { params: SaveMessageParams; response: SaveMessageResult };
+      deleteConversation: { params: DeleteConversationParams; response: DeleteConversationResult };
     };
     messages: {};
   }>;
