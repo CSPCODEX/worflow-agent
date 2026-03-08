@@ -2,7 +2,7 @@ import { defineElectrobunRPC } from 'electrobun/bun';
 import path from 'path';
 import { promises as fs, existsSync } from 'fs';
 import type { AppRPC, AgentInfo } from '../types/ipc';
-import { generateAgentCore } from '../generators/agentGenerator';
+import { scaffoldAgent, installAgentDeps } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { validateAgentName } from '../cli/validations';
 
@@ -15,8 +15,21 @@ export function createRpc() {
           const nameError = validateAgentName(config.name);
           if (nameError) return { success: false, error: nameError };
           try {
-            await generateAgentCore(config, process.cwd());
-            return { success: true, agentDir: path.join(process.cwd(), config.name) };
+            // Phase 1 — fast: create dirs, copy templates, write files.
+            // Returns immediately so the RPC response is sent well within the 10 s timeout.
+            const agentDir = await scaffoldAgent(config, process.cwd());
+
+            // Phase 2 — slow: bun install runs in background.
+            // When it finishes, notify the renderer via the webview message channel.
+            installAgentDeps(agentDir, (installError) => {
+              (rpc as any).send.agentInstallDone({
+                agentDir,
+                agentName: config.name,
+                ...(installError ? { error: installError } : {}),
+              });
+            });
+
+            return { success: true, agentDir };
           } catch (e: any) {
             return { success: false, error: e.message };
           }

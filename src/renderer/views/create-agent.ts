@@ -58,6 +58,26 @@ export function renderCreateAgent(container: HTMLElement, onDone: DoneCallback) 
     submitBtn.textContent = 'Creando...';
     feedback.className = 'form-feedback';
 
+    // Listener registered before the RPC call so it is in place when the event arrives.
+    // It will fire once and then remove itself.
+    function onInstallDone(e: Event) {
+      const { agentName, error } = (e as CustomEvent).detail as { agentName: string; agentDir: string; error?: string };
+      // Only react to the install event for the agent we just created.
+      if (agentName !== name) return;
+
+      document.removeEventListener('agent:install-done', onInstallDone);
+
+      if (error) {
+        showFeedback('error', `Dependencias no instaladas: ${error}. Ejecuta "bun install" en la carpeta del agente.`);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Crear agente';
+      } else {
+        showFeedback('success', `Agente "${name}" listo.`);
+        setTimeout(() => onDone(), 1500);
+      }
+    }
+    document.addEventListener('agent:install-done', onInstallDone);
+
     try {
       const result = await rpc.request.generateAgent({
         name,
@@ -67,25 +87,28 @@ export function renderCreateAgent(container: HTMLElement, onDone: DoneCallback) 
       });
 
       if (result.success) {
-        showFeedback('success', `Agente "${name}" creado correctamente.`);
+        // Scaffolding complete. Dependencies are being installed in the background.
+        showFeedback('installing', `Estructura creada. Instalando dependencias...`);
         nameInput.value = '';
         descInput.value = '';
         roleInput.value = '';
-        // Notify app to refresh agent list
+        // Notify app to refresh the agent list immediately so the new entry is visible.
         document.dispatchEvent(new CustomEvent('agent:created'));
-        setTimeout(() => onDone(), 1500);
       } else {
+        document.removeEventListener('agent:install-done', onInstallDone);
         showFeedback('error', result.error || 'Error desconocido al crear el agente.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Crear agente';
       }
     } catch (e: any) {
+      document.removeEventListener('agent:install-done', onInstallDone);
       showFeedback('error', e.message || 'Error al comunicarse con el proceso principal.');
-    } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Crear agente';
     }
   });
 
-  function showFeedback(type: 'success' | 'error', message: string) {
+  function showFeedback(type: 'success' | 'error' | 'installing', message: string) {
     feedback.textContent = message;
     feedback.className = `form-feedback ${type}`;
   }

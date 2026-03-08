@@ -4,8 +4,9 @@ import type { AgentConfig } from '../cli/prompts';
 import { createDirectory, writeFile, copyTemplateAndInject } from './fileSystem';
 import { logger } from '../utils/logger';
 
-// Core agent creation without CLI spinners — used by both CLI and desktop IPC
-export const generateAgentCore = async (config: AgentConfig, baseDir: string): Promise<void> => {
+// Phase 1: create directories and write all template files — fast, no network I/O.
+// Returns the resolved agentDir so the caller can reference it immediately.
+export const scaffoldAgent = async (config: AgentConfig, baseDir: string): Promise<string> => {
   const templatesDir = path.join(__dirname, '..', 'templates', 'basic-agent');
   const agentDir = path.join(baseDir, config.name);
 
@@ -37,6 +38,35 @@ export const generateAgentCore = async (config: AgentConfig, baseDir: string): P
       AGENT_CLASS: agentClass,
     }
   );
+
+  return agentDir;
+};
+
+// Phase 2: run `bun install` in the scaffolded directory.
+// Calls onInstallDone when finished; pass a callback instead of awaiting so the
+// caller can return an RPC response before the install completes.
+export const installAgentDeps = (
+  agentDir: string,
+  onInstallDone: (error?: string) => void
+): void => {
+  const proc = Bun.spawn(['bun', 'install'], {
+    cwd: agentDir,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  proc.exited.then((code) => {
+    if (code === 0) {
+      onInstallDone();
+    } else {
+      onInstallDone('bun install failed in agent directory');
+    }
+  });
+};
+
+// Core agent creation without CLI spinners — used by both CLI and desktop IPC.
+// The desktop IPC path should prefer scaffoldAgent + installAgentDeps separately
+// to avoid blocking the RPC handler during the slow network install.
+export const generateAgentCore = async (config: AgentConfig, baseDir: string): Promise<void> => {
+  const agentDir = await scaffoldAgent(config, baseDir);
 
   const exitCode = await new Promise<number>((resolve) => {
     const proc = Bun.spawn(['bun', 'install'], {
