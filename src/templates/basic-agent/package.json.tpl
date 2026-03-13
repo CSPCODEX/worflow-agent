@@ -8,8 +8,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^0.15.0",
-    "@lmstudio/sdk": "^1.0.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5"{{PROVIDER_DEP}}
   },
   "devDependencies": {
     "@types/bun": "latest"
