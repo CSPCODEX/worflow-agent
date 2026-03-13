@@ -23,3 +23,5 @@ docs/
 |---|---|---|
 | [electrobun-migration](./features/electrobun-migration/) | En progreso | Cloe |
 | [persistence](./features/persistence/) | Listo para implementacion | Cloe |
+| [prompt-enhancement](./features/prompt-enhancement/) | Listo para implementacion | Cloe |
+| [multi-provider-support](./features/multi-provider-support/) | Listo para implementacion | Cloe |

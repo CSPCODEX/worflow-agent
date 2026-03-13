@@ -43,4 +43,12 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
     `,
   },
+  {
+    version: 2,
+    up: `ALTER TABLE agents ADD COLUMN enhance_status TEXT NOT NULL DEFAULT 'pending';`,
+  },
+  {
+    version: 3,
+    up: `ALTER TABLE agents ADD COLUMN provider TEXT NOT NULL DEFAULT 'lmstudio';`,
+  },
 ];

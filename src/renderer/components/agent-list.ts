@@ -23,6 +23,7 @@ export function renderAgentList(container: HTMLElement, onSelect: SelectCallback
         item.innerHTML = `
           <div class="agent-item-name">${escapeHtml(agent.name)}</div>
           <div class="agent-item-desc">${escapeHtml(agent.description)}</div>
+          <div class="agent-item-provider">${escapeHtml(agent.provider ?? 'lmstudio')}</div>
           ${isBroken ? '<div class="agent-item-broken-badge">Sin conexion</div>' : ''}
         `;
         item.addEventListener('click', () => {

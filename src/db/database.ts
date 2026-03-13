@@ -40,7 +40,15 @@ function applyMigrations(db: Database): void {
   const pending = migrations.filter((m) => m.version > currentVersion);
 
   for (const migration of pending) {
-    db.exec(migration.up);
+    try {
+      db.exec(migration.up);
+    } catch (err: any) {
+      if (typeof err?.message === 'string' && err.message.includes('duplicate column name')) {
+        // Column already exists — migration already applied partially; safe to continue.
+      } else {
+        throw err;
+      }
+    }
     db.run('INSERT OR REPLACE INTO schema_version (version) VALUES (?)', [migration.version]);
   }
 }

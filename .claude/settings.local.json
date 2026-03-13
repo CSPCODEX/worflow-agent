@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:blackboard.sh)",
+      "Bash(bunx electrobun:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(bun add:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(bun run:*)",
+      "Bash(bun build:*)",
+      "Bash(cat:*)"
+    ]
+  }
+}

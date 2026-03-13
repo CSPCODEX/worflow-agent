@@ -1,21 +1,66 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { mkdirSync, rmSync } from 'fs';
-import type { AppRPC, AgentInfo } from '../types/ipc';
-import { scaffoldAgent, installAgentDeps } from '../generators/agentGenerator';
+import type { AppRPC, AgentInfo, AgentEnhanceDone, ProviderId } from '../types/ipc';
+import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { validateAgentName } from '../cli/validations';
 import { AGENTS_DIR } from '../db/userDataDir';
 import { agentRepository } from '../db/agentRepository';
 import { conversationRepository, messageRepository } from '../db/conversationRepository';
+import { enhancePrompt } from '../enhancer/promptEnhancer';
+
+async function enhanceAndPersist(
+  agentId: string,
+  agentDir: string,
+  agentName: string,
+  originalPrompt: string,
+  rpcSend: (payload: AgentEnhanceDone) => void
+): Promise<void> {
+  const result = await enhancePrompt(originalPrompt, agentName);
+
+  // 'lmstudio' maps to 'done' in the DB schema; 'static' and 'failed' are stored as-is.
+  const dbStatus = result.strategy === 'lmstudio' ? 'done' : result.strategy;
+  agentRepository.updateSystemPrompt(agentId, result.enhancedPrompt, dbStatus);
+
+  try {
+    await rewriteAgentIndexTs(agentDir, result.enhancedPrompt);
+  } catch (e: any) {
+    console.error('[enhancer] No se pudo reescribir index.ts:', e.message);
+  }
+
+  rpcSend({
+    agentName,
+    agentDir,
+    strategy: result.strategy,
+    ...(result.error ? { error: result.error } : {}),
+  });
+}
 
 export function createRpc() {
   const rpc = defineElectrobunRPC<AppRPC, 'bun'>('bun', {
     handlers: {
       requests: {
+        listProviders: async () => {
+          return {
+            providers: [
+              { id: 'lmstudio' as ProviderId, label: 'LM Studio', requiresApiKey: false, apiKeyEnvVar: null, defaultModel: '', isLocal: true },
+              { id: 'ollama' as ProviderId, label: 'Ollama', requiresApiKey: false, apiKeyEnvVar: null, defaultModel: 'llama3.2', isLocal: true },
+              { id: 'openai' as ProviderId, label: 'OpenAI', requiresApiKey: true, apiKeyEnvVar: 'OPENAI_API_KEY', defaultModel: 'gpt-4o-mini', isLocal: false },
+              { id: 'anthropic' as ProviderId, label: 'Anthropic', requiresApiKey: true, apiKeyEnvVar: 'ANTHROPIC_API_KEY', defaultModel: 'claude-3-5-haiku-20241022', isLocal: false },
+              { id: 'gemini' as ProviderId, label: 'Gemini', requiresApiKey: true, apiKeyEnvVar: 'GEMINI_API_KEY', defaultModel: 'gemini-2.0-flash', isLocal: false },
+            ],
+          };
+        },
+
         generateAgent: async (config) => {
           if (!config?.name) return { success: false, error: 'Agent name required' };
           const nameError = validateAgentName(config.name);
           if (nameError) return { success: false, error: nameError };
+
+          const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
+          if (config.provider && !VALID_PROVIDERS.includes(config.provider as ProviderId)) {
+            return { success: false, error: `Proveedor inválido: "${config.provider}".` };
+          }
 
           // Validate against DB before touching the filesystem
           const existing = agentRepository.findByName(config.name);
@@ -28,17 +73,19 @@ export function createRpc() {
             const agentDir = await scaffoldAgent(config, AGENTS_DIR);
 
             // Register in DB immediately after scaffolding so listAgents can see it.
+            // If the insert fails, roll back the scaffolded directory to avoid orphaned folders.
+            let insertedAgent;
             try {
-              agentRepository.insert({
+              insertedAgent = agentRepository.insert({
                 name: config.name,
                 description: config.description,
                 systemPrompt: config.role,
                 model: '',
                 hasWorkspace: config.needsWorkspace ?? false,
                 path: agentDir,
+                provider: config.provider ?? 'lmstudio',
               });
             } catch (dbErr: any) {
-              // Rollback: remove the scaffolded directory to avoid orphaned folders
               try { rmSync(agentDir, { recursive: true, force: true }); } catch {}
               throw dbErr;
             }
@@ -51,6 +98,15 @@ export function createRpc() {
                 ...(installError ? { error: installError } : {}),
               });
             });
+
+            // Phase 3 — enhance: improve system prompt in background (parallel to bun install).
+            enhanceAndPersist(
+              insertedAgent.id,
+              agentDir,
+              config.name,
+              config.role,
+              (payload) => (rpc as any).send.agentEnhanceDone(payload)
+            ).catch((e) => console.error('[enhancer] Error inesperado en enhance:', e));
 
             return { success: true };
           } catch (e: any) {
@@ -67,6 +123,7 @@ export function createRpc() {
             hasWorkspace: r.hasWorkspace,
             status: r.status,
             createdAt: r.createdAt,
+            provider: (r.provider ?? 'lmstudio') as ProviderId,
           }));
           return { agents };
         },

@@ -17,14 +17,44 @@ import type {
   PromptResponse,
   CancelNotification,
 } from '@agentclientprotocol/sdk';
-import { LMStudioClient } from '@lmstudio/sdk';
+import type { LLMProvider } from './providers/types';
+
+function formatError(err: any): string {
+  const msg: string = err?.message ?? 'error desconocido';
+  // Quota / rate limit
+  if (msg.includes('429') || msg.includes('quota') || msg.includes('Too Many Requests') || msg.includes('rate limit')) {
+    return 'Sin créditos o cuota agotada en el proveedor. Revisa tu plan y facturación.';
+  }
+  // Auth
+  if (msg.includes('401') || msg.includes('API_KEY_INVALID') || msg.includes('invalid api key') || msg.includes('Unauthorized')) {
+    return 'API key inválida o revocada. Verifica el valor en tu archivo .env.';
+  }
+  // Billing
+  if (msg.includes('402') || msg.includes('insufficient') || msg.includes('billing')) {
+    return 'Saldo insuficiente en tu cuenta del proveedor. Añade créditos para continuar.';
+  }
+  // Permission
+  if (msg.includes('403') || msg.includes('permission') || msg.includes('forbidden')) {
+    return 'Acceso denegado. Verifica que tu API key tenga los permisos necesarios.';
+  }
+  // Model not found
+  if (msg.includes('404') || msg.includes('model not found') || msg.includes('does not exist')) {
+    return 'Modelo no encontrado. Verifica el valor de la variable MODEL en tu archivo .env.';
+  }
+  // Si el error ya es un mensaje amigable (lanzado por los providers), devolverlo tal cual
+  if (msg.length < 120 && !msg.includes('http') && !msg.includes('{')) {
+    return msg;
+  }
+  // Error desconocido — mostrar solo la primera línea para no volcar JSON/stacktrace
+  return msg.split('\n')[0].slice(0, 120);
+}
+import { createProvider } from './providers/factory';
 import { Readable, Writable } from 'node:stream';
 import * as readline from 'node:readline';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const lmClient = new LMStudioClient();
 const SYSTEM_PROMPT = "{{SYSTEM_ROLE}}";
 
 type Message = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -32,9 +62,11 @@ type Message = { role: 'user' | 'assistant' | 'system'; content: string };
 class {{AGENT_CLASS}} implements Agent {
   private connection: AgentSideConnection;
   private sessions = new Map<string, Message[]>();
+  private provider: LLMProvider;
 
-  constructor(connection: AgentSideConnection) {
+  constructor(connection: AgentSideConnection, provider: LLMProvider) {
     this.connection = connection;
+    this.provider = provider;
   }
 
   async initialize(_params: InitializeRequest): Promise<InitializeResponse> {
@@ -71,41 +103,29 @@ class {{AGENT_CLASS}} implements Agent {
     console.error(`[{{AGENT_NAME}}] prompt: ${userText.substring(0, 60)}`);
 
     try {
-      const model = await (process.env.LM_STUDIO_MODEL
-        ? lmClient.llm.model(process.env.LM_STUDIO_MODEL)
-        : lmClient.llm.model());
-      let fullContent = '';
-      for await (const fragment of model.respond([
+      const messages: Message[] = [
         { role: 'system', content: SYSTEM_PROMPT },
         ...history,
         { role: 'user', content: userText },
-      ])) {
-        fullContent += fragment.content;
-      }
+      ];
 
-      // Strip internal reasoning tokens emitted by extended-thinking models:
-      //   <|channel|>final<|message|>...<|end|>  (Qwen / channel-format models)
-      //   <think>...</think>                      (DeepSeek R1 / think-tag models)
-      const channelMatch = fullContent.match(/<\|channel\|>final<\|message\|>([\s\S]*?)(?:<\|end\|>|$)/);
-      const responseText = channelMatch
-        ? channelMatch[1].trim()
-        : fullContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim() || fullContent;
+      const responseText = await this.provider.chatStream(messages, (chunk) => {
+        this.connection.sessionUpdate({
+          sessionId: params.sessionId,
+          update: {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: chunk },
+          },
+        });
+      });
 
       history.push({ role: 'user', content: userText });
       history.push({ role: 'assistant', content: responseText });
       this.sessions.set(params.sessionId, history);
 
-      await this.connection.sessionUpdate({
-        sessionId: params.sessionId,
-        update: {
-          sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: responseText },
-        },
-      });
-
       console.error(`[{{AGENT_NAME}}] respuesta enviada`);
     } catch (e: any) {
-      const errorMsg = `[{{AGENT_NAME}}] Error al procesar el prompt: ${e?.message ?? 'error desconocido'}. Verifica que LM Studio esta corriendo en localhost:1234 y tiene un modelo cargado.`;
+      const errorMsg = `[{{AGENT_NAME}}] ${formatError(e)}`;
       console.error(errorMsg);
       await this.connection.sessionUpdate({
         sessionId: params.sessionId,
@@ -122,8 +142,11 @@ class {{AGENT_CLASS}} implements Agent {
   async cancel(_params: CancelNotification): Promise<void> {}
 }
 
+// Initialize the provider once before branching into TTY or ACP mode
+const provider = await createProvider();
+
 if (process.stdin.isTTY) {
-  // Modo interactivo: terminal detectada, se usa REPL directo con LM Studio
+  // Modo interactivo: terminal detectada, se usa REPL directo
   const history: Message[] = [];
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
@@ -135,26 +158,20 @@ if (process.stdin.isTTY) {
       if (!trimmed) { ask(); return; }
 
       try {
-        const model = await (process.env.LM_STUDIO_MODEL
-          ? lmClient.llm.model(process.env.LM_STUDIO_MODEL)
-          : lmClient.llm.model());
-        process.stdout.write(`\n{{AGENT_NAME}}: `);
-        let ttyContent = '';
-        for await (const fragment of model.respond([
+        const messages: Message[] = [
           { role: 'system', content: SYSTEM_PROMPT },
           ...history,
           { role: 'user', content: trimmed },
-        ])) {
-          ttyContent += fragment.content;
-          process.stdout.write(fragment.content);
-        }
+        ];
+
+        process.stdout.write(`\n{{AGENT_NAME}}: `);
+        const response = await provider.chatStream(messages, (chunk) => {
+          process.stdout.write(chunk);
+        });
         process.stdout.write('\n\n');
-        const ttyChannelMatch = ttyContent.match(/<\|channel\|>final<\|message\|>([\s\S]*?)(?:<\|end\|>|$)/);
-        const ttyResponse = ttyChannelMatch
-          ? ttyChannelMatch[1].trim()
-          : ttyContent.replace(/<think>[\s\S]*?<\/think>/g, '').trim() || ttyContent;
+
         history.push({ role: 'user', content: trimmed });
-        history.push({ role: 'assistant', content: ttyResponse });
+        history.push({ role: 'assistant', content: response });
       } catch (e: any) {
         console.error(`[error] ${e.message}`);
       }
@@ -168,7 +185,7 @@ if (process.stdin.isTTY) {
   const input = Readable.toWeb(process.stdin);
   const stream = ndJsonStream(output, input);
 
-  new AgentSideConnection((conn) => new {{AGENT_CLASS}}(conn), stream);
+  new AgentSideConnection((conn) => new {{AGENT_CLASS}}(conn, provider), stream);
 
   console.error('\n[{{AGENT_NAME}}] Agente ACP listo. Esperando conexion via stdin/stdout...');
 }

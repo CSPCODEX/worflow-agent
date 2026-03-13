@@ -3,6 +3,21 @@ import type { AgentConfig } from '../cli/prompts';
 
 export type { AgentConfig } from '../cli/prompts';
 
+export type ProviderId = 'lmstudio' | 'ollama' | 'openai' | 'anthropic' | 'gemini';
+
+export interface ProviderInfo {
+  id: ProviderId;
+  label: string;
+  requiresApiKey: boolean;
+  apiKeyEnvVar: string | null;
+  defaultModel: string;
+  isLocal: boolean;
+}
+
+export interface ListProvidersResult {
+  providers: ProviderInfo[];
+}
+
 export interface GenerateAgentResult {
   success: boolean;
   error?: string;
@@ -17,6 +32,7 @@ export interface AgentInfo {
   status: AgentStatus;
   id: string;
   createdAt: string;
+  provider: ProviderId;
 }
 
 export interface ListAgentsResult {
@@ -60,6 +76,13 @@ export interface AgentError {
 export interface AgentInstallDone {
   agentDir: string;
   agentName: string;
+  error?: string;
+}
+
+export interface AgentEnhanceDone {
+  agentName: string;
+  agentDir: string;
+  strategy: 'lmstudio' | 'static' | 'failed';
   error?: string;
 }
 
@@ -132,6 +155,7 @@ export type AppRPC = {
     requests: {
       generateAgent: { params: AgentConfig; response: GenerateAgentResult };
       listAgents: { params: undefined; response: ListAgentsResult };
+      listProviders: { params: undefined; response: ListProvidersResult };
       createSession: { params: CreateSessionParams; response: CreateSessionResult };
       sendMessage: { params: SendMessageParams; response: SendMessageResult };
       closeSession: { params: { sessionId: string }; response: void };
@@ -150,6 +174,7 @@ export type AppRPC = {
       agentMessageEnd: AgentMessageEnd;
       agentError: AgentError;
       agentInstallDone: AgentInstallDone;
+      agentEnhanceDone: AgentEnhanceDone;
     };
   }>;
 };

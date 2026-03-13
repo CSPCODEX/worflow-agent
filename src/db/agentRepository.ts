@@ -12,6 +12,8 @@ export interface AgentRow {
   path: string;
   status: string;
   created_at: string;
+  enhance_status: string;
+  provider: string;
 }
 
 export interface AgentRecord {
@@ -24,6 +26,7 @@ export interface AgentRecord {
   path: string;
   status: 'active' | 'broken';
   createdAt: string;
+  provider: string;
 }
 
 function rowToRecord(row: AgentRow): AgentRecord {
@@ -37,6 +40,7 @@ function rowToRecord(row: AgentRow): AgentRecord {
     path: row.path,
     status: row.status as 'active' | 'broken',
     createdAt: row.created_at,
+    provider: row.provider ?? 'lmstudio',
   };
 }
 
@@ -49,15 +53,16 @@ export const agentRepository = {
     model: string;
     hasWorkspace: boolean;
     path: string;
+    provider: string;
   }): AgentRecord {
     const db = getDatabase();
     const id = randomUUID();
     const now = new Date().toISOString();
 
     db.run(
-      `INSERT INTO agents (id, name, description, system_prompt, model, has_workspace, path, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
-      [id, params.name, params.description, params.systemPrompt, params.model, params.hasWorkspace ? 1 : 0, params.path, now]
+      `INSERT INTO agents (id, name, description, system_prompt, model, has_workspace, path, status, created_at, provider)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+      [id, params.name, params.description, params.systemPrompt, params.model, params.hasWorkspace ? 1 : 0, params.path, now, params.provider]
     );
 
     return {
@@ -70,6 +75,7 @@ export const agentRepository = {
       path: params.path,
       status: 'active',
       createdAt: now,
+      provider: params.provider,
     };
   },
 
@@ -123,5 +129,14 @@ export const agentRepository = {
   delete(id: string): void {
     const db = getDatabase();
     db.run('DELETE FROM agents WHERE id = ?', [id]);
+  },
+
+  /** Update system_prompt and enhance_status after the enhance background job completes. */
+  updateSystemPrompt(id: string, systemPrompt: string, enhanceStatus: 'done' | 'static' | 'failed'): void {
+    const db = getDatabase();
+    db.run(
+      'UPDATE agents SET system_prompt = ?, enhance_status = ? WHERE id = ?',
+      [systemPrompt, enhanceStatus, id]
+    );
   },
 };
