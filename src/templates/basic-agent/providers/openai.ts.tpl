@@ -23,21 +23,34 @@ export class OpenAIProvider implements LLMProvider {
   async chatStream(messages: Message[], onChunk: (text: string) => void): Promise<string> {
     const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 
-    const stream = await this.client.chat.completions.create({
-      model,
-      messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
-      stream: true,
-    });
+    try {
+      const stream = await this.client.chat.completions.create({
+        model,
+        messages: messages as OpenAI.Chat.ChatCompletionMessageParam[],
+        stream: true,
+      });
 
-    let fullContent = '';
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content ?? '';
-      if (text) {
-        fullContent += text;
-        onChunk(text);
+      let fullContent = '';
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content ?? '';
+        if (text) {
+          fullContent += text;
+          onChunk(text);
+        }
       }
-    }
 
-    return fullContent;
+      return fullContent;
+    } catch (err: any) {
+      if (err?.status === 401) {
+        throw new Error('API key de OpenAI inválida o revocada. Verifica el valor de OPENAI_API_KEY en tu archivo .env.');
+      }
+      if (err?.status === 429) {
+        throw new Error('Sin créditos o cuota agotada en OpenAI. Revisa tu plan y facturación en platform.openai.com.');
+      }
+      if (err?.status === 402) {
+        throw new Error('Saldo insuficiente en tu cuenta de OpenAI. Añade créditos en platform.openai.com.');
+      }
+      throw err;
+    }
   }
 }

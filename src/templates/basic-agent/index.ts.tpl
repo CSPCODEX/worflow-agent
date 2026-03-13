@@ -18,6 +18,36 @@ import type {
   CancelNotification,
 } from '@agentclientprotocol/sdk';
 import type { LLMProvider } from './providers/types';
+
+function formatError(err: any): string {
+  const msg: string = err?.message ?? 'error desconocido';
+  // Quota / rate limit
+  if (msg.includes('429') || msg.includes('quota') || msg.includes('Too Many Requests') || msg.includes('rate limit')) {
+    return 'Sin créditos o cuota agotada en el proveedor. Revisa tu plan y facturación.';
+  }
+  // Auth
+  if (msg.includes('401') || msg.includes('API_KEY_INVALID') || msg.includes('invalid api key') || msg.includes('Unauthorized')) {
+    return 'API key inválida o revocada. Verifica el valor en tu archivo .env.';
+  }
+  // Billing
+  if (msg.includes('402') || msg.includes('insufficient') || msg.includes('billing')) {
+    return 'Saldo insuficiente en tu cuenta del proveedor. Añade créditos para continuar.';
+  }
+  // Permission
+  if (msg.includes('403') || msg.includes('permission') || msg.includes('forbidden')) {
+    return 'Acceso denegado. Verifica que tu API key tenga los permisos necesarios.';
+  }
+  // Model not found
+  if (msg.includes('404') || msg.includes('model not found') || msg.includes('does not exist')) {
+    return 'Modelo no encontrado. Verifica el valor de la variable MODEL en tu archivo .env.';
+  }
+  // Si el error ya es un mensaje amigable (lanzado por los providers), devolverlo tal cual
+  if (msg.length < 120 && !msg.includes('http') && !msg.includes('{')) {
+    return msg;
+  }
+  // Error desconocido — mostrar solo la primera línea para no volcar JSON/stacktrace
+  return msg.split('\n')[0].slice(0, 120);
+}
 import { createProvider } from './providers/factory';
 import { Readable, Writable } from 'node:stream';
 import * as readline from 'node:readline';
@@ -95,7 +125,7 @@ class {{AGENT_CLASS}} implements Agent {
 
       console.error(`[{{AGENT_NAME}}] respuesta enviada`);
     } catch (e: any) {
-      const errorMsg = `[{{AGENT_NAME}}] Error al procesar el prompt: ${e?.message ?? 'error desconocido'}.`;
+      const errorMsg = `[{{AGENT_NAME}}] ${formatError(e)}`;
       console.error(errorMsg);
       await this.connection.sessionUpdate({
         sessionId: params.sessionId,

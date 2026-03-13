@@ -31,22 +31,32 @@ export class AnthropicProvider implements LLMProvider {
 
     let fullContent = '';
 
-    const stream = this.client.messages.stream({
-      model,
-      max_tokens: 8192,
-      ...(system ? { system } : {}),
-      messages: userMessages as Anthropic.MessageParam[],
-    });
+    try {
+      const stream = this.client.messages.stream({
+        model,
+        max_tokens: 8192,
+        ...(system ? { system } : {}),
+        messages: userMessages as Anthropic.MessageParam[],
+      });
 
-    for await (const event of stream) {
-      if (
-        event.type === 'content_block_delta' &&
-        event.delta.type === 'text_delta'
-      ) {
-        const text = event.delta.text;
-        fullContent += text;
-        onChunk(text);
+      for await (const event of stream) {
+        if (
+          event.type === 'content_block_delta' &&
+          event.delta.type === 'text_delta'
+        ) {
+          const text = event.delta.text;
+          fullContent += text;
+          onChunk(text);
+        }
       }
+    } catch (err: any) {
+      if (err?.status === 401) {
+        throw new Error('API key de Anthropic inválida o revocada. Verifica el valor de ANTHROPIC_API_KEY en tu archivo .env.');
+      }
+      if (err?.status === 429) {
+        throw new Error('Sin créditos o cuota agotada en Anthropic. Revisa tu plan y facturación en console.anthropic.com.');
+      }
+      throw err;
     }
 
     return fullContent;
