@@ -88,12 +88,12 @@ Each agent maintains persistent memory across sessions. **This is mandatory — 
 
 Memory files live at:
 ```
-C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\
-  ├── leo-memory.md
-  ├── cloe-memory.md
-  ├── max-memory.md
-  ├── ada-memory.md
-  └── cipher-memory.md
+.claude/agent-memory/
+  ├── leo/MEMORY.md
+  ├── cloe/MEMORY.md
+  ├── max/MEMORY.md
+  ├── ada/MEMORY.md
+  └── cipher/MEMORY.md
 ```
 
 **Rules for every agent:**
@@ -104,12 +104,12 @@ C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\
    - The user references previous work or sessions
    - You are unsure whether a pattern/approach has already been established
 
-   Memory file paths:
-   - Leo: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/leo-memory.md`
-   - Cloe: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/cloe-memory.md`
-   - Max: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/max-memory.md`
-   - Ada: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/ada-memory.md`
-   - Cipher: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/cipher-memory.md`
+   Memory file paths (relative to repo root):
+   - Leo: `.claude/agent-memory/leo/MEMORY.md`
+   - Cloe: `.claude/agent-memory/cloe/MEMORY.md`
+   - Max: `.claude/agent-memory/max/MEMORY.md`
+   - Ada: `.claude/agent-memory/ada/MEMORY.md`
+   - Cipher: `.claude/agent-memory/cipher/MEMORY.md`
 
    > The critical patterns from all agents are already summarized in `MEMORY.md` (always loaded). Use individual files only when deeper historical context is needed.
 
