@@ -158,6 +158,14 @@ Cambios aplicados:
 `bug/005-rpc-timeout-channel-tags`
 
 ## Metricas de Max
+archivos_leidos: 7
+bugs_criticos: 0
+bugs_altos: 1
+items_checklist_verificados: 8/8
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 - Archivos auditados: 7 (acpManager.ts, handlers.ts, index.ts.tpl, chat.ts, app.ts, agent-list.ts, create-agent.ts)
 - Lineas de codigo revisadas: ~500
 - Bugs encontrados: 2 (causas raiz independientes)

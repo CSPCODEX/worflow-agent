@@ -168,6 +168,15 @@ El fix es correcto y minimal. No hay codigo muerto obvio. Posibles puntos de ate
 
 ## Metricas de Max
 
+archivos_leidos: 5
+bugs_criticos: 0
+bugs_altos: 0
+items_checklist_verificados: 7/7
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 | Metrica | Valor |
 |---|---|
 | Archivos inspeccionados | 5 |

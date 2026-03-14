@@ -296,6 +296,14 @@ document.addEventListener('agent:deleted', (e) => {
 
 ## Metricas de Leo
 
+archivos_leidos: 8
+archivos_creados: 1
+archivos_modificados: 5
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 - Archivos nuevos: 1 (`confirm-dialog.ts`)
 - Archivos modificados: 5 (`ipc.ts`, `acpManager.ts`, `handlers.ts`, `agent-list.ts`, `app.ts`)
 - Nuevos canales IPC: 1 (`deleteAgent`)
@@ -332,6 +340,14 @@ document.addEventListener('agent:deleted', (e) => {
 
 ## Metricas de Cloe
 
+archivos_leidos: 6
+archivos_creados: 1
+archivos_modificados: 5
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 - Lineas agregadas: ~95
 - Lineas modificadas: ~10
 - Archivos nuevos: 1
@@ -357,6 +373,13 @@ document.addEventListener('agent:deleted', (e) => {
 - El `agentName` que llega desde el renderer al handler `deleteAgent` se usa en `closeSessionByAgentName` con `.trim()` pero no hay validacion adicional de caracteres — verificar que el handler de confirmacion en frontend no permita agentNames manipulados.
 
 ## Metricas de Ada
+
+archivos_leidos: 5
+archivos_modificados: 2
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 
 - Archivos modificados: 2
 - Lineas cambiadas: +8 / -4

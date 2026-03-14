@@ -83,8 +83,12 @@ Antes de escribir "Siguiente: @max..." en el handoff, rellena y verifica este ch
 ### Checklist Cloe
 - [ ] Manifiesto completo: cada archivo creado/modificado con ruta absoluta y lineas afectadas
 - [ ] Tipos TypeScript implementados segun contratos de Leo (o documentado por que difieren)
+- [ ] bun run tsc --noEmit ejecutado — 0 errores nuevos antes de entregar
+- [ ] Strings que viajan por IPC son ASCII puro (sin tildes, acentos ni chars > 0x7E)
 - [ ] Fire-and-forget en todos los handlers IPC que lanzan subprocesos (Bun.spawn sin await)
 - [ ] Input validation en todos los IPC handlers que tocan filesystem o spawn
+- [ ] DB: si INSERT falla despues de scaffold, rollback del directorio creado (y viceversa)
+- [ ] initDatabase() en try/catch con process.exit(1) si lanza
 - [ ] Sin `any` sin justificacion escrita en el handoff
 - [ ] Labels HTML: todos tienen for+id matching, ningun input sin label
 ```

@@ -80,6 +80,8 @@ Antes de escribir "Siguiente: @cloe..." en el handoff, rellena y verifica este c
 ### Checklist Leo
 - [ ] Cada archivo a crear/modificar tiene ruta absoluta desde repo root
 - [ ] Contratos IPC escritos con tipos TypeScript completos inline (no "ver ipc-contracts.md")
+- [ ] Tipos de retorno de funciones nuevas especificados con tipos TypeScript concretos (no "any")
+- [ ] tsconfig flags que afectan la implementacion declarados (strict, noUncheckedIndexedAccess, etc.)
 - [ ] Lista de archivos ordenada por prioridad de implementacion
 - [ ] Sin "ver plan.md" ni "ver acceptance.md" — todo el contexto inline en status.md
 - [ ] Limitaciones de Electrobun verificadas: fire-and-forget en handlers, no await a subprocesos

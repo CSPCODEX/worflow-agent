@@ -131,4 +131,12 @@ Confianza en las optimizaciones: alta / media / baja
 
 ## Pendientes para futuras iteraciones
 - [optimizaciones que detectaste pero no aplicaste y por que]
+
+## Archivos para auditoria de Cipher
+| Archivo | Lineas relevantes | Razon |
+|---------|-------------------|-------|
+| src/ipc/handlers.ts | 45-89 | nueva validacion de input |
+| src/renderer/chat.ts | 1-120 | nuevo componente con innerHTML |
 ```
+
+La tabla "Archivos para auditoria de Cipher" es obligatoria. Incluye solo los archivos que tocaste tu o que Cloe toco en esta feature — no el repo entero. Cipher empieza por esta lista.

@@ -57,8 +57,10 @@ Si la fase es `max`:
 ### 6. Verificar gaps declarados
 
 Buscar la seccion "Gaps y dudas de <Agente>" o "No verificado por Max" o "No optimizado por Ada":
-- Si la seccion no existe, marcar como WARNING (no FALLO — el agente puede no haber tenido gaps)
+- Si la seccion no existe, marcar como WARNING
 - Si existe pero esta vacia sin "Ninguno.", marcar como WARNING
+- Si `gaps_declarados: 0` Y la seccion de gaps dice "Ninguno." sin ninguna justificacion → marcar como WARNING con mensaje: "gaps_declarados=0 sin justificacion — verificar que el agente realmente confirmo cada punto, no que omitio declarar incertidumbre"
+- Un `gaps_declarados: 0` valido requiere al menos una frase como "Ninguno. Todos los puntos fueron verificados con [evidencia]."
 
 ### 7. Generar reporte
 

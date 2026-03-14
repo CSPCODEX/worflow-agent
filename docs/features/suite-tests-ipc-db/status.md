@@ -854,7 +854,7 @@ Confianza en la auditoria: alta
 ## Metricas de Leo
 - archivos_leidos: 14
 - archivos_creados: 4 (plan.md, ipc-contracts.md, data-flows.md, acceptance.md)
-- rework: 0
+- rework: no
 - iteraciones: 1
 - confianza: alta
 - gaps_declarados: 2 (mock.module Bun, existsSync en broken detection)
@@ -863,7 +863,7 @@ Confianza en la auditoria: alta
 - archivos_leidos: 11
 - archivos_creados: 11
 - archivos_modificados: 2
-- rework: si (2 archivos — testDb.ts y migrations.test.ts por TS2554 con never[] vs []; listAgents.test.ts por noUncheckedIndexedAccess)
+- rework: si
 - iteraciones: 2
 - confianza: alta
 - gaps_declarados: 1
@@ -892,7 +892,7 @@ Confianza en la auditoria: alta
 - gaps_declarados: 1 (Electrobun build y bundle size fuera de scope — confirmado por Max)
 
 ## Metricas de Cipher
-- archivos_auditados: 12 (handlerLogic.ts, handlers.ts, 10 archivos de tests, userDataDir.ts, desktop/index.ts referenciados para evidencia)
+- archivos_leidos: 12
 - vulnerabilidades_criticas: 0
 - vulnerabilidades_altas: 0
 - vulnerabilidades_medias: 0
