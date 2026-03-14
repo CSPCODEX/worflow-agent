@@ -3,12 +3,16 @@
  *
  * Usage:
  *   bun run scripts/metrics.ts
+ *   bun run scripts/metrics.ts --trigger post-feature/remove-agentdir-ipc
+ *   bun run scripts/metrics.ts --history
+ *   bun run scripts/metrics.ts --compare 3 5
  *   bun run scripts/metrics.ts --desde 2026-01-01 --hasta 2026-03-31
  *   bun run scripts/metrics.ts --json
  */
 
 import { readdirSync, readFileSync, existsSync, mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
+import { Database } from "bun:sqlite";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,7 +28,7 @@ interface AgentMetrics {
   // Max-specific
   bugs_criticos?: number;
   bugs_altos?: number;
-  items_checklist_verificados?: string; // e.g. "6/8"
+  items_checklist_verificados?: string;
   // Ada-specific
   bundle_antes_mb?: number;
   bundle_despues_mb?: number;
@@ -48,6 +52,51 @@ interface PipelineRecord {
   metrics: Partial<Record<string, AgentMetrics>>;
 }
 
+interface AgentAggregate {
+  agent: string;
+  sessions: number;
+  rework_count: number;
+  confianza_baja_count: number;
+  gaps_declarados_total: number;
+  archivos_leidos_total: number;
+  iteraciones_total: number;
+  bugs_criticos_total: number;
+  bundle_delta_total: number;
+  bundle_sessions: number;
+  vulns_criticas_total: number;
+  bloqueados: number;
+}
+
+// Estructura que se guarda en data_json de cada snapshot
+interface SnapshotData {
+  meta: {
+    features_count: number;
+    bugs_count: number;
+    total_sessions: number;
+  };
+  global: {
+    rework_rate: number;
+    confianza_baja_rate: number;
+    gaps_rate: number;
+    cipher_block_rate: number;
+    iterations_avg: number;
+  };
+  agents: Record<string, {
+    sessions: number;
+    rework_rate: number;
+    gaps_avg: number;
+    files_avg: number;
+    iterations_avg: number;
+  }>;
+}
+
+interface SnapshotRow {
+  id: number;
+  created_at: string;
+  trigger: string | null;
+  data_json: string;
+}
+
 // ─── Parsing helpers ──────────────────────────────────────────────────────────
 
 function extractMetricsBlock(content: string, agentName: string): AgentMetrics | null {
@@ -56,7 +105,6 @@ function extractMetricsBlock(content: string, agentName: string): AgentMetrics |
   if (start === -1) return null;
 
   const blockStart = start + blockHeader.length;
-  // Find end of block (next ## heading or end of file)
   const nextHeading = content.indexOf("\n##", blockStart);
   const blockContent = nextHeading === -1
     ? content.slice(blockStart)
@@ -96,7 +144,6 @@ function extractMetricsBlock(content: string, agentName: string): AgentMetrics |
     gaps_declarados: parseNum("gaps_declarados"),
   };
 
-  // Agent-specific fields
   if (agentName === "Max") {
     base.bugs_criticos = parseNum("bugs_criticos");
     base.bugs_altos = parseNum("bugs_altos");
@@ -174,24 +221,6 @@ function discoverStatusFiles(baseDir: string, type: "feature" | "bug"): string[]
 
 // ─── Aggregate computation ────────────────────────────────────────────────────
 
-interface AgentAggregate {
-  agent: string;
-  sessions: number;
-  rework_count: number;
-  confianza_baja_count: number;
-  gaps_declarados_total: number;
-  archivos_leidos_total: number;
-  iteraciones_total: number;
-  // Max
-  bugs_criticos_total: number;
-  // Ada
-  bundle_delta_total: number;
-  bundle_sessions: number;
-  // Cipher
-  vulns_criticas_total: number;
-  bloqueados: number;
-}
-
 function emptyAggregate(agent: string): AgentAggregate {
   return {
     agent,
@@ -243,6 +272,174 @@ function computeAggregates(records: PipelineRecord[]): Record<string, AgentAggre
   return aggs;
 }
 
+// ─── SQLite layer ─────────────────────────────────────────────────────────────
+
+function openDb(repoRoot: string): Database {
+  const metricsDir = join(repoRoot, "docs", "metrics");
+  if (!existsSync(metricsDir)) mkdirSync(metricsDir, { recursive: true });
+  const db = new Database(join(metricsDir, "metrics.db"));
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS snapshots (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at  TEXT NOT NULL,
+      trigger     TEXT,
+      data_json   TEXT NOT NULL
+    )
+  `);
+  return db;
+}
+
+function buildSnapshotData(
+  records: PipelineRecord[],
+  aggs: Record<string, AgentAggregate>
+): SnapshotData {
+  const totalSessions = Object.values(aggs).reduce((s, a) => s + a.sessions, 0);
+  const totalRework = Object.values(aggs).reduce((s, a) => s + a.rework_count, 0);
+  const totalConfianzaBaja = Object.values(aggs).reduce((s, a) => s + a.confianza_baja_count, 0);
+  const totalGaps = Object.values(aggs).reduce((s, a) => s + a.gaps_declarados_total, 0);
+  const totalIteraciones = Object.values(aggs).reduce((s, a) => s + a.iteraciones_total, 0);
+  const cipherAgg = aggs["Cipher"];
+  const features = records.filter(r => r.type === "feature");
+  const bugs = records.filter(r => r.type === "bug");
+
+  const rate = (num: number, den: number) =>
+    den > 0 ? Math.round((num / den) * 100) : 0;
+  const average = (total: number, count: number) =>
+    count > 0 ? Math.round((total / count) * 10) / 10 : 0;
+
+  return {
+    meta: {
+      features_count: features.length,
+      bugs_count: bugs.length,
+      total_sessions: totalSessions,
+    },
+    global: {
+      rework_rate: rate(totalRework, totalSessions),
+      confianza_baja_rate: rate(totalConfianzaBaja, totalSessions),
+      gaps_rate: rate(totalGaps, totalSessions),
+      cipher_block_rate: rate(cipherAgg.bloqueados, cipherAgg.sessions),
+      iterations_avg: average(totalIteraciones, totalSessions),
+    },
+    agents: Object.fromEntries(
+      ["Leo", "Cloe", "Max", "Ada", "Cipher"].map(agent => {
+        const agg = aggs[agent];
+        return [agent, {
+          sessions: agg.sessions,
+          rework_rate: rate(agg.rework_count, agg.sessions),
+          gaps_avg: average(agg.gaps_declarados_total, agg.sessions),
+          files_avg: average(agg.archivos_leidos_total, agg.sessions),
+          iterations_avg: average(agg.iteraciones_total, agg.sessions),
+        }];
+      })
+    ),
+  };
+}
+
+function saveSnapshot(db: Database, trigger: string, data: SnapshotData): number {
+  const now = new Date().toISOString().slice(0, 19);
+  const stmt = db.prepare(
+    "INSERT INTO snapshots (created_at, trigger, data_json) VALUES (?, ?, ?)"
+  );
+  const result = stmt.run(now, trigger, JSON.stringify(data));
+  return result.lastInsertRowid as number;
+}
+
+function listHistory(db: Database): void {
+  const rows = db.prepare(
+    "SELECT id, created_at, trigger, data_json FROM snapshots ORDER BY id DESC"
+  ).all() as SnapshotRow[];
+
+  if (rows.length === 0) {
+    console.log("No hay snapshots guardados. Corre el script sin flags para crear el primero.");
+    return;
+  }
+
+  console.log("\n## Historial de snapshots\n");
+  console.log("| ID  | Fecha               | Trigger                                   | Features | Bugs |");
+  console.log("|-----|---------------------|-------------------------------------------|----------|------|");
+
+  for (const row of rows) {
+    const data = JSON.parse(row.data_json) as SnapshotData;
+    const trigger = (row.trigger ?? "manual").padEnd(41);
+    const id = String(row.id).padEnd(3);
+    console.log(`| ${id} | ${row.created_at} | ${trigger} | ${String(data.meta.features_count).padEnd(8)} | ${data.meta.bugs_count}    |`);
+  }
+}
+
+function compareSnapshots(db: Database, id1: number, id2: number): void {
+  const rows = db.prepare(
+    "SELECT id, created_at, trigger, data_json FROM snapshots WHERE id IN (?, ?)"
+  ).all(id1, id2) as SnapshotRow[];
+
+  if (rows.length < 2) {
+    console.error(`No se encontraron snapshots con IDs ${id1} y ${id2}`);
+    process.exit(1);
+  }
+
+  const [rowA, rowB] = rows[0].id === id1 ? [rows[0], rows[1]] : [rows[1], rows[0]];
+  const a = JSON.parse(rowA.data_json) as SnapshotData;
+  const b = JSON.parse(rowB.data_json) as SnapshotData;
+
+  const deltaLabel = (before: number, after: number, lowerIsBetter = true): string => {
+    const d = after - before;
+    if (d === 0) return "=";
+    const better = lowerIsBetter ? d < 0 : d > 0;
+    const sign = d > 0 ? `+${d}` : `${d}`;
+    return better ? `${sign} mejor` : `${sign} peor`;
+  };
+
+  console.log(`\n## Comparacion: snapshot #${id1} vs #${id2}\n`);
+  console.log(`Antes:   [#${id1}] ${rowA.created_at} — ${rowA.trigger ?? "manual"}`);
+  console.log(`Despues: [#${id2}] ${rowB.created_at} — ${rowB.trigger ?? "manual"}`);
+
+  console.log("\n### Indicadores globales\n");
+  console.log("| Indicador              | Antes  | Despues | Delta          |");
+  console.log("|------------------------|--------|---------|----------------|");
+
+  const globalComparisons: Array<[string, keyof SnapshotData["global"], boolean]> = [
+    ["Rework global %",     "rework_rate",        true],
+    ["Confianza baja %",    "confianza_baja_rate", true],
+    ["Gaps declarados %",   "gaps_rate",           false],
+    ["Bloqueo Cipher %",    "cipher_block_rate",   true],
+    ["Iteraciones avg",     "iterations_avg",      true],
+  ];
+
+  for (const [label, key, lowerIsBetter] of globalComparisons) {
+    const before = a.global[key];
+    const after = b.global[key];
+    const d = deltaLabel(before, after, lowerIsBetter);
+    console.log(
+      `| ${label.padEnd(22)} | ${String(before).padEnd(6)} | ${String(after).padEnd(7)} | ${d.padEnd(14)} |`
+    );
+  }
+
+  console.log("\n### Rework por agente\n");
+  console.log("| Agente  | Antes  | Despues | Delta          |");
+  console.log("|---------|--------|---------|----------------|");
+
+  for (const agent of ["Leo", "Cloe", "Max", "Ada", "Cipher"]) {
+    const before = a.agents[agent]?.rework_rate ?? 0;
+    const after = b.agents[agent]?.rework_rate ?? 0;
+    const d = deltaLabel(before, after, true);
+    console.log(
+      `| ${agent.padEnd(7)} | ${String(before + "%").padEnd(6)} | ${String(after + "%").padEnd(7)} | ${d.padEnd(14)} |`
+    );
+  }
+
+  console.log("\n### Archivos promedio leidos por agente\n");
+  console.log("| Agente  | Antes  | Despues | Delta          |");
+  console.log("|---------|--------|---------|----------------|");
+
+  for (const agent of ["Leo", "Cloe", "Max", "Ada", "Cipher"]) {
+    const before = a.agents[agent]?.files_avg ?? 0;
+    const after = b.agents[agent]?.files_avg ?? 0;
+    const d = deltaLabel(before, after, true);
+    console.log(
+      `| ${agent.padEnd(7)} | ${String(before).padEnd(6)} | ${String(after).padEnd(7)} | ${d.padEnd(14)} |`
+    );
+  }
+}
+
 // ─── Report formatting ────────────────────────────────────────────────────────
 
 type Status = "OK" | "⚠" | "❌";
@@ -260,7 +457,6 @@ function confianzaStatus(rate: number): Status {
 }
 
 function gapsStatus(rate: number): Status {
-  // High gaps declared rate is GOOD (honesty signal)
   if (rate > 30) return "OK";
   if (rate > 15) return "⚠";
   return "❌";
@@ -304,26 +500,21 @@ function generateReport(
   const features = records.filter(r => r.type === "feature");
   const bugs = records.filter(r => r.type === "bug");
 
-  // Global rework rate
   const totalSessions = Object.values(aggs).reduce((s, a) => s + a.sessions, 0);
   const totalRework = Object.values(aggs).reduce((s, a) => s + a.rework_count, 0);
   const globalReworkRate = totalSessions > 0 ? (totalRework / totalSessions) * 100 : 0;
 
-  // Global confianza baja rate
   const totalConfianzaBaja = Object.values(aggs).reduce((s, a) => s + a.confianza_baja_count, 0);
   const globalConfianzaRate = totalSessions > 0 ? (totalConfianzaBaja / totalSessions) * 100 : 0;
 
-  // Global gaps declared rate
   const totalGaps = Object.values(aggs).reduce((s, a) => s + a.gaps_declarados_total, 0);
   const globalGapsRate = totalSessions > 0 ? (totalGaps / totalSessions) * 100 : 0;
 
-  // Cipher block rate
   const cipherAgg = aggs["Cipher"];
   const cipherBlockRate = cipherAgg.sessions > 0
     ? (cipherAgg.bloqueados / cipherAgg.sessions) * 100
     : 0;
 
-  // Global iterations avg
   const totalIteraciones = Object.values(aggs).reduce((s, a) => s + a.iteraciones_total, 0);
   const globalIteracionesAvg = totalSessions > 0 ? totalIteraciones / totalSessions : 1;
 
@@ -398,7 +589,6 @@ Total registros con metricas: ${records.filter(r => Object.keys(r.metrics).lengt
   }
   report += `\nNota: gaps_declarados bajos pueden indicar que los agentes ocultan incertidumbre.\n`;
 
-  // Ada bundle savings
   if (aggs["Ada"].bundle_sessions > 0) {
     const adaAgg = aggs["Ada"];
     report += `
@@ -412,7 +602,6 @@ Total registros con metricas: ${records.filter(r => Object.keys(r.metrics).lengt
 `;
   }
 
-  // Cipher summary
   if (cipherAgg.sessions > 0) {
     report += `
 ---
@@ -426,7 +615,6 @@ Total registros con metricas: ${records.filter(r => Object.keys(r.metrics).lengt
 `;
   }
 
-  // Records without metrics (no data yet)
   const withoutMetrics = records.filter(r => Object.keys(r.metrics).length === 0);
   if (withoutMetrics.length > 0) {
     report += `
@@ -447,34 +635,52 @@ Total registros con metricas: ${records.filter(r => Object.keys(r.metrics).lengt
 
 async function main() {
   const args = process.argv.slice(2);
+  const repoRoot = process.cwd();
+  const db = openDb(repoRoot);
+
+  // --history: listar snapshots guardados
+  if (args.includes("--history")) {
+    listHistory(db);
+    return;
+  }
+
+  // --compare ID1 ID2: comparar dos snapshots
+  const compareIdx = args.indexOf("--compare");
+  if (compareIdx !== -1) {
+    const id1 = parseInt(args[compareIdx + 1], 10);
+    const id2 = parseInt(args[compareIdx + 2], 10);
+    if (isNaN(id1) || isNaN(id2)) {
+      console.error("Uso: --compare <id1> <id2>");
+      process.exit(1);
+    }
+    compareSnapshots(db, id1, id2);
+    return;
+  }
+
+  // Flujo normal: calcular metricas, guardar snapshot, generar reporte
   const jsonMode = args.includes("--json");
   const desdeIdx = args.indexOf("--desde");
   const hastaIdx = args.indexOf("--hasta");
+  const triggerIdx = args.indexOf("--trigger");
   const desde = desdeIdx !== -1 ? args[desdeIdx + 1] : undefined;
   const hasta = hastaIdx !== -1 ? args[hastaIdx + 1] : undefined;
+  const trigger = triggerIdx !== -1 ? args[triggerIdx + 1] : "manual";
 
-  const repoRoot = process.cwd();
   const featureFiles = discoverStatusFiles(join(repoRoot, "docs", "features"), "feature");
   const bugFiles = discoverStatusFiles(join(repoRoot, "docs", "bugs"), "bug");
-
-  const allFiles = [...featureFiles, ...bugFiles];
   const records: PipelineRecord[] = [];
 
-  for (const file of allFiles) {
+  for (const file of [...featureFiles, ...bugFiles]) {
     const type = file.includes("features") ? "feature" : "bug";
     const record = parseStatusMd(file, type);
     if (!record) continue;
-
-    // Date filter
     if (desde && record.fecha_apertura && record.fecha_apertura < desde) continue;
     if (hasta && record.fecha_apertura && record.fecha_apertura > hasta) continue;
-
     records.push(record);
   }
 
   if (records.length === 0) {
     console.log("No se encontraron status.md con metricas en docs/features/ ni docs/bugs/");
-    console.log("Los status.md necesitan bloques '## Metricas de X' para aparecer aqui.");
     process.exit(0);
   }
 
@@ -488,14 +694,17 @@ async function main() {
   const report = generateReport(records, aggs, desde, hasta);
   console.log(report);
 
-  // Save to docs/metrics/
-  const metricsDir = join(repoRoot, "docs", "metrics");
-  if (!existsSync(metricsDir)) mkdirSync(metricsDir, { recursive: true });
+  // Guardar snapshot en SQLite
+  const snapshotData = buildSnapshotData(records, aggs);
+  const snapshotId = saveSnapshot(db, trigger, snapshotData);
+  console.log(`Snapshot #${snapshotId} guardado (trigger: ${trigger})`);
 
-  const today = new Date().toISOString().split("T")[0];
-  const outPath = join(metricsDir, `dashboard-${today}.md`);
+  // Guardar .md con timestamp completo para lectura humana
+  const metricsDir = join(repoRoot, "docs", "metrics");
+  const now = new Date().toISOString().replace(/:/g, "-").slice(0, 16);
+  const outPath = join(metricsDir, `dashboard-${now}.md`);
   writeFileSync(outPath, report, "utf-8");
-  console.log(`\nReporte guardado en: ${outPath}`);
+  console.log(`Reporte guardado en: ${outPath}`);
 }
 
 main().catch(console.error);
