@@ -202,12 +202,15 @@ Las skills son procedimientos reutilizables que los agentes invocan con `/nombre
 
 | Skill | Quien la usa | Cuando |
 |---|---|---|
+| `/feature` | Cualquiera | Al iniciar una feature — crea rama, carpeta y status.md |
 | `/bug` | Cualquiera | Al detectar un bug — crea rama, carpeta y status.md del bug |
+| `/validate-handoff` | Cualquiera | Antes de invocar al siguiente agente — valida que el handoff este completo |
+| `/metrics-dashboard` | Cualquiera | Dashboard de metricas agregadas de todas las features y bugs |
 | `/electrobun-ipc` | Cloe | Al crear un nuevo canal RPC entre main y webview |
 | `/acp-debug` | Max | Cuando un agente ACP no responde |
 | `/bundle-check` | Ada | Antes de cada ronda de optimizacion |
 | `/scan-secrets` | Cipher | Al inicio de cada auditoria de seguridad |
-| `/measure-flow` | Cualquiera | Al finalizar un ciclo completo para medir eficiencia |
+| `/measure-flow` | Cualquiera | Al finalizar un ciclo completo para medir eficiencia (v1) |
 
 ### Como invocar una skill
 
@@ -272,32 +275,53 @@ Tras 2-3 features, los reportes revelan patrones sistematicos para mejorar el fl
 
 ## Iniciar una feature nueva — paso a paso
 
-```bash
-# 1. Crea la rama
-git switch -c feature/<nombre>
+**1. Abrir la feature con la skill:**
 
-# 2. Invoca a Leo
-@leo <descripcion de la feature>
-
-# 3. Leo crea en docs/features/<nombre>/: plan.md, status.md, etc.
-
-# 4. Invoca a Cloe
-@cloe Implementa <nombre>. Plan en docs/features/<nombre>/status.md
-
-# 5. Invoca a Max
-@max Verifica <nombre>. Handoff en docs/features/<nombre>/status.md
-
-# 6. Invoca a Ada
-@ada Optimiza <nombre>. Max aprobo — ver docs/features/<nombre>/status.md
-
-# 7. Invoca a Cipher
-@cipher Audita <nombre> antes del release. Ver docs/features/<nombre>/status.md
-
-# 8. Mide el ciclo
-/measure-flow <nombre>
-
-# 9. Merge a main si Cipher aprueba
 ```
+/feature <descripcion de la feature>
+```
+
+La skill crea automaticamente la rama `feature/<slug>` y el archivo `docs/features/<slug>/status.md`.
+
+**2. Invocar a Leo para planificar:**
+
+```
+@leo <descripcion de la feature>. El status esta en docs/features/<slug>/status.md
+```
+
+Leo escribe el plan completo en el status.md (handoff Leo → Cloe).
+
+**3. Invocar a Cloe para implementar:**
+
+```
+@cloe Implementa <nombre>. Plan en docs/features/<slug>/status.md
+```
+
+**4. Invocar a Max para verificar:**
+
+```
+@max Verifica <nombre>. Handoff en docs/features/<slug>/status.md
+```
+
+**5. Invocar a Ada para optimizar:**
+
+```
+@ada Optimiza <nombre>. Max aprobo — ver docs/features/<slug>/status.md
+```
+
+**6. Invocar a Cipher para auditar:**
+
+```
+@cipher Audita <nombre> antes del release. Ver docs/features/<slug>/status.md
+```
+
+**7. Medir el ciclo:**
+
+```
+/measure-flow <nombre>
+```
+
+**8. Merge a main si Cipher aprueba.**
 
 ---
 
@@ -350,7 +374,10 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]  # solo los necesarios
 │   ├── ada.md
 │   └── cipher.md
 └── skills/
+    ├── feature.md
     ├── bug.md
+    ├── validate-handoff.md
+    ├── metrics-dashboard.md
     ├── electrobun-ipc.md
     ├── acp-debug.md
     ├── bundle-check.md
@@ -360,6 +387,9 @@ tools: [Read, Write, Edit, Bash, Glob, Grep]  # solo los necesarios
 docs/
 ├── README.md           ← indice de features
 ├── AGENTS.md           ← esta guia
+├── OBSERVABILITY.md    ← sistema de metricas y anti-alucinacion (arquitectura antes/despues)
+├── metrics/
+│   └── dashboard-YYYY-MM-DD.md  (generado por bun run metrics)
 ├── features/
 │   └── <nombre>/
 │       ├── status.md

@@ -45,12 +45,19 @@ This project uses a team of specialized Claude Code agents. **Always follow this
 
 ### Starting a new feature
 
-1. Invoke `@leo` with the feature description
-2. Leo writes the plan to `docs/features/<feature-name>/` (plan.md, ipc-contracts.md, data-flows.md, acceptance.md)
-3. Invoke `@cloe` pointing to the docs Leo wrote
-4. After implementation, invoke `@max` to verify
-5. After QA approval, invoke `@ada` to optimize
-6. Before any push to main, invoke `@cipher` to audit
+**Trigger automático:** Cuando el usuario describa una nueva feature, funcionalidad, mejora o cambio — ejecuta el flujo de features automáticamente sin esperar que el usuario escriba `/feature`.
+
+El flujo es:
+
+```
+(usuario describe feature) → /feature skill → @leo → @cloe → @max → @ada → @cipher
+```
+
+**Pasos que Claude ejecuta al detectar una nueva feature:**
+1. Genera el slug desde la descripción (lowercase, guiones, máx 5 palabras)
+2. Crea la rama: `git switch -c feature/<slug>`
+3. Crea `docs/features/<slug>/status.md` con la estructura definida en `.claude/skills/feature.md`
+4. Confirma al usuario con el siguiente paso: `@leo <descripcion>...`
 
 ### Bug flow (lightweight)
 
@@ -75,7 +82,10 @@ Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de
 
 | Skill | Used by | Purpose |
 |---|---|---|
+| `/feature` | Anyone | Open a new feature — creates branch, folder, and status.md |
 | `/bug` | Anyone | Open a bug report — creates branch, folder, and status.md |
+| `/validate-handoff` | Anyone | Validate a handoff before invoking the next agent |
+| `/metrics-dashboard` | Anyone | Aggregate metrics dashboard across all features and bugs |
 | `/electrobun-ipc` | Cloe | Step-by-step for creating typed RPC channels |
 | `/acp-debug` | Max | Diagnose ACP agent connection issues |
 | `/bundle-check` | Ada | Analyze and audit Electrobun bundle size |

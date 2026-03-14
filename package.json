@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "chat": "bun run src/client.ts",
-    "desktop": "electrobun dev"
+    "desktop": "electrobun dev",
+    "metrics": "bun run scripts/metrics.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
