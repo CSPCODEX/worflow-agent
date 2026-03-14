@@ -72,20 +72,42 @@ Para cada problema encontrado:
 - Sugerencia: [como podria resolverse]
 ```
 
-## Checklist de aprobacion con evidencia obligatoria
+## Checklist de aprobacion dinamico
 
-Cada item debe estar marcado `[x]` y tener evidencia en la columna derecha. Si no puedes verificarlo, marcalo `[ ]` y declaralo en la seccion de gaps.
+**Antes de verificar nada, lee el manifiesto de Cloe y clasifica los archivos tocados:**
 
 ```
-### Checklist Max
-- [ ] Flujo completo de generacion de agente funciona — evidencia: [descripcion del resultado]
-- [ ] Chat con agente via ACP funciona (spawn→connect→message→response) — evidencia: [output observado]
-- [ ] Cada archivo del manifiesto de Cloe verificado con file:line — evidencia: [lista de referencias]
-- [ ] Sin errores en consola del webview — evidencia: [log output o "consola limpia"]
-- [ ] Labels HTML verificados: todos los inputs tienen for+id matching — evidencia: [archivos revisados]
-- [ ] Build de Electrobun exitoso — evidencia: [resultado de bunx electrobun build]
-- [ ] Bundle dentro del limite de tamaño (< 20MB) — evidencia: [tamaño medido]
-- [ ] Manejo de error visible en UI cuando LM Studio no esta disponible — evidencia: [comportamiento observado]
+¿Hay archivos en src/renderer/ (html, css, ts de UI)?  → activa bloque RENDERER
+¿Hay archivos en src/ipc/ o src/types/ipc.ts?          → activa bloque IPC
+¿Hay archivos en src/db/ o migrations?                 → activa bloque DB
+¿Hay archivos nuevos o modificados en src/?            → activa bloque ESTATICO (siempre)
+```
+
+Solo incluye en tu checklist los bloques activos. No marques items como "no aplica" — si no aplica, no lo pongas.
+
+```
+### Checklist Max — [bloques activos: ESTATICO | IPC | DB | RENDERER]
+
+## ESTATICO (siempre obligatorio)
+- [ ] Cada archivo del manifiesto verificado con file:line — evidencia: [referencias]
+- [ ] bun run tsc --noEmit — 0 errores nuevos — evidencia: [output]
+- [ ] Sin logica de negocio rota en los archivos modificados — evidencia: [descripcion]
+
+## IPC (si hay cambios en src/ipc/ o src/types/ipc.ts)
+- [ ] Fire-and-forget en handlers que lanzan subprocesos — evidencia: [file:line]
+- [ ] Strings IPC son ASCII puro (sin chars > 0x7E) — evidencia: [grep result o "confirmado"]
+- [ ] Inputs validados antes de filesystem ops o spawn — evidencia: [file:line]
+
+## DB (si hay cambios en src/db/ o migrations)
+- [ ] Migrations son idempotentes (CREATE TABLE IF NOT EXISTS) — evidencia: [file:line]
+- [ ] Queries usan prepared statements, sin interpolacion — evidencia: [file:line]
+- [ ] initDatabase() en try/catch con process.exit(1) — evidencia: [file:line]
+
+## RENDERER (si hay cambios en src/renderer/)
+- [ ] Labels HTML: todos los inputs tienen for+id matching — evidencia: [archivos revisados]
+- [ ] Archivos CSS referenciados en el manifiesto revisados — evidencia: [file:line]
+- [ ] User input usa textContent o escapeHtml, no innerHTML — evidencia: [file:line]
+- [ ] Estados de carga y error manejados en UI — evidencia: [descripcion]
 ```
 
 ## Seccion de gaps obligatoria
@@ -100,6 +122,8 @@ Confianza en la verificacion: alta / media / baja
 ```
 
 **Nunca escribas "QA aprobado" si hay items del checklist sin evidencia.** En cambio, escribe "QA aprobado con gaps conocidos" y lista los gaps.
+
+**Nunca pongas items de bloques no activos en tu checklist.** Si Cloe no toco el renderer, el bloque RENDERER no existe en tu verificacion — no lo marques como "no aplica".
 
 ## Flujo de trabajo
 

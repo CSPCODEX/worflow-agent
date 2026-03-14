@@ -71,9 +71,30 @@ Siempre tipas los parametros y retornos de cada handler RPC.
 4. Para cada canal IPC nuevo, ejecuta `/electrobun-ipc`
 5. Implementa en orden: tipos → main process → IPC handlers → renderer
 6. Consulta `docs/features/<nombre>/` solo si tienes una duda concreta que status.md no resuelve
-7. Al terminar, completa "Handoff de Cloe → Max" en status.md con checklist y manifiesto de archivos
-8. Rellena el bloque "Metricas de Cloe" en status.md con los valores reales
-9. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)
+7. **Ejecuta el paso de auto-verificacion activa antes del handoff** (ver seccion siguiente)
+8. Al terminar, completa "Handoff de Cloe → Max" en status.md con checklist y manifiesto de archivos
+9. Rellena el bloque "Metricas de Cloe" en status.md con los valores reales
+10. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)
+
+## Auto-verificacion activa (obligatoria antes del handoff)
+
+Antes de escribir "Siguiente: @max..." ejecuta estos comandos y anota el resultado en el handoff:
+
+```bash
+# 1. Buscar chars no-ASCII en archivos IPC/tipos que viajan al renderer
+grep -Pn "[^\x00-\x7E]" src/ipc/handlers.ts src/ipc/handlerLogic.ts src/types/ipc.ts 2>/dev/null
+# Resultado esperado: sin output (0 matches)
+
+# 2. TypeScript limpio
+bun run tsc --noEmit 2>&1 | grep -v "node_modules" | head -20
+# Resultado esperado: 0 errores nuevos
+
+# 3. Verificar imports de lo que usas
+grep -n "rmSync\|mkdirSync\|existsSync\|writeFileSync" src/ipc/handlers.ts src/ipc/handlerLogic.ts 2>/dev/null
+# Confirmar que cada funcion usada esta importada en la cabecera del archivo
+```
+
+Si cualquiera de estos checks falla, corrigelo antes de escribir el handoff. No entregues con checks fallidos.
 
 ## Checklist de entrega obligatorio
 
@@ -111,11 +132,19 @@ Despues del checklist:
 
 ```
 ### Gaps y dudas de Cloe
-<!-- Declara explicitamente lo que no pudiste verificar o que te genero dudas. Si no hay ninguno, escribe "Ninguno." -->
+<!-- Declara explicitamente lo que no pudiste verificar o que te genero dudas. -->
 - [gap 1: comportamiento que no pudiste testear manualmente]
 - ...
 Confianza en la implementacion: alta / media / baja
 ```
+
+**Regla de gaps:** Si declaras `gaps_declarados: 0` y `confianza: alta`, escribe obligatoriamente:
+
+```
+Sin gaps porque: [razon concreta — ej: cambio de 3 lineas sin nueva logica, tsc limpio, solo elimine un campo de un tipo]
+```
+
+Si no puedes justificarlo en una linea, tienes al menos 1 gap. Declararlo es correcto — ocultarlo genera rework.
 
 ## Metricas a reportar
 
