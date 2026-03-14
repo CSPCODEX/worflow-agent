@@ -36,7 +36,6 @@ async function enhanceAndPersist(
 
   rpcSend({
     agentName,
-    agentDir,
     strategy: result.strategy,
     ...(result.error ? { error: result.error } : {}),
   });
@@ -63,8 +62,7 @@ export function createRpc() {
             agentRepository,
             scaffoldAgent,
             installAgentDeps,
-            enhanceAndPersist: (agentId, agentDir, agentName, originalPrompt, rpcSend) =>
-              enhanceAndPersist(agentId, agentDir, agentName, originalPrompt, rpcSend),
+            enhanceAndPersist,
             onInstallDone: (p) => (rpc as any).send.agentInstallDone(p),
             onEnhanceDone: (p) => (rpc as any).send.agentEnhanceDone(p),
             rmSync,

@@ -74,14 +74,12 @@ export interface AgentError {
 }
 
 export interface AgentInstallDone {
-  agentDir: string;
   agentName: string;
   error?: string;
 }
 
 export interface AgentEnhanceDone {
   agentName: string;
-  agentDir: string;
   strategy: 'lmstudio' | 'static' | 'failed';
   error?: string;
 }

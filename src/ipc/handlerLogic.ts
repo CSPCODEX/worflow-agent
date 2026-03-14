@@ -94,7 +94,6 @@ export async function handleGenerateAgent(
 
     deps.installAgentDeps(agentDir, (installError) => {
       deps.onInstallDone({
-        agentDir,
         agentName: config.name,
         ...(installError ? { error: installError } : {}),
       });
@@ -105,7 +104,7 @@ export async function handleGenerateAgent(
       agentDir,
       config.name,
       config.role,
-      (payload) => deps.onEnhanceDone(payload)
+      deps.onEnhanceDone
     ).catch((e) => console.error('[enhancer] Error inesperado en enhance:', e));
 
     return { success: true };
