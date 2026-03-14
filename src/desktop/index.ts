@@ -38,3 +38,7 @@ const win = new BrowserWindow({
 });
 
 console.log('Worflow Agent desktop started.');
+
+if (process.env.NODE_ENV === 'production') {
+  win.webview.closeDevTools();
+}
