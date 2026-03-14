@@ -8,9 +8,22 @@ Genera un dashboard agregado de metricas del pipeline de agentes leyendo todos l
 /metrics-dashboard
 ```
 
-Opcional — filtrar por rango de fechas:
+Flags disponibles:
 ```
-/metrics-dashboard --desde 2026-01-01 --hasta 2026-03-31
+# Dashboard global (todas las features y bugs)
+bun run scripts/metrics.ts
+
+# Ver metricas de una feature o bug especifico
+bun run scripts/metrics.ts --feature <slug>
+
+# Comparar dos intervenciones por slug
+bun run scripts/metrics.ts --compare <slug1> <slug2>
+
+# Listar todas las intervenciones registradas en la DB
+bun run scripts/metrics.ts --history
+
+# Filtrar por rango de fechas
+bun run scripts/metrics.ts --desde 2026-01-01 --hasta 2026-03-31
 ```
 
 ## Procedimiento
@@ -33,6 +46,9 @@ bun run scripts/metrics.ts
 ### 2. Si el script esta disponible
 
 Ejecutar `bun run scripts/metrics.ts` y mostrar su output directamente.
+
+Para una feature especifica: `bun run scripts/metrics.ts --feature <slug>`
+Para comparar dos features: `bun run scripts/metrics.ts --compare <slug1> <slug2>`
 
 ### 3. Si el script no esta disponible (fallback manual)
 
