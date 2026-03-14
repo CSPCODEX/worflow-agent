@@ -21,6 +21,7 @@ interface Session {
   process: ChildProcess;
   connection: ClientSideConnection;
   acpSessionId: string;
+  agentName: string;
 }
 
 class AcpManager {
@@ -81,7 +82,7 @@ class AcpManager {
         mcpServers: [],
       });
 
-      this.sessions.set(sessionId, { process: agentProcess, connection, acpSessionId });
+      this.sessions.set(sessionId, { process: agentProcess, connection, acpSessionId, agentName });
 
       agentProcess.on('error', (err) => {
         notify?.('error', sessionId, err.message);
@@ -121,6 +122,16 @@ class AcpManager {
     if (session) {
       try { session.process.kill(); } catch {}
       this.sessions.delete(sessionId);
+    }
+  }
+
+  closeSessionByAgentName(agentName: string): void {
+    // Collect all matching IDs first to avoid mutating the Map while iterating.
+    const toClose = Array.from(this.sessions.entries())
+      .filter(([, session]) => session.agentName === agentName)
+      .map(([sessionId]) => sessionId);
+    for (const sessionId of toClose) {
+      this.closeSession(sessionId);
     }
   }
 

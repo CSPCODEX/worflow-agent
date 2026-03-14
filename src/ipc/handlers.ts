@@ -1,6 +1,6 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { mkdirSync, rmSync } from 'fs';
-import type { AppRPC, AgentInfo, AgentEnhanceDone, ProviderId } from '../types/ipc';
+import type { AppRPC, AgentInfo, AgentEnhanceDone, ProviderId, DeleteAgentResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { validateAgentName } from '../cli/validations';
@@ -215,6 +215,30 @@ export function createRpc() {
         deleteConversation: async ({ conversationId }) => {
           conversationRepository.delete(conversationId);
           return { success: true };
+        },
+
+        deleteAgent: async ({ agentId, agentName }): Promise<DeleteAgentResult> => {
+          if (!agentId?.trim()) return { success: false, error: 'agentId es requerido' };
+          if (!agentName?.trim()) return { success: false, error: 'agentName es requerido' };
+
+          try {
+            const agent = agentRepository.findById(agentId.trim());
+            if (!agent) return { success: false, error: `Agente con id "${agentId}" no encontrado.` };
+
+            acpManager.closeSessionByAgentName(agentName.trim());
+
+            try {
+              rmSync(agent.path, { recursive: true, force: true });
+            } catch (e: any) {
+              console.error(`[deleteAgent] No se pudo borrar ${agent.path}:`, e.message);
+            }
+
+            agentRepository.delete(agentId.trim());
+
+            return { success: true };
+          } catch (e: any) {
+            return { success: false, error: e.message };
+          }
         },
       },
     },

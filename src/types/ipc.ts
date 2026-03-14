@@ -150,6 +150,16 @@ export interface DeleteConversationResult {
   success: boolean;
 }
 
+export interface DeleteAgentParams {
+  agentId: string;
+  agentName: string;
+}
+
+export interface DeleteAgentResult {
+  success: boolean;
+  error?: string;
+}
+
 export type AppRPC = {
   bun: RPCSchema<{
     requests: {
@@ -164,6 +174,7 @@ export type AppRPC = {
       getMessages: { params: GetMessagesParams; response: GetMessagesResult };
       saveMessage: { params: SaveMessageParams; response: SaveMessageResult };
       deleteConversation: { params: DeleteConversationParams; response: DeleteConversationResult };
+      deleteAgent: { params: DeleteAgentParams; response: DeleteAgentResult };
     };
     messages: {};
   }>;
