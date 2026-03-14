@@ -8,12 +8,15 @@
 
 ### persistencia-sqlite v1.0 (2026-03-08)
 - [MEDIA -> REMEDIADA en multi-provider] `role` en saveMessage sin whitelist: ahora validado con `VALID_ROLES` en handlers.ts linea 194.
-- [BAJA -> PENDIENTE] `agentDir`/`path` expuestos al renderer: paths absolutos del sistema innecesariamente visibles en `AgentInstallDone` y `AgentEnhanceDone`.
+- [BAJA -> REMEDIADA en remove-agentdir-ipc] `agentDir`/`path` expuestos al renderer: eliminado de `AgentInstallDone` y `AgentEnhanceDone` en ipc.ts, handlerLogic.ts y handlers.ts.
 
 ### multi-provider-support v1.0 (2026-03-13)
 - [MEDIA -> ACEPTADA] API key en plaintext por IPC renderer→main antes de encriptar. Threat model desktop (proceso local, mismo usuario) — no bloqueante.
 - [BAJA -> PENDIENTE] `master.key` no en `.gitignore` — añadir `master.key` y `*.key`.
 - [BAJA -> PENDIENTE] `HOME ?? '~'` en `crypto.ts.tpl` lineas 20/22: path invalido si HOME undefined. Fix: throw Error explicito igual que APPDATA en Windows.
+
+### remove-agentdir-ipc v1.0 (2026-03-14)
+- [INFORMATIVO -> ACEPTADO] `console.error` con `agent.path` en `handlerLogic.ts:188` cuando `rmSync` falla. Ruta en stderr del proceso principal, no viaja al renderer. Pre-existente a la feature, riesgo bajo.
 
 ## Riesgos aceptados
 
@@ -24,6 +27,7 @@
 - DevTools y CSP deshabilitados en produccion — pendiente de release, documentado desde electrobun-migration
 - API key plaintext en memoria JS entre IPC y encriptacion — inherente al runtime JS, no mitigable
 - API key plaintext en IPC local renderer→main — aceptable en threat model desktop local
+- `agent.path` en `console.error` de `handlerLogic.ts:188` — stderr del proceso local, no viaja al renderer
 
 ## Superficies de ataque del proyecto
 
@@ -33,8 +37,9 @@
 4. **spawn en acpManager**: ejecuta `bun run start` en directorio del agente — el agentName valida que el path sea seguro.
 5. **SYSTEM_ROLE en templates**: inyectado como string en codigo TypeScript. agentGenerator.ts escapa `"` y `\n` — suficiente para el contexto de template string.
 6. **Campos de texto libre en DB**: no causan SQL injection por prepared statements. `role` ya tiene whitelist en handlers.ts.
-7. **agentDir en IPC messages**: paths absolutos del sistema expuestos al renderer en `AgentInstallDone`/`AgentEnhanceDone`. Patron recurrente — eliminar campos de path de mensajes IPC que no los consuman.
+7. **agentDir en IPC messages**: REMEDIADO en remove-agentdir-ipc. Patron: nunca incluir paths del filesystem en payloads IPC que el renderer no consuma.
 8. **API key en IPC plaintext**: viaja del renderer al main antes de encriptarse. Aceptado en threat model desktop local.
+9. **handleListAgents**: `r.path` (ruta del filesystem) correctamente excluido del mapper — solo se expone id, name, description, hasWorkspace, status, createdAt, provider. Verificar en futuras features que nuevos campos de DB no filtren paths al renderer.
 
 ## Historial de auditorias
 
@@ -44,3 +49,4 @@
 | 2026-03-08 | persistencia-sqlite | 1.0 | APROBADO CON OBSERVACIONES — 0 criticas, 0 altas, 1 media pendiente |
 | 2026-03-08 | prompt-enhancement | 1.0 | APROBADO CON OBSERVACIONES — 0 criticas, 0 altas, 1 media pendiente |
 | 2026-03-13 | multi-provider-support | 1.0 | APROBADO CON OBSERVACIONES — 0 criticas, 0 altas, 1 media aceptada, 2 bajas pendientes |
+| 2026-03-14 | remove-agentdir-ipc | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas nuevas. Fix correcto y completo. |

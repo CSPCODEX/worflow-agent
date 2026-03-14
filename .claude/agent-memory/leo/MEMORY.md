@@ -70,6 +70,13 @@
 - Evento DOM `agent:deleted` (patron igual a `agent:created`)
 - `activeAgentName: string | null` en app.ts para detectar si el agente eliminado esta en chat
 
+### Reduccion de superficie IPC — patron de seguridad (remove-agentdir-ipc)
+- Los payloads de eventos IPC al renderer NO deben incluir rutas de filesystem internas
+- Regla: si el renderer no consume un campo, ese campo no viaja en el canal IPC
+- Cuando una funcion interna necesita un dato (ej. `agentDir` para `rewriteAgentIndexTs`) pero ese dato
+  no debe exponerse al renderer, el dato permanece como parametro de funcion y se omite solo del objeto
+  literal que se pasa a `rpcSend`. No se refactoriza la firma de la funcion interna.
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -77,6 +84,7 @@
 ### [ENTREGADO] Plan de prompt-enhancement — Estado: listo para Cloe
 ### [ENTREGADO] Plan de multi-provider-support — Estado: listo para Cloe
 ### [ENTREGADO] Plan de delete-agent — Estado: listo para Cloe
+### [ENTREGADO] Plan de remove-agentdir-ipc — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -92,6 +100,7 @@
 - Eventos DOM en renderer: kebab-case con prefijo de dominio (agent:install-done, agent:enhance-done, agent:deleted)
 - Listeners DOM: registrar ANTES del RPC call, eliminar al recibir el evento (sin memory leaks)
 - Handlers IPC estaticos (listas hardcodeadas, sin I/O): retornan directamente sin async complejo
+- Payloads IPC: solo incluir campos que el renderer REALMENTE consume — omitir rutas internas, IDs internos, etc.
 
 ## Contexto acumulado del proyecto
 
@@ -107,7 +116,7 @@
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa delete-agent segun docs/features/delete-agent/status.md
+- Cloe implementa remove-agentdir-ipc segun docs/features/remove-agentdir-ipc/status.md
 - Max verifica cada componente con su checklist
 - Ada limpia si hay dependencias huerfanas
 - Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release
