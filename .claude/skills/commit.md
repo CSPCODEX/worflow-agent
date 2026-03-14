@@ -26,25 +26,41 @@ git diff HEAD
 git log --oneline -5
 ```
 
-### 2. Identificar archivos a stagear
+### 2. Agrupar cambios por scope (OBLIGATORIO)
 
-Incluir:
-- Archivos fuente modificados o nuevos (`src/`, `docs/`, `*.ts`, `*.json` de configuracion)
-- Archivos de documentacion relacionados al cambio
+Antes de stagear nada, clasificar TODOS los archivos modificados/nuevos en grupos. Cada grupo = un commit separado.
 
-Excluir siempre:
+**Reglas de agrupación:**
+
+| Grupo | Archivos que incluye |
+|---|---|
+| `feat(<feature>)` o `fix(<feature>)` | `src/` cambios de implementacion de una sola feature |
+| `docs(agents)` | `.claude/agents/*.md` |
+| `docs(skills)` | `.claude/skills/*.md` |
+| `docs(features/<slug>)` | `docs/features/<slug>/` — un commit por feature si los cambios son sustanciales |
+| `docs(bugs/<id>)` | `docs/bugs/<id>-*/` — un commit por bug si los cambios son sustanciales |
+| `docs(metrics)` | `docs/metrics/` |
+| `chore(config)` | `.claude/settings.json`, `electrobun.config.ts`, `package.json`, etc. |
+
+**Si todos los archivos pertenecen al mismo scope**, crear un único commit.
+**Si hay archivos de 2+ scopes distintos**, crear un commit por scope, en orden logico (codigo → docs → chore).
+
+### 3. Stagear y commitear en orden
+
+Para cada grupo identificado en el paso 2:
+
+```bash
+git add <archivos del grupo>
+git commit -m "..."
+```
+
+Nunca mezclar archivos de scopes distintos en un mismo `git add`. Nunca usar `git add -A` o `git add .`.
+
+**Excluir siempre** (de todos los grupos):
 - `.env` y cualquier archivo con credenciales o secrets
 - `build/`, `dist/`, `.cache/` (artefactos de build)
 - `.claude/settings.local.json` (configuracion local)
 - Archivos binarios grandes no relacionados al cambio
-
-### 3. Stagear los archivos
-
-```bash
-git add <archivos especificos>
-```
-
-Preferir listar archivos por nombre. Nunca usar `git add -A` o `git add .` sin revisar primero.
 
 ### 4. Redactar el mensaje de commit
 
@@ -90,20 +106,33 @@ el testing futuro y evitar fugas de procesos hijo.
 Co-Authored-By: devlitus <developercarles@gmail.com>
 ```
 
-### 5. Crear el commit
+### 5. Crear el commit (o los commits)
 
-Siempre pasar el mensaje via HEREDOC para preservar el formato:
+Siempre pasar el mensaje via HEREDOC para preservar el formato.
+
+Si hay multiples grupos, ejecutar un `git add` + `git commit` por cada grupo, en secuencia:
 
 ```bash
+# Grupo 1
+git add <archivos grupo 1>
 git commit -m "$(cat <<'EOF'
-<tipo>(<scope>): <descripcion>
+<tipo>(<scope1>): <descripcion>
 
-<cuerpo opcional>
+Co-Authored-By: devlitus <developercarles@gmail.com>
+EOF
+)"
+
+# Grupo 2
+git add <archivos grupo 2>
+git commit -m "$(cat <<'EOF'
+<tipo>(<scope2>): <descripcion>
 
 Co-Authored-By: devlitus <developercarles@gmail.com>
 EOF
 )"
 ```
+
+Al terminar, mostrar el resumen de todos los commits creados (hash + titulo).
 
 ### 6. Push (solo si el usuario lo pidio con --push)
 
