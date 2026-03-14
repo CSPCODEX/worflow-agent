@@ -40,10 +40,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnNewAgent = document.getElementById('btn-new-agent')!;
 
   let activeChatHandle: ChatHandle | null = null;
+  let activeAgentName: string | null = null;
 
   function teardownCurrentView() {
     activeChatHandle?.cleanup();
     activeChatHandle = null;
+    activeAgentName = null;
   }
 
   function showCreate() {
@@ -55,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function showChat(agent: AgentInfo) {
     teardownCurrentView();
+    activeAgentName = agent.name;
     activeChatHandle = renderChat(mainContentEl, agent.name);
   }
 
@@ -64,6 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('agent:created', () => {
     const refresh = (agentListEl as any).__refresh;
     if (typeof refresh === 'function') refresh();
+  });
+
+  // Refresh agent list and clean up chat when an agent is deleted
+  document.addEventListener('agent:deleted', (e) => {
+    const { agentName } = (e as CustomEvent).detail as { agentId: string; agentName: string };
+    const refresh = (agentListEl as any).__refresh;
+    if (typeof refresh === 'function') refresh();
+    if (agentName === activeAgentName) {
+      teardownCurrentView();
+      mainContentEl.innerHTML = '<div class="empty-state"><p>El agente ha sido eliminado.</p></div>';
+    }
   });
 
   renderAgentList(agentListEl, showChat);

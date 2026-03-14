@@ -84,8 +84,9 @@ Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de
 
 ### Agent memory
 
-Each agent maintains persistent memory across sessions:
+Each agent maintains persistent memory across sessions. **This is mandatory — not optional.**
 
+Memory files live at:
 ```
 C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\
   ├── leo-memory.md
@@ -94,6 +95,27 @@ C:\Users\carle\.claude\projects\D--work-worflow-agent\memory\
   ├── ada-memory.md
   └── cipher-memory.md
 ```
+
+**Rules for every agent:**
+
+1. **On demand** — Read your memory file when any of these apply:
+   - You are about to make an architectural or convention decision
+   - You encounter a bug or pattern that may have been solved before
+   - The user references previous work or sessions
+   - You are unsure whether a pattern/approach has already been established
+
+   Memory file paths:
+   - Leo: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/leo-memory.md`
+   - Cloe: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/cloe-memory.md`
+   - Max: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/max-memory.md`
+   - Ada: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/ada-memory.md`
+   - Cipher: `C:/Users/carle/.claude/projects/D--work-worflow-agent/memory/cipher-memory.md`
+
+   > The critical patterns from all agents are already summarized in `MEMORY.md` (always loaded). Use individual files only when deeper historical context is needed.
+
+2. **END of session** — Update your memory file with any new decisions, patterns, bugs, or API quirks discovered. Overwrite stale entries. Keep it concise.
+
+3. **What to save**: architectural decisions, recurring bug patterns, API quirks, conventions established. Do NOT save ephemeral task state.
 
 ## Architecture
 
