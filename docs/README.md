@@ -5,6 +5,8 @@ Cada feature tiene su propia carpeta con los documentos correspondientes.
 
 **Nuevo en el equipo?** Lee primero [AGENTS.md](./AGENTS.md) — explica como funciona el sistema de agentes, el flujo de trabajo y como iniciar una feature.
 
+Para ver que viene a continuacion, consulta el [ROADMAP.md](./ROADMAP.md).
+
 ## Estructura
 
 ```
