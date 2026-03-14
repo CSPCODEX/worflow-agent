@@ -196,6 +196,13 @@ Resultado: sin output. El archivo completo es ASCII puro — no solo los mensaje
 
 ### Metricas de Cloe
 
+archivos_leidos: 3
+archivos_modificados: 1
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 | Metrica | Valor |
 |---------|-------|
 | Archivos modificados | 1 |
@@ -259,6 +266,15 @@ El fix es correcto, completo y no introduce regresiones. El archivo `src/cli/val
 ---
 
 ## Metricas de Max
+
+archivos_leidos: 3
+bugs_criticos: 0
+bugs_altos: 0
+items_checklist_verificados: 4/5
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 1
 
 | Metrica | Valor |
 |---------|-------|

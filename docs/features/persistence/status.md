@@ -250,6 +250,15 @@ Los agentes se crean en `<userDataDir>/agents/<name>/`.
 
 ## Metricas de Max
 
+archivos_leidos: 14
+bugs_criticos: 0
+bugs_altos: 1
+items_checklist_verificados: 9/12
+rework: si
+iteraciones: 2
+confianza: alta
+gaps_declarados: 0
+
 - Archivos auditados: 10 (5 nuevos + 5 modificados) + 4 de contexto (index.ts, client.ts, agentGenerator.ts, package.json)
 - Bugs encontrados: 3 (1 alto, 2 medios, 1 menor informativo)
 - Criterios de acceptance verificados estaticamente: 9/12
@@ -277,6 +286,14 @@ Los agentes se crean en `<userDataDir>/agents/<name>/`.
 
 ## Metricas de Cloe
 
+archivos_leidos: 8
+archivos_creados: 5
+archivos_modificados: 7
+rework: si
+iteraciones: 2
+confianza: alta
+gaps_declarados: 0
+
 - Archivos nuevos creados: 5 (`userDataDir.ts`, `migrations.ts`, `database.ts`, `agentRepository.ts`, `conversationRepository.ts`) — (Leo estimaba 3; se necesitaba `conversationRepository.ts` para los handlers IPC)
 - Archivos modificados: 7 (`types/ipc.ts`, `handlers.ts`, `acpManager.ts`, `desktop/index.ts`, `agent-list.ts` en ronda 1; `desktop/index.ts`, `handlers.ts` en ronda 2)
 - Problemas encontrados: 1 en ronda 1 (`db.pragma()` no existe) + 3 bugs corregidos en ronda 2
@@ -286,6 +303,14 @@ Los agentes se crean en `<userDataDir>/agents/<name>/`.
 ---
 
 ## Metricas de Leo
+
+archivos_leidos: 8
+archivos_creados: 3
+archivos_modificados: 7
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 
 - Archivos nuevos a crear: 3 (`userDataDir.ts`, `migrations.ts`, `database.ts`)
 - Archivos a modificar: 7 (`handlers.ts`, `acpManager.ts`, `types/ipc.ts`, `desktop/index.ts`,

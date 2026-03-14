@@ -105,6 +105,16 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 
 → Siguiente: @cloe Implementa el fix del bug #<id>. Las instrucciones estan en docs/bugs/<id>-<slug>/status.md seccion "Handoff Max → Cloe".
 
+## Metricas de Max (diagnostico)
+- archivos_leidos:
+- bugs_criticos:
+- bugs_altos:
+- items_checklist_verificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
+
 ---
 
 ## Handoff Cloe → Max (verificacion)
@@ -120,6 +130,15 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 **Advertencias para Max:**
 
 → Siguiente: @max Verifica el fix del bug #<id>. El handoff de Cloe esta en docs/bugs/<id>-<slug>/status.md seccion "Handoff Cloe → Max".
+
+## Metricas de Cloe
+- archivos_leidos:
+- archivos_creados:
+- archivos_modificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
 
 ---
 
@@ -138,6 +157,16 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 <!-- Si hay implicaciones de seguridad, marcar aqui -->
 **Requiere auditoria de Cipher:** SI / NO
 <!-- SI solo si "Tiene implicaciones de seguridad" = SI en la seccion Info -->
+
+## Metricas de Max (verificacion)
+- archivos_leidos:
+- bugs_criticos:
+- bugs_altos:
+- items_checklist_verificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
 
 ---
 

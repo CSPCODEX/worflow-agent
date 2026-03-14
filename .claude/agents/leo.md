@@ -72,6 +72,36 @@ Despues de escribir los docs, actualiza `docs/README.md` añadiendo la feature a
 
 Crea tambien `docs/features/<nombre-feature>/status.md`. Este es el unico archivo que los demas agentes leen — debe ser completamente autosuficiente. Incluye inline todo lo que Cloe necesita: que hacer, decisiones a respetar, contratos IPC clave, archivos a crear/modificar en orden. No pongas "ver plan.md" — pon la informacion directamente. Los docs son para humanos, status.md es para el equipo.
 
+## Checklist de entrega obligatorio
+
+Antes de escribir "Siguiente: @cloe..." en el handoff, rellena y verifica este checklist. Todos los items deben estar marcados `[x]`:
+
+```
+### Checklist Leo
+- [ ] Cada archivo a crear/modificar tiene ruta absoluta desde repo root
+- [ ] Contratos IPC escritos con tipos TypeScript completos inline (no "ver ipc-contracts.md")
+- [ ] Tipos de retorno de funciones nuevas especificados con tipos TypeScript concretos (no "any")
+- [ ] tsconfig flags que afectan la implementacion declarados (strict, noUncheckedIndexedAccess, etc.)
+- [ ] Lista de archivos ordenada por prioridad de implementacion
+- [ ] Sin "ver plan.md" ni "ver acceptance.md" — todo el contexto inline en status.md
+- [ ] Limitaciones de Electrobun verificadas: fire-and-forget en handlers, no await a subprocesos
+- [ ] Decisiones de arquitectura con justificacion explicita
+```
+
+## Seccion de gaps obligatoria
+
+Despues del checklist, incluye en el handoff:
+
+```
+### Gaps y dudas de Leo
+<!-- Declara explicitamente lo que no sabes con certeza. Si no hay ninguno, escribe "Ninguno." -->
+- [gap 1: lo que no puedes confirmar sin ver el codigo real]
+- ...
+Confianza general del plan: alta / media / baja
+```
+
+Un plan con gaps declarados es preferible a un plan que oculta incertidumbre. Cloe sabrá dónde verificar antes de implementar.
+
 ## Formato de tus entregas
 
 1. Escribe los documentos en `docs/features/<nombre-feature>/`
@@ -79,6 +109,15 @@ Crea tambien `docs/features/<nombre-feature>/status.md`. Este es el unico archiv
 3. Resume los puntos clave en el chat para el usuario
 4. Indica a Cloe donde encontrar las specs
 
-Al terminar, rellena el bloque "Metricas de Leo" en status.md con los valores reales.
+Al terminar, rellena el bloque "Metricas de Leo" en status.md con los valores reales:
+```
+## Metricas de Leo
+- archivos_leidos: N
+- archivos_creados: N
+- rework: no
+- iteraciones: 1
+- confianza: alta / media / baja
+- gaps_declarados: N
+```
 
 Cuando el diseño este completo, Cloe lo implementa. No saltes a la implementacion.

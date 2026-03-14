@@ -1,13 +1,19 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
-import { mkdirSync, rmSync } from 'fs';
-import type { AppRPC, AgentInfo, AgentEnhanceDone, ProviderId, DeleteAgentResult } from '../types/ipc';
+import { rmSync } from 'fs';
+import type { AppRPC, AgentEnhanceDone, ProviderId } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
-import { validateAgentName } from '../cli/validations';
 import { AGENTS_DIR } from '../db/userDataDir';
 import { agentRepository } from '../db/agentRepository';
 import { conversationRepository, messageRepository } from '../db/conversationRepository';
 import { enhancePrompt } from '../enhancer/promptEnhancer';
+import {
+  handleGenerateAgent,
+  handleListAgents,
+  handleCreateSession,
+  handleSaveMessage,
+  handleDeleteAgent,
+} from './handlerLogic';
 
 async function enhanceAndPersist(
   agentId: string,
@@ -52,93 +58,22 @@ export function createRpc() {
           };
         },
 
-        generateAgent: async (config) => {
-          if (!config?.name) return { success: false, error: 'Agent name required' };
-          const nameError = validateAgentName(config.name);
-          if (nameError) return { success: false, error: nameError };
+        generateAgent: async (config) =>
+          handleGenerateAgent(config, AGENTS_DIR, {
+            agentRepository,
+            scaffoldAgent,
+            installAgentDeps,
+            enhanceAndPersist: (agentId, agentDir, agentName, originalPrompt, rpcSend) =>
+              enhanceAndPersist(agentId, agentDir, agentName, originalPrompt, rpcSend),
+            onInstallDone: (p) => (rpc as any).send.agentInstallDone(p),
+            onEnhanceDone: (p) => (rpc as any).send.agentEnhanceDone(p),
+            rmSync,
+          }),
 
-          const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
-          if (config.provider && !VALID_PROVIDERS.includes(config.provider as ProviderId)) {
-            return { success: false, error: `Proveedor inválido: "${config.provider}".` };
-          }
+        listAgents: async () => handleListAgents(),
 
-          // Validate against DB before touching the filesystem
-          const existing = agentRepository.findByName(config.name);
-          if (existing) return { success: false, error: `El agente "${config.name}" ya existe.` };
-
-          mkdirSync(AGENTS_DIR, { recursive: true });
-
-          try {
-            // Phase 1 — fast: create dirs, copy templates, write files.
-            const agentDir = await scaffoldAgent(config, AGENTS_DIR);
-
-            // Register in DB immediately after scaffolding so listAgents can see it.
-            // If the insert fails, roll back the scaffolded directory to avoid orphaned folders.
-            let insertedAgent;
-            try {
-              insertedAgent = agentRepository.insert({
-                name: config.name,
-                description: config.description,
-                systemPrompt: config.role,
-                model: '',
-                hasWorkspace: config.needsWorkspace ?? false,
-                path: agentDir,
-                provider: config.provider ?? 'lmstudio',
-              });
-            } catch (dbErr: any) {
-              try { rmSync(agentDir, { recursive: true, force: true }); } catch {}
-              throw dbErr;
-            }
-
-            // Phase 2 — slow: bun install runs in background.
-            installAgentDeps(agentDir, (installError) => {
-              (rpc as any).send.agentInstallDone({
-                agentDir,
-                agentName: config.name,
-                ...(installError ? { error: installError } : {}),
-              });
-            });
-
-            // Phase 3 — enhance: improve system prompt in background (parallel to bun install).
-            enhanceAndPersist(
-              insertedAgent.id,
-              agentDir,
-              config.name,
-              config.role,
-              (payload) => (rpc as any).send.agentEnhanceDone(payload)
-            ).catch((e) => console.error('[enhancer] Error inesperado en enhance:', e));
-
-            return { success: true };
-          } catch (e: any) {
-            return { success: false, error: e.message };
-          }
-        },
-
-        listAgents: async () => {
-          const records = agentRepository.findAll();
-          const agents: AgentInfo[] = records.map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            hasWorkspace: r.hasWorkspace,
-            status: r.status,
-            createdAt: r.createdAt,
-            provider: (r.provider ?? 'lmstudio') as ProviderId,
-          }));
-          return { agents };
-        },
-
-        createSession: async ({ agentName }) => {
-          if (!agentName?.trim()) return { success: false, error: 'agentName is required' };
-          const nameError = validateAgentName(agentName.trim());
-          if (nameError) return { success: false, error: nameError };
-
-          const agent = agentRepository.findByName(agentName.trim());
-          if (!agent) return { success: false, error: `Agente "${agentName}" no encontrado en la base de datos.` };
-          if (agent.status === 'broken') return { success: false, error: `El agente "${agentName}" no se encuentra en disco. Esta marcado como roto.` };
-
-          return acpManager.createSession(agentName.trim(), agent.path);
-        },
+        createSession: async (params) =>
+          handleCreateSession(params, { agentRepository, acpManager }),
 
         sendMessage: async ({ sessionId, message }) => {
           return acpManager.sendMessage(sessionId, message);
@@ -190,56 +125,15 @@ export function createRpc() {
           };
         },
 
-        saveMessage: async ({ conversationId, role, content }) => {
-          const VALID_ROLES = ['user', 'assistant', 'system'] as const;
-          if (!VALID_ROLES.includes(role as any)) {
-            return { success: false, error: `role inválido: "${role}". Debe ser uno de: user, assistant, system.` };
-          }
-          try {
-            const record = messageRepository.save({ conversationId, role, content });
-            return {
-              success: true,
-              message: {
-                id: record.id,
-                conversationId: record.conversationId,
-                role: record.role,
-                content: record.content,
-                createdAt: record.createdAt,
-              },
-            };
-          } catch (e: any) {
-            return { success: false, error: e.message };
-          }
-        },
+        saveMessage: async (params) => handleSaveMessage(params),
 
         deleteConversation: async ({ conversationId }) => {
           conversationRepository.delete(conversationId);
           return { success: true };
         },
 
-        deleteAgent: async ({ agentId, agentName }): Promise<DeleteAgentResult> => {
-          if (!agentId?.trim()) return { success: false, error: 'agentId es requerido' };
-          if (!agentName?.trim()) return { success: false, error: 'agentName es requerido' };
-
-          try {
-            const agent = agentRepository.findById(agentId.trim());
-            if (!agent) return { success: false, error: `Agente con id "${agentId}" no encontrado.` };
-
-            acpManager.closeSessionByAgentName(agentName.trim());
-
-            try {
-              rmSync(agent.path, { recursive: true, force: true });
-            } catch (e: any) {
-              console.error(`[deleteAgent] No se pudo borrar ${agent.path}:`, e.message);
-            }
-
-            agentRepository.delete(agentId.trim());
-
-            return { success: true };
-          } catch (e: any) {
-            return { success: false, error: e.message };
-          }
-        },
+        deleteAgent: async (params) =>
+          handleDeleteAgent(params, { agentRepository, acpManager, rmSync }),
       },
     },
   });

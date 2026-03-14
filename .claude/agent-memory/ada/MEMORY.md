@@ -25,6 +25,16 @@
 - Usar `fs.promises.readdir`, `fs.promises.readFile`, mantener `existsSync` solo para checks rápidos
 - `Promise.all(entries.map(async...))` para paralelizar lecturas de agentes
 
+### Imports duplicados en test files
+- Cloe tiende a usar dos sentencias `import { ... } from 'bun:test'` separadas (una para primitives, otra para `mock`)
+- Consolidar en un solo named import — `import { describe, it, expect, beforeEach, afterEach, mock } from 'bun:test'`
+- El orden de los imports en la misma sentencia no afecta la resolucion de modulos
+
+### mock.module en tests — no extraible
+- El boilerplate `mock.module('../../../src/db/database', ...)` se repite en 7 archivos
+- NO se puede extraer a helper: `mock.module` debe ejecutarse al nivel del modulo antes de los imports dependientes
+- Si se encapsula en una funcion, pierde el efecto de hoisting requerido por Bun
+
 ## Deuda técnica identificada
 - `listAgents` sin caché — diferir a v1.1 con métricas reales
 - `child_process` todavía importado en `acpManager.ts` y `client.ts` — fuera de scope de Ada

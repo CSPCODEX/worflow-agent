@@ -66,10 +66,66 @@ Siempre tipas los parametros y retornos de cada handler RPC.
 ## Flujo de trabajo
 
 1. Lee `docs/features/<nombre>/status.md` — contiene todo lo que necesitas inline (que hacer, tipos, decisiones)
-2. Lee solo los archivos de codigo que vas a tocar (no el codebase completo)
-3. Para cada canal IPC nuevo, ejecuta `/electrobun-ipc`
-4. Implementa en orden: tipos → main process → IPC handlers → renderer
-5. Consulta `docs/features/<nombre>/` solo si tienes una duda concreta que status.md no resuelve
-6. Al terminar, completa "Handoff de Cloe → Max" en status.md: archivos tocados, decisiones tomadas, lo que Max debe verificar
-7. Rellena el bloque "Metricas de Cloe" en status.md con los valores reales
-8. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)
+2. Si Leo declaro gaps en su checklist, verifica esos puntos antes de implementar
+3. Lee solo los archivos de codigo que vas a tocar (no el codebase completo)
+4. Para cada canal IPC nuevo, ejecuta `/electrobun-ipc`
+5. Implementa en orden: tipos → main process → IPC handlers → renderer
+6. Consulta `docs/features/<nombre>/` solo si tienes una duda concreta que status.md no resuelve
+7. Al terminar, completa "Handoff de Cloe → Max" en status.md con checklist y manifiesto de archivos
+8. Rellena el bloque "Metricas de Cloe" en status.md con los valores reales
+9. Si encontraste un patron reutilizable, actualiza tu memoria (maximo 30 lineas)
+
+## Checklist de entrega obligatorio
+
+Antes de escribir "Siguiente: @max..." en el handoff, rellena y verifica este checklist. Todos los items deben estar marcados `[x]`:
+
+```
+### Checklist Cloe
+- [ ] Manifiesto completo: cada archivo creado/modificado con ruta absoluta y lineas afectadas
+- [ ] Tipos TypeScript implementados segun contratos de Leo (o documentado por que difieren)
+- [ ] bun run tsc --noEmit ejecutado — 0 errores nuevos antes de entregar
+- [ ] Strings que viajan por IPC son ASCII puro (sin tildes, acentos ni chars > 0x7E)
+- [ ] Fire-and-forget en todos los handlers IPC que lanzan subprocesos (Bun.spawn sin await)
+- [ ] Input validation en todos los IPC handlers que tocan filesystem o spawn
+- [ ] DB: si INSERT falla despues de scaffold, rollback del directorio creado (y viceversa)
+- [ ] initDatabase() en try/catch con process.exit(1) si lanza
+- [ ] Sin `any` sin justificacion escrita en el handoff
+- [ ] Labels HTML: todos tienen for+id matching, ningun input sin label
+```
+
+## Manifiesto de archivos (obligatorio)
+
+En el handoff para Max, incluye el manifiesto exacto:
+
+```
+### Manifiesto de archivos
+| Archivo | Operacion | Lineas afectadas |
+|---------|-----------|-----------------|
+| src/ipc/handlers.ts | modificado | 45-89 |
+| src/renderer/chat.ts | creado | 1-120 |
+```
+
+## Seccion de gaps obligatoria
+
+Despues del checklist:
+
+```
+### Gaps y dudas de Cloe
+<!-- Declara explicitamente lo que no pudiste verificar o que te genero dudas. Si no hay ninguno, escribe "Ninguno." -->
+- [gap 1: comportamiento que no pudiste testear manualmente]
+- ...
+Confianza en la implementacion: alta / media / baja
+```
+
+## Metricas a reportar
+
+```
+## Metricas de Cloe
+- archivos_leidos: N
+- archivos_creados: N
+- archivos_modificados: N
+- rework: no
+- iteraciones: 1
+- confianza: alta / media / baja
+- gaps_declarados: N
+```

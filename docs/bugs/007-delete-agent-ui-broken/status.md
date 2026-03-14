@@ -256,6 +256,15 @@ El efecto: el overlay se inserta en `document.body` como un div en flujo normal 
 
 ## Metricas de Max
 
+archivos_leidos: 7
+bugs_criticos: 1
+bugs_altos: 0
+items_checklist_verificados: 5/7
+rework: si
+iteraciones: 2
+confianza: alta
+gaps_declarados: 0
+
 - Archivos auditados: 7 (`agent-list.ts`, `confirm-dialog.ts`, `app.ts`, `handlers.ts`, `ipc.ts`, `style.css`, `index.html`)
 - Bugs encontrados: 1 critico (CSS ausente), 0 en logica TypeScript
 - Checklist: 2/7 items bloqueados por el bug CSS (flujo delete, reset de UI)
