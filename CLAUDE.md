@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Be critical and constructive with your opinions and suggestions; if the user is mistaken, kindly correct them by explaining why and proposing the best solution.
 
 ## Commands
 

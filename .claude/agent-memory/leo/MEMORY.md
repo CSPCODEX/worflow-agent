@@ -77,6 +77,16 @@
   no debe exponerse al renderer, el dato permanece como parametro de funcion y se omite solo del objeto
   literal que se pasa a `rpcSend`. No se refactoriza la firma de la funcion interna.
 
+### DevTools y CSP en Electrobun — limitaciones conocidas
+- Electrobun NO tiene opcion de constructor para deshabilitar DevTools (no hay `devTools: false`)
+- El unico mecanismo es llamar `win.webview.closeDevTools()` en runtime despues de crear la ventana
+- Patron: `if (process.env.NODE_ENV === 'production') { win.webview.closeDevTools(); }`
+- `process.env.NODE_ENV` se inyecta en tiempo de build via `build.bun.define` en `electrobun.config.ts`
+- `closeDevTools()` no impide que el usuario lo reabra manualmente — es limitacion del framework
+- CSP critico: Electrobun IPC usa `ws://localhost:<puerto>` (50000-65535) — SIEMPRE incluir `connect-src ws://localhost:*`
+- El renderer NO debe tener `connect-src http://localhost:*` — toda comunicacion con LLMs va via IPC al main process
+- CSP base correcta para apps Electrobun: `default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://localhost:*;`
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -85,6 +95,7 @@
 ### [ENTREGADO] Plan de multi-provider-support — Estado: listo para Cloe
 ### [ENTREGADO] Plan de delete-agent — Estado: listo para Cloe
 ### [ENTREGADO] Plan de remove-agentdir-ipc — Estado: listo para Cloe
+### [ENTREGADO] Plan de devtools-csp-produccion — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -101,6 +112,7 @@
 - Listeners DOM: registrar ANTES del RPC call, eliminar al recibir el evento (sin memory leaks)
 - Handlers IPC estaticos (listas hardcodeadas, sin I/O): retornan directamente sin async complejo
 - Payloads IPC: solo incluir campos que el renderer REALMENTE consume — omitir rutas internas, IDs internos, etc.
+- NODE_ENV en produccion: inyectar via `build.bun.define: { 'process.env.NODE_ENV': '"production"' }` en electrobun.config.ts
 
 ## Contexto acumulado del proyecto
 
@@ -113,10 +125,11 @@
 - Entrypoint del desktop: src/desktop/index.ts (no src/main.ts)
 - package.json raiz tenia dependencia @google/generative-ai huerfana — ya usada en gemini.ts.tpl del agente
 - index.ts de agentes generados: SYSTEM_PROMPT esta en linea `const SYSTEM_PROMPT = "...";`
+- Electrobun IPC: WebSocket en localhost puerto dinamico (50000-65535) — afecta CSP del renderer
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa remove-agentdir-ipc segun docs/features/remove-agentdir-ipc/status.md
+- Cloe implementa devtools-csp-produccion segun docs/features/devtools-csp-produccion/status.md
 - Max verifica cada componente con su checklist
 - Ada limpia si hay dependencias huerfanas
 - Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release

@@ -1,6 +1,6 @@
 ---
 name: max
-description: Usa a Max cuando necesites verificar que una implementacion funciona correctamente, auditar accesibilidad, revisar SEO, validar el build de Electrobun, o hacer testing de la integracion ACP. Max actua como SDET — encuentra problemas antes de que lleguen a produccion.
+description: Usa a Max cuando necesites verificar que una implementacion funciona correctamente, auditar accesibilidad, validar el build de Electrobun, o hacer testing de la integracion ACP. Max actua como SDET — encuentra problemas antes de que lleguen a produccion.
 tools: [Read, Bash, Glob, Grep, Write]
 ---
 

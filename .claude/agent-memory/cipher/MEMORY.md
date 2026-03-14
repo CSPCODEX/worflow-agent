@@ -18,16 +18,23 @@
 ### remove-agentdir-ipc v1.0 (2026-03-14)
 - [INFORMATIVO -> ACEPTADO] `console.error` con `agent.path` en `handlerLogic.ts:188` cuando `rmSync` falla. Ruta en stderr del proceso principal, no viaja al renderer. Pre-existente a la feature, riesgo bajo.
 
+### devtools-csp-produccion v1.0 (2026-03-14)
+- Sin vulnerabilidades nuevas. Feature de seguridad: CSP corregida y DevTools cerrado en prod.
+- CSP definitiva: `default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://localhost:*;`
+- `connect-src ws://localhost:*` es el minimo obligatorio para Electrobun IPC (puerto dinamico 50000-65535). No hay alternativa. Riesgo SSRF bajo: solo loopback, renderer no tiene fetch().
+- `closeDevTools()` en produccion: limitacion de Electrobun — no previene apertura post-launch via atajos. Riesgo aceptado.
+
 ## Riesgos aceptados
 
-- `(rpc as any).send.xxx` — cast de TypeScript por limitacion del generics de Electrobun, no vulnerabilidad
+- `(rpc as any).send.xxx` — cast de TypeScript por limitacion del generics de Electrobun, no es vulnerabilidad
 - stderr inherit en acpManager — logs de agente visibles en proceso principal, aceptable en desktop local
 - `console.log viewUrl` en main.ts — ruta de archivo local, sin datos sensibles
 - Permisos del archivo `worflow.db` heredados del umask del proceso — aceptable en `%APPDATA%` / `~/Library`
-- DevTools y CSP deshabilitados en produccion — pendiente de release, documentado desde electrobun-migration
 - API key plaintext en memoria JS entre IPC y encriptacion — inherente al runtime JS, no mitigable
 - API key plaintext en IPC local renderer→main — aceptable en threat model desktop local
 - `agent.path` en `console.error` de `handlerLogic.ts:188` — stderr del proceso local, no viaja al renderer
+- `closeDevTools()` no previene apertura manual post-launch — limitacion de Electrobun, mitigacion maxima posible
+- `connect-src ws://localhost:*` wildcard de puerto — inevitable para IPC Electrobun, solo loopback, renderer sin fetch()
 
 ## Superficies de ataque del proyecto
 
@@ -41,6 +48,13 @@
 8. **API key en IPC plaintext**: viaja del renderer al main antes de encriptarse. Aceptado en threat model desktop local.
 9. **handleListAgents**: `r.path` (ruta del filesystem) correctamente excluido del mapper — solo se expone id, name, description, hasWorkspace, status, createdAt, provider. Verificar en futuras features que nuevos campos de DB no filtren paths al renderer.
 
+## Quirks de Electrobun relevantes para auditoria
+
+- No hay `webPreferences.devTools: false` — el unico mecanismo es `win.webview.closeDevTools()` en runtime.
+- CSP via `<meta http-equiv>` en index.html. El IPC usa `ws://localhost:<puerto-dinamico>` — `connect-src ws://localhost:*` es obligatorio.
+- `default-src 'none'` cubre implicitamente `object-src` — no es necesario declararlo explicitamente cuando no hay plugins.
+- El `define` de Bun en `build.bun` solo aplica al bundle del main process — NO al bundle del renderer (build.views.main).
+
 ## Historial de auditorias
 
 | Fecha | Feature | Version | Resultado |
@@ -50,3 +64,4 @@
 | 2026-03-08 | prompt-enhancement | 1.0 | APROBADO CON OBSERVACIONES — 0 criticas, 0 altas, 1 media pendiente |
 | 2026-03-13 | multi-provider-support | 1.0 | APROBADO CON OBSERVACIONES — 0 criticas, 0 altas, 1 media aceptada, 2 bajas pendientes |
 | 2026-03-14 | remove-agentdir-ipc | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas nuevas. Fix correcto y completo. |
+| 2026-03-14 | devtools-csp-produccion | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 2 riesgos aceptados (limitaciones de framework). |

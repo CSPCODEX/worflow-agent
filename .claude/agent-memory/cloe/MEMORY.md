@@ -8,7 +8,9 @@
 - `(rpc as any).send.xxx(payload)` — sending messages to webview (type inference limitation)
 - `BrowserWindow({ url, rpc, frame: {x,y,width,height}, title })` — main window
 - `PATHS.VIEWS_FOLDER` — abs path to views; on Windows use `file:///` + replace backslashes
-- `electrobun.config.ts`: `{ app, build: { bun: { entrypoint }, views: { name: { entrypoint } }, copy } }`
+- `electrobun.config.ts`: `{ app, build: { bun: { entrypoint, define }, views: { name: { entrypoint } }, copy } }`
+- `build.bun.define`: inyecta literales JS en tiempo de build (solo `electrobun build`); en dev mode `NODE_ENV` queda `undefined` — correcto para guards `=== 'production'`
+- `win.webview.closeDevTools()` — unico mecanismo para deshabilitar DevTools en Electrobun (no hay flag de constructor); llamar DESPUES del constructor, sincrono, no requiere await
 - `copy` in config maps `'src/file'` → `'dest/file'` relative to build output
 
 ## Schema direction (critical)
