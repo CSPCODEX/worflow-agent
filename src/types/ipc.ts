@@ -158,6 +158,28 @@ export interface DeleteAgentResult {
   error?: string;
 }
 
+// --- Settings types ---
+
+export interface AppSettings {
+  lmstudioHost: string;
+  enhancerModel: string;
+  dataDir: string;          // readonly, valor de USER_DATA_DIR
+}
+
+export interface LoadSettingsResult {
+  settings: AppSettings;
+}
+
+export interface SaveSettingsParams {
+  lmstudioHost: string;
+  enhancerModel: string;
+}
+
+export interface SaveSettingsResult {
+  success: boolean;
+  error?: string;
+}
+
 export type AppRPC = {
   bun: RPCSchema<{
     requests: {
@@ -173,6 +195,8 @@ export type AppRPC = {
       saveMessage: { params: SaveMessageParams; response: SaveMessageResult };
       deleteConversation: { params: DeleteConversationParams; response: DeleteConversationResult };
       deleteAgent: { params: DeleteAgentParams; response: DeleteAgentResult };
+      loadSettings: { params: undefined; response: LoadSettingsResult };
+      saveSettings: { params: SaveSettingsParams; response: SaveSettingsResult };
     };
     messages: {};
   }>;

@@ -35,9 +35,15 @@
 - NO se puede extraer a helper: `mock.module` debe ejecutarse al nivel del modulo antes de los imports dependientes
 - Si se encapsula en una funcion, pierde el efecto de hoisting requerido por Bun
 
+### getAll() en repositories — SQLite IN clause
+- Cuando un repository necesita leer N claves conocidas de una tabla key/value, usar `SELECT key, value WHERE key IN (?, ?)` + `Map` en lugar de N llamadas a `get()` separadas
+- Aplicado en: `settingsRepository.getAll()` — 2 round-trips → 1
+- Patron: `const map = new Map(rows.map(r => [r.key, r.value])); return { fieldA: map.get('key_a') ?? DEFAULT_A, ... }`
+
 ## Deuda técnica identificada
 - `listAgents` sin caché — diferir a v1.1 con métricas reales
 - `child_process` todavía importado en `acpManager.ts` y `client.ts` — fuera de scope de Ada
+- `lmStudioEnhancer.ts` lineas 24/51: strings con tildes — riesgo IPC/WebView2 si alguna vez viajan por canal RPC
 
 ## Patron: eliminar spawnSync en CLI async
 - `generateAgent` (CLI con spinners) era `async` pero usaba `spawnSync` — bloquea ~30s

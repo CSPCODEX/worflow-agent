@@ -14,7 +14,12 @@ import type {
   AgentEnhanceDone,
   AgentInstallDone,
   ProviderId,
+  LoadSettingsResult,
+  SaveSettingsParams,
+  SaveSettingsResult,
 } from '../types/ipc';
+import { settingsRepository } from '../db/settingsRepository';
+import { USER_DATA_DIR } from '../db/userDataDir';
 import type { agentRepository as AgentRepo } from '../db/agentRepository';
 import type { acpManager as AcpMgr } from './acpManager';
 import type { scaffoldAgent as ScaffoldFn, installAgentDeps as InstallFn } from '../generators/agentGenerator';
@@ -190,6 +195,46 @@ export async function handleDeleteAgent(
 
     deps.agentRepository.delete(params.agentId.trim());
 
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleLoadSettings(): Promise<LoadSettingsResult> {
+  try {
+    const all = settingsRepository.getAll();
+    return {
+      settings: { ...all, dataDir: USER_DATA_DIR },
+    };
+  } catch {
+    // DB no disponible -- retornar defaults
+    return {
+      settings: {
+        lmstudioHost: 'ws://127.0.0.1:1234',
+        enhancerModel: '',
+        dataDir: USER_DATA_DIR,
+      },
+    };
+  }
+}
+
+export async function handleSaveSettings(
+  params: SaveSettingsParams
+): Promise<SaveSettingsResult> {
+  if (!params?.lmstudioHost?.trim()) {
+    return { success: false, error: 'lmstudioHost no puede estar vacio' };
+  }
+  if (params.lmstudioHost.length > 256) {
+    return { success: false, error: 'lmstudioHost demasiado largo (max 256)' };
+  }
+  if ((params.enhancerModel ?? '').length > 128) {
+    return { success: false, error: 'enhancerModel demasiado largo (max 128)' };
+  }
+
+  try {
+    settingsRepository.set('lmstudio_host', params.lmstudioHost.trim());
+    settingsRepository.set('enhancer_model', (params.enhancerModel ?? '').trim());
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };

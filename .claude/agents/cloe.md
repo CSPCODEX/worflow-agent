@@ -92,6 +92,15 @@ bun run tsc --noEmit 2>&1 | grep -v "node_modules" | head -20
 # 3. Verificar imports de lo que usas
 grep -n "rmSync\|mkdirSync\|existsSync\|writeFileSync" src/ipc/handlers.ts src/ipc/handlerLogic.ts 2>/dev/null
 # Confirmar que cada funcion usada esta importada en la cabecera del archivo
+
+# 4. Verificar cobertura CSS para vistas nuevas
+# Si creaste o modificaste un archivo en src/renderer/views/, extrae todas las clases CSS
+# usadas en los innerHTML templates y confirma que existen en style.css
+# Ejemplo (ajustar al archivo creado):
+grep -oP 'class="[^"]*"' src/renderer/views/<tu-vista>.ts | grep -oP '(?<=class=")[^"]+' | tr ' ' '\n' | sort -u > /tmp/clases_usadas.txt
+grep -oP '\.[a-z][a-z0-9-]+(?=\s*[{,])' src/renderer/style.css | tr -d '.' | sort -u > /tmp/clases_definidas.txt
+comm -23 /tmp/clases_usadas.txt /tmp/clases_definidas.txt
+# Resultado esperado: sin output (todas las clases tienen CSS definido)
 ```
 
 Si cualquiera de estos checks falla, corrigelo antes de escribir el handoff. No entregues con checks fallidos.
@@ -112,6 +121,7 @@ Antes de escribir "Siguiente: @max..." en el handoff, rellena y verifica este ch
 - [ ] initDatabase() en try/catch con process.exit(1) si lanza
 - [ ] Sin `any` sin justificacion escrita en el handoff
 - [ ] Labels HTML: todos tienen for+id matching, ningun input sin label
+- [ ] Si creaste vistas nuevas: todas las clases CSS usadas en innerHTML existen en style.css (check #4 de auto-verificacion ejecutado)
 ```
 
 ## Manifiesto de archivos (obligatorio)

@@ -66,7 +66,27 @@
 - Los providers se copian TODOS al agente (no solo el elegido) — permite cambio de provider editando solo `.env`
 - `createProvider()` se llama UNA VEZ antes del if TTY/ACP; se pasa como argumento al constructor de la clase ACP
 
+## LMStudioClient API (@lmstudio/sdk)
+- Constructor acepta `{ baseUrl: string }` — campo exacto es `baseUrl` (no `wsBaseUrl`)
+- `lmClient.llm.model()` — primer modelo disponible
+- `lmClient.llm.model(key: string)` — modelo por nombre exacto
+- Confirmado en `node_modules/@lmstudio/sdk/dist/index.d.ts` linea 5762
+
+## settingsRepository patron
+- Tabla `settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)` ya existe en migration v1
+- `db.run('INSERT OR REPLACE INTO settings ...', [key, value])` — patron correcto para upsert
+- Patron identico a agentRepository: `db.query<T, [string]>(...).get([param])` — TS2345 es preexistente
+
+## CSS para clases nuevas del renderer
+- Siempre añadir CSS para TODAS las clases nuevas usadas en templates de vistas y botones
+- Las clases de vistas SPA (`.xxx-view`) requieren `flex: 1; overflow-y: auto` para ocupar el area disponible — sin esto el contenido colapsa a tamano cero
+- Patron de referencia: `.create-agent-view { flex: 1; overflow-y: auto; padding: 32px; max-width: 560px }` — copiar este patron para cada vista nueva
+- Botones en sidebar: `width: 100%; background: transparent; cursor: pointer; text-align: left` + `:hover` con background
+- Footers del sidebar: `padding + border-top` para separacion visual
+- Checklist antes de entregar: grep de TODAS las clases nuevas en `style.css` — si alguna no existe, añadirla
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
 - multi-provider-support: COMPLETO (9 archivos creados, 9 modificados) — listo para QA Max
+- settings-panel: COMPLETO (2 archivos creados, 6 modificados) — listo para QA Max

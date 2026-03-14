@@ -7,6 +7,7 @@
 
 import { LMStudioClient } from '@lmstudio/sdk';
 import { buildMetaPrompt, META_SYSTEM_INSTRUCTION } from './metaPrompt';
+import { settingsRepository } from '../db/settingsRepository';
 
 const TIMEOUT_MS = 15_000;
 
@@ -14,8 +15,12 @@ export async function enhanceWithLmStudio(
   originalPrompt: string,
   agentName: string
 ): Promise<string> {
-  const lmClient = new LMStudioClient();
-  const model = await lmClient.llm.model();
+  // Single DB round-trip for both settings keys
+  const { lmstudioHost: host, enhancerModel } = settingsRepository.getAll();
+  const lmClient = new LMStudioClient({ baseUrl: host });
+  const model = enhancerModel
+    ? await lmClient.llm.model(enhancerModel)
+    : await lmClient.llm.model();
   if (!model) throw new Error('No hay ningún modelo cargado en LM Studio. Carga un modelo e inténtalo de nuevo.');
 
   const metaPrompt = buildMetaPrompt(originalPrompt, agentName);

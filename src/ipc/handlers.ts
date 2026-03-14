@@ -13,6 +13,8 @@ import {
   handleCreateSession,
   handleSaveMessage,
   handleDeleteAgent,
+  handleLoadSettings,
+  handleSaveSettings,
 } from './handlerLogic';
 
 async function enhanceAndPersist(
@@ -132,6 +134,10 @@ export function createRpc() {
 
         deleteAgent: async (params) =>
           handleDeleteAgent(params, { agentRepository, acpManager, rmSync }),
+
+        loadSettings: async () => handleLoadSettings(),
+
+        saveSettings: async (params) => handleSaveSettings(params),
       },
     },
   });
