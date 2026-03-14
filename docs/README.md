@@ -29,3 +29,4 @@ docs/
 | [multi-provider-support](./features/multi-provider-support/) | Listo para implementacion | Cloe |
 | [delete-agent](./features/delete-agent/) | Listo para implementacion | Cloe |
 | [suite-tests-ipc-db](./features/suite-tests-ipc-db/) | En implementacion | Cloe |
+| [devtools-csp-produccion](./features/devtools-csp-produccion/) | En implementacion | Cloe |
