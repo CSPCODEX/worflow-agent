@@ -103,6 +103,13 @@
 - Valores especificos no mapeados: `OPTIMIZADO` (mapear a `EN_AUDITORIA`), `IMPLEMENTADO` (mapear a `EN_VERIFICACION`), `CORRECCION COMPLETADA` (mapear a `EN_VERIFICACION`), `RESOLVED` y `VERIFIED` en BUG_STATE_MAP (mapear a `RESUELTO`)
 - Todos los mapeos son al enum existente — NO se necesitan estados nuevos en types.ts
 
+### Canal IPC implementado en monitor-view pero no en handlers ni en ipc.ts — BUG #013
+- Patron: monitor-view.ts importa tipos nuevos (`GetAgentTimelineParams`, etc.) y declara parametros de funcion para el canal, pero los tipos no existen en types/ipc.ts y el handler no existe en handlers.ts
+- Resultado: tsc falla con TS2305 en monitor-view.ts y timelineRepository.ts; en runtime `onGetAgentTimeline` es `undefined` → TypeError al abrir tab Agentes
+- Al revisar una vista que importa tipos de ipc.ts: SIEMPRE verificar que esos tipos existen en types/ipc.ts con grep antes de asumir que el canal esta completo
+- Al revisar handlers.ts: verificar que todos los canales declarados en AppRPC.bun.requests tienen su handler en el objeto `requests` de `defineElectrobunRPC`
+- Al revisar app.ts: verificar que la llamada a renderMonitor/renderXxx pasa exactamente N argumentos si la funcion tiene N parametros obligatorios
+
 ## Areas problematicas recurrentes
 
 - Verificación de PATHS en Windows dev mode — siempre requiere runtime check
@@ -120,6 +127,7 @@
 - Formato bold `**Clave:**` en status.md antiguos no capturado por regex de parser — BUG #011
 - IPC on-demand + re-render periodico del DOM: si la Promise del IPC resuelve en un elemento ya destruido, la vista queda con spinner congelado. FIX: en restoreExpanded, si agente esta en expandedAgents sin cache, relanzar el IPC directamente. Detectado en graficas-evolucion-metricas-agentes:restoreExpandedCharts:678-690
 - Schema drift en testHistoryDb.ts: si historyDb.ts añade migration v2 y testHistoryDb.ts no se actualiza, los tests del monitor fallan con "no such column". Verificar sync al revisar features que toquen el schema del monitor.
+- Canal IPC "completamente disenado pero no conectado": monitor-view importa tipos que no existen en ipc.ts, handler no registrado en handlers.ts, argumento faltante en la llamada del renderer — siempre verificar la cadena completa types.ts → handlers.ts → app.ts al aprobar canales nuevos
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime

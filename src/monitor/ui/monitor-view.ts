@@ -772,6 +772,12 @@ export function renderMonitor(
   function updateSnapshot(snapshot: PipelineSnapshotIPC) {
     currentSnapshot = snapshot;
 
+    // Restaurar boton Actualizar si estaba en estado "cargando"
+    if (refreshBtn.disabled) {
+      refreshBtn.disabled = false;
+      refreshBtn.textContent = 'Actualizar';
+    }
+
     // Timestamp
     timestampEl.textContent = snapshot.lastUpdatedAt
       ? `Actualizado: ${formatTimestamp(snapshot.lastUpdatedAt)}`
@@ -816,7 +822,12 @@ export function renderMonitor(
 
   // ── Event listeners ──
 
-  refreshBtn.addEventListener('click', onRefresh);
+  function onRefreshClick() {
+    refreshBtn.disabled = true;
+    refreshBtn.textContent = 'Actualizando...';
+    onRefresh();
+  }
+  refreshBtn.addEventListener('click', onRefreshClick);
 
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -862,7 +873,7 @@ export function renderMonitor(
   return {
     cleanup() {
       document.removeEventListener('monitor:snapshot', onMonitorSnapshot);
-      refreshBtn.removeEventListener('click', onRefresh);
+      refreshBtn.removeEventListener('click', onRefreshClick);
       historyTypeFilterEl.removeEventListener('change', onHistoryTypeChange);
       historyAgentFilterEl.removeEventListener('change', onHistoryAgentChange);
     },
