@@ -1,7 +1,8 @@
 # Feature — Remover agentDir de mensajes IPC
 
-Estado: APROBADO PARA MERGE
+Estado: MERGEADO
 Rama: feature/remove-agentdir-ipc
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-14
 
 ---
@@ -455,4 +456,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: APROBADO PARA MERGE
+Estado final: MERGEADO

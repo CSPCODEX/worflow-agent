@@ -1,6 +1,7 @@
 # Bug #001 — Validacion encoding caracteres
+Fecha merge: 2026-03-08
 
-**Estado:** RESUELTO
+**Estado:** MERGEADO
 **Asignado a:** Cloe
 **Reportado por:** Max
 **Fecha:** 2026-03-07

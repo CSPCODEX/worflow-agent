@@ -1,7 +1,8 @@
 # Bug #008 — Boton ajustes no visible dentro del viewport
 
-Estado: RESUELTO
+Estado: MERGEADO
 Rama: bug/008-boton-ajustes-fuera-viewport
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -232,6 +233,6 @@ Confianza en la verificacion: alta
 
 ---
 
-Estado final: RESUELTO
+Estado final: MERGEADO
 
 DONE. No invocar Ada ni Cipher salvo que "Requiere auditoria de Cipher" sea SI.

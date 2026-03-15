@@ -1,6 +1,6 @@
 # Bug #010 — Parser no reconoce estado "LISTO PARA MERGE"
 
-Estado: RESUELTO
+Estado: ARCHIVADO
 Fecha: 2026-03-15
 
 ---

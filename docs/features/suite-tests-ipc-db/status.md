@@ -1,7 +1,8 @@
 # Feature — Suite de tests (IPC handlers, DB, validaciones)
 
-Estado: EN IMPLEMENTACION
+Estado: MERGEADO
 Rama: feature/suite-tests-ipc-db
+Fecha merge: 2026-03-14
 Fecha apertura: 2026-03-14
 
 ---
@@ -905,4 +906,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: APROBADO — LISTO PARA MERGE A MAIN
+Estado final: MERGEADO

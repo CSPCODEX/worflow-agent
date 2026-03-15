@@ -1,7 +1,8 @@
 # Bug #002 — Agente retorna Internal error cuando LM Studio no tiene modelos cargados
 
-Estado: RESUELTO
+Estado: MERGEADO
 Rama: bug/002-agente-error-sin-modelo-lmstudio
+Fecha merge: 2026-03-15
 Status: docs/bugs/002-agente-error-sin-modelo-lmstudio/status.md
 Fecha apertura: 2026-03-07
 Fecha cierre: 2026-03-07
@@ -211,6 +212,6 @@ Fix aprobado sin observaciones. El cambio es minimo, quirurgico, y cumple exacta
 
 ---
 
-Estado final: RESUELTO
+Estado final: MERGEADO
 
 DONE. No invocar Ada ni Cipher salvo que "Requiere auditoria de Cipher" sea SI.

@@ -1,7 +1,8 @@
 # Feature — Graficas de evolucion de metricas de agentes
 
-Estado: APROBADO
+Estado: MERGEADO
 Rama: feature/graficas-evolucion-metricas-agentes
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -825,4 +826,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: APROBADO
+Estado final: MERGEADO

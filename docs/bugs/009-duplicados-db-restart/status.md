@@ -1,6 +1,6 @@
 # Bug #009 — Duplicados en DB al reiniciar la app
 
-Estado: RESUELTO
+Estado: ARCHIVADO
 Fecha: 2026-03-15
 
 ---
