@@ -32,3 +32,6 @@ docs/
 | [devtools-csp-produccion](./features/devtools-csp-produccion/) | En implementacion | Cloe |
 | [settings-panel](./features/settings-panel/) | Listo para implementacion | Cloe |
 | [monitor-pipeline-agentes](./features/monitor-pipeline-agentes/) | En implementacion | Cloe |
+| [monitor-historial-metricas](./features/monitor-historial-metricas/) | En implementacion | Cloe |
+| [graficas-evolucion-metricas-agentes](./features/graficas-evolucion-metricas-agentes/) | APROBADO | Cipher |
+| [bun-test-ipc-handlers](./features/bun-test-ipc-handlers/) | Listo para implementacion | Cloe |

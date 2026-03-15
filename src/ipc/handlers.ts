@@ -1,7 +1,7 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
-import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -17,8 +17,12 @@ import {
   handleLoadSettings,
   handleSaveSettings,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline } from '../monitor/index';
 import type { PipelineSnapshot } from '../monitor/index';
+
+// Agentes validos del pipeline — usados para whitelisting en handlers IPC.
+const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
+type ValidAgentId = typeof VALID_AGENTS[number];
 
 // Instanciar poller. Busca docs/ subiendo desde process.cwd() hasta encontrarlo.
 // En Electrobun dev, process.cwd() apunta al bin/ del build, no al repo root.
@@ -207,8 +211,8 @@ export function createRpc() {
                 params?.itemType === 'feature' || params?.itemType === 'bug'
                   ? params.itemType
                   : undefined,
-              agentId: ['leo', 'cloe', 'max', 'ada', 'cipher'].includes(params?.agentId ?? '')
-                ? (params.agentId as 'leo' | 'cloe' | 'max' | 'ada' | 'cipher')
+              agentId: (VALID_AGENTS as readonly string[]).includes(params?.agentId ?? '')
+                ? (params.agentId as ValidAgentId)
                 : undefined,
               eventType: [
                 'feature_state_changed',
@@ -254,6 +258,22 @@ export function createRpc() {
           } catch (e: any) {
             console.error('[handlers] getAgentTrends error:', e.message);
             return { trends: [] };
+          }
+        },
+
+        getAgentTimeline: async (params: GetAgentTimelineParams): Promise<GetAgentTimelineResult> => {
+          const agentId = params?.agentId ?? '';
+          if (!(VALID_AGENTS as readonly string[]).includes(agentId)) {
+            return { agentId, points: [] };
+          }
+          const db = getHistoryDb();
+          if (!db) return { agentId, points: [] };
+          try {
+            const points = queryAgentTimeline(db, agentId);
+            return { agentId, points };
+          } catch (e: any) {
+            console.error('[handlers] getAgentTimeline error:', e.message);
+            return { agentId, points: [] };
           }
         },
       },

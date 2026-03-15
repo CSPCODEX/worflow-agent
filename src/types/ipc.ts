@@ -269,6 +269,26 @@ export interface GetAgentTrendsResult {
   trends: AgentTrendIPC[];
 }
 
+// --- Monitor Timeline types ---
+
+export interface AgentTimelinePoint {
+  itemSlug: string;
+  itemType: 'feature' | 'bug';
+  rework: number | null;        // 0 o 1, null = sin dato
+  iteraciones: number | null;
+  confianza: number | null;     // 1=baja, 2=media, 3=alta, null = sin dato
+  recordedAt: string;           // ISO 8601
+}
+
+export interface GetAgentTimelineParams {
+  agentId: string;
+}
+
+export interface GetAgentTimelineResult {
+  agentId: string;
+  points: AgentTimelinePoint[];
+}
+
 // --- Settings types ---
 
 export interface AppSettings {
@@ -311,6 +331,7 @@ export type AppRPC = {
       getPipelineSnapshot: { params: undefined; response: GetPipelineSnapshotResult };
       getHistory: { params: GetHistoryParams; response: GetHistoryResult };
       getAgentTrends: { params: undefined; response: GetAgentTrendsResult };
+      getAgentTimeline: { params: GetAgentTimelineParams; response: GetAgentTimelineResult };
     };
     messages: {};
   }>;

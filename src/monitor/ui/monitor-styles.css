@@ -382,6 +382,55 @@
   color: #e0e0e0;
 }
 
+/* Agent charts section */
+.monitor-agent-charts-section {
+  margin-top: 24px;
+  border-top: 1px solid #1e1e1e;
+  padding-top: 8px;
+}
+
+.monitor-chart-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #181818;
+}
+
+.monitor-chart-agent-row:last-child {
+  border-bottom: none;
+}
+
+.monitor-chart-agent-label {
+  width: 64px;
+  min-width: 64px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-align: right;
+  letter-spacing: 0.02em;
+}
+
+.monitor-chart-agent-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.monitor-chart-svg {
+  overflow: visible;
+  display: block;
+  width: 100%;
+}
+
+.monitor-chart-loading,
+.monitor-chart-empty {
+  font-size: 11px;
+  color: #555;
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}
+
 /* Security badge */
 .monitor-security-badge {
   display: inline-block;
