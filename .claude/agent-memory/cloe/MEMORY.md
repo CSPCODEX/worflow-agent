@@ -141,3 +141,4 @@
 - monitor-historial-metricas: COMPLETO (3 archivos creados, 9 modificados) — listo para QA Max
 - bug/009-duplicados-db-restart: COMPLETO (0 archivos creados, 2 modificados) — pendiente verificacion Max
 - graficas-evolucion-metricas-agentes: COMPLETO (1 archivos creados, 6 modificados) — listo para QA Max
+- bug/013-boton-actualizar-no-funciona: COMPLETO (0 archivos creados, 5 modificados) — listo para QA Max

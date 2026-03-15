@@ -1,5 +1,5 @@
 import { Electroview } from 'electrobun/view';
-import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
+import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult } from '../types/ipc';
 import { renderAgentList } from './components/agent-list';
 import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
@@ -99,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
       (params: GetHistoryParams): Promise<GetHistoryResult> =>
         (rpc as any).request.getHistory(params),
       (): Promise<GetAgentTrendsResult> =>
-        (rpc as any).request.getAgentTrends()
+        (rpc as any).request.getAgentTrends(),
+      (params: GetAgentTimelineParams): Promise<GetAgentTimelineResult> =>
+        (rpc as any).request.getAgentTimeline(params),
     );
     // Pedir snapshot al arrancar la vista
     rpc.request.getPipelineSnapshot()
