@@ -1,6 +1,6 @@
 # Status — Persistencia (SQLite + userDataDir)
 
-**Estado:** Correccion completada — devuelto a Max
+**Estado:** ARCHIVADO
 **Responsable actual:** Cloe
 **Fecha de spec:** 2026-03-08
 
@@ -198,7 +198,7 @@ Los agentes se crean en `<userDataDir>/agents/<name>/`.
 
 ## Handoff de Max → Cloe (devuelto — 3 bugs pendientes)
 
-**Estado:** NO APROBADO. Requiere 3 correcciones antes de pasar a Ada.
+**Estado:** ARCHIVADO
 
 ### Bug 1 — ALTO: initDatabase() sin manejo de error en desktop/index.ts
 

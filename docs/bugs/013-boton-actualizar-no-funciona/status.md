@@ -1,7 +1,8 @@
 # Bug #013 — Boton Actualizar del monitor no funciona
 
-Estado: CORRECCION COMPLETADA
+Estado: MERGEADO
 Rama: bug/013-boton-actualizar-no-funciona
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -314,4 +315,4 @@ Confianza en la verificacion: alta
 
 ---
 
-Estado final: CORRECCION COMPLETADA
+Estado final: MERGEADO

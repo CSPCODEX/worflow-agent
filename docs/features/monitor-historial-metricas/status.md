@@ -1,7 +1,8 @@
 # Feature — Historial SQLite de Metricas del Pipeline
 
-Estado: OPTIMIZADO — listo para Cipher
+Estado: MERGEADO
 Rama: feature/monitor-historial-metricas
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -1438,4 +1439,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: AUDITADO — listo para merge
+Estado final: MERGEADO

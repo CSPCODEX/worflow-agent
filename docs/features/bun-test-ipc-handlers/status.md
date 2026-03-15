@@ -1,7 +1,8 @@
 # Feature — Tests de runtime para IPC handlers con bun test
 
-Estado: EN VERIFICACION
+Estado: MERGEADO
 Rama: feature/bun-test-ipc-handlers
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -1054,4 +1055,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: APROBADO
+Estado final: MERGEADO

@@ -1,7 +1,8 @@
 # Bug #011 — Features DESCONOCIDO en tab Pipeline
 
-Estado: RESUELTO
+Estado: MERGEADO
 Rama: bug/011-features-desconocido-pipeline
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -38,7 +39,7 @@ Hay DOS causas distintas que producen `DESCONOCIDO`:
 
 El archivo `docs/features/monitor-historial-metricas/status.md` tiene:
 ```
-Estado: OPTIMIZADO — listo para Cipher
+Estado: MERGEADO
 ```
 El parser trunca por el em-dash: raw = `OPTIMIZADO`, normalizado = `OPTIMIZADO`.
 `OPTIMIZADO` no existe en `FEATURE_STATE_MAP`. El enum `FeatureState` en `types.ts` tiene `EN_OPTIMIZACION` (Ada en curso) pero no un estado para "Ada completada, esperando Cipher".
@@ -340,4 +341,4 @@ Confianza en la verificacion: alta
 
 ---
 
-Estado final: RESUELTO
+Estado final: MERGEADO

@@ -1,7 +1,7 @@
 # Status: Delete Agent
 
 **Feature:** delete-agent
-**Estado:** Listo para implementacion
+**Estado:** ARCHIVADO
 **Responsable:** Cloe
 **Fecha de diseno:** 2026-03-13
 

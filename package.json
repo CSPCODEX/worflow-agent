@@ -9,6 +9,7 @@
     "desktop": "electrobun dev",
     "metrics": "bun run scripts/metrics.ts",
     "verify-monitor": "bun run scripts/verify-monitor.ts",
+    "sync-docs": "bun run scripts/sync-docs.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:async": "bun test tests/async/",

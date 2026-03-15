@@ -1,7 +1,8 @@
 # Bug #012 — Cipher no aparece en la columna HANDOFFS del monitor
 
-Estado: RESUELTO
+Estado: MERGEADO
 Rama: bug/012-cipher-falta-columna-handoffs
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -227,4 +228,4 @@ Confianza en la verificacion: alta
 
 ---
 
-Estado final: RESUELTO
+Estado final: MERGEADO

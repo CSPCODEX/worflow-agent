@@ -1,7 +1,8 @@
 # Feature — Monitor de Pipeline de Agentes
 
-Estado: EN AUDITORIA
+Estado: MERGEADO
 Rama: feature/monitor-pipeline-agentes
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-15
 
 ---
@@ -1250,4 +1251,4 @@ Hallazgo de severidad baja (slug sin escapeHtml en title) resuelto en monitor-vi
 
 ---
 
-Estado final: LISTO PARA MERGE
+Estado final: MERGEADO

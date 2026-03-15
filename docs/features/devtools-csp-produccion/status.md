@@ -1,7 +1,8 @@
 # Feature — DevTools deshabilitado y CSP estricto en produccion
 
-Estado: LISTO PARA MERGE
+Estado: MERGEADO
 Rama: feature/devtools-csp-produccion
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-14
 
 ---
@@ -587,4 +588,4 @@ Confianza en la auditoria: alta
 
 ---
 
-Estado final: LISTO PARA MERGE
+Estado final: MERGEADO

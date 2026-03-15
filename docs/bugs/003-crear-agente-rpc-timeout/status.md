@@ -1,7 +1,8 @@
 # Bug #003 — "Crear agente" produce RPC request timed out
 
-Estado: EN PROGRESO
+Estado: MERGEADO
 Rama: bug/003-crear-agente-rpc-timeout
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-07
 
 ---
@@ -120,6 +121,6 @@ Importar `spawn` (no `spawnSync`) desde `'child_process'`. El import de `spawnSy
 
 ---
 
-Estado final: RESUELTO / REABIERTO
+Estado final: MERGEADO
 
 DONE. No invocar Ada ni Cipher salvo que "Requiere auditoria de Cipher" sea SI.

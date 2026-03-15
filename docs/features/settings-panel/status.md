@@ -1,7 +1,8 @@
 # Feature — Panel de settings
 
-Estado: LISTO PARA IMPLEMENTACION
+Estado: MERGEADO
 Rama: feature/settings-panel
+Fecha merge: 2026-03-15
 Fecha apertura: 2026-03-14
 
 ---
@@ -691,4 +692,4 @@ La vulnerabilidad media (TypeError en enhancerModel undefined) es la unica nueva
 
 ---
 
-Estado final: AUDITADO — APROBADO_CON_RIESGOS (1 vuln media pendiente de correccion o aceptacion explicita)
+Estado final: MERGEADO

@@ -113,6 +113,19 @@ Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de
 **Ningun agente excepto Max puede invocar `/commit` o `/create-pr`.**
 **Ningun agente puede ejecutar `git merge`, `gh pr merge`, ni ningun equivalente.**
 
+### Sincronizacion de docs post-merge
+
+Despues de cada merge en GitHub, ejecutar:
+
+```bash
+bun run sync-docs
+```
+
+Este comando actualiza los `status.md` de `docs/features/` y `docs/bugs/` cuyas ramas ya
+estan mergeadas en main, cambiando el estado a `MERGEADO` o `ARCHIVADO`. Los agentes leen
+estos archivos — si no se sincronizan, pueden dar diagnosticos incorrectos sobre el estado
+del proyecto.
+
 ### Agent memory
 
 Each agent maintains persistent memory across sessions. **This is mandatory — not optional.**

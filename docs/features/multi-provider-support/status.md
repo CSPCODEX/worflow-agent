@@ -1,6 +1,6 @@
 # Status — Multi-Provider LLM Support
 
-**Estado:** Implementado — listo para QA
+**Estado:** ARCHIVADO
 **Responsable:** Cloe
 **Feature branch:** feature/dev (continuar en el mismo branch)
 
