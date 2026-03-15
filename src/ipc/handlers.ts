@@ -1,6 +1,7 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
-import { rmSync } from 'fs';
-import type { AppRPC, AgentEnhanceDone, ProviderId } from '../types/ipc';
+import { rmSync, existsSync } from 'fs';
+import path from 'path';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR } from '../db/userDataDir';
@@ -16,6 +17,49 @@ import {
   handleLoadSettings,
   handleSaveSettings,
 } from './handlerLogic';
+import { PipelinePoller } from '../monitor/index';
+import type { PipelineSnapshot } from '../monitor/index';
+
+// Instanciar poller. Busca docs/ subiendo desde process.cwd() hasta encontrarlo.
+// En Electrobun dev, process.cwd() apunta al bin/ del build, no al repo root.
+// En produccion docs/ no existe y el monitor retornara snapshot vacio.
+function findDocsDir(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, 'docs');
+    if (existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.join(process.cwd(), 'docs');
+}
+const docsDir = findDocsDir();
+console.log('[monitor] docsDir:', docsDir);
+const poller = new PipelinePoller({ docsDir, pollIntervalMs: 30_000 });
+// NOTA: poller.start() se llama dentro de createRpc(), despues de registrar onSnapshot,
+// para garantizar que el primer scan ya tenga el callback registrado y el push llegue al renderer.
+
+function sanitizeForIpc(s: string): string {
+  return s.replace(/[^\x20-\x7E]/g, '?');
+}
+
+function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
+  return {
+    features: snapshot.features.map(({ filePath: _fp, ...f }) => ({
+      ...f,
+      handoffs: f.handoffs,
+      metrics: f.metrics,
+    })),
+    bugs: snapshot.bugs.map(({ filePath: _fp, ...b }) => ({
+      ...b,
+      agentMetrics: b.agentMetrics as Record<string, AgentMetricsIPC>,
+    })),
+    agentSummaries: snapshot.agentSummaries,
+    lastUpdatedAt: snapshot.lastUpdatedAt,
+    parseErrors: snapshot.parseErrors.map(sanitizeForIpc),
+  };
+}
 
 async function enhanceAndPersist(
   agentId: string,
@@ -41,6 +85,10 @@ async function enhanceAndPersist(
     strategy: result.strategy,
     ...(result.error ? { error: result.error } : {}),
   });
+}
+
+export function getPoller(): PipelinePoller {
+  return poller;
 }
 
 export function createRpc() {
@@ -138,9 +186,28 @@ export function createRpc() {
         loadSettings: async () => handleLoadSettings(),
 
         saveSettings: async (params) => handleSaveSettings(params),
+
+        getPipelineSnapshot: async () => {
+          const snapshot = poller.getSnapshot();
+          return { snapshot: snapshotToIPC(snapshot) };
+        },
       },
     },
   });
+
+  // Wire poller snapshot events to webview via rpc.send.
+  // onSnapshot se registra ANTES de start() para que el primer scan llegue al renderer.
+  poller.onSnapshot((snapshot) => {
+    try {
+      (rpc as any).send.pipelineSnapshotUpdated(snapshotToIPC(snapshot));
+    } catch (_e) {
+      // Transport no listo aun (scan inicial en startup) — el renderer pide el snapshot via getPipelineSnapshot al abrir la vista
+    }
+  });
+
+  // Arrancar el poller aqui garantiza que onSnapshot ya esta registrado
+  // cuando se ejecuta el primer scan inmediato dentro de start().
+  poller.start();
 
   // Wire acpManager streaming events to webview via rpc.send
   acpManager.setMessageCallback((type, sessionId, data) => {

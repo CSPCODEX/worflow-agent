@@ -1,7 +1,7 @@
 import { BrowserWindow, PATHS } from 'electrobun/bun';
 import path from 'path';
 import { existsSync } from 'fs';
-import { createRpc } from '../ipc/handlers';
+import { createRpc, getPoller } from '../ipc/handlers';
 import { acpManager } from '../ipc/acpManager';
 import { initDatabase } from '../db/database';
 
@@ -15,9 +15,9 @@ try {
 
 const rpc = createRpc();
 
-// Close all ACP sessions when the app exits
-process.on('exit', () => acpManager.closeAll());
-process.on('SIGINT', () => { acpManager.closeAll(); process.exit(0); });
+// Close all ACP sessions and stop monitor poller when the app exits
+process.on('exit', () => { acpManager.closeAll(); getPoller().stop(); });
+process.on('SIGINT', () => { acpManager.closeAll(); getPoller().stop(); process.exit(0); });
 
 // PATHS.VIEWS_FOLDER is correct when running as a packaged binary.
 // In electrobun dev mode, fall back to the build output folder if VIEWS_FOLDER doesn't exist.

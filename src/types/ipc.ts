@@ -158,6 +158,70 @@ export interface DeleteAgentResult {
   error?: string;
 }
 
+// --- Monitor types ---
+
+// FeatureRecord e BugRecord "seguros para IPC" — sin filePath (ruta interna)
+export interface FeatureRecordIPC {
+  slug: string;
+  title: string;
+  state: string;
+  branch: string;
+  openedAt: string;
+  handoffs: HandoffStatusIPC[];
+  metrics: AgentMetricsIPC[];
+}
+
+export interface BugRecordIPC {
+  id: string;
+  slug: string;
+  title: string;
+  state: string;
+  openedAt: string;
+  hasSecurityImplication: boolean;
+  agentMetrics: Record<string, AgentMetricsIPC>;
+}
+
+export interface AgentMetricsIPC {
+  agentId: string;
+  archivosLeidos: number | null;
+  archivosCreados: number | null;
+  archivosModificados: number | null;
+  rework: boolean | null;
+  iteraciones: number | null;
+  confianza: 'alta' | 'media' | 'baja' | null;
+  gapsDeclarados: number | null;
+}
+
+export interface HandoffStatusIPC {
+  from: string;
+  to: string;
+  completed: boolean;
+  hasRework: boolean;
+}
+
+export interface AgentSummaryIPC {
+  agentId: string;
+  totalFeatures: number;
+  avgIterations: number;
+  reworkCount: number;
+  reworkRate: number;
+  avgConfidence: number;
+  totalGapsDeclared: number;
+  completedHandoffs: number;
+}
+
+export interface PipelineSnapshotIPC {
+  features: FeatureRecordIPC[];
+  bugs: BugRecordIPC[];
+  agentSummaries: AgentSummaryIPC[];
+  lastUpdatedAt: string;
+  parseErrors: string[];
+}
+
+export interface GetPipelineSnapshotResult {
+  snapshot: PipelineSnapshotIPC;
+}
+
 // --- Settings types ---
 
 export interface AppSettings {
@@ -197,6 +261,7 @@ export type AppRPC = {
       deleteAgent: { params: DeleteAgentParams; response: DeleteAgentResult };
       loadSettings: { params: undefined; response: LoadSettingsResult };
       saveSettings: { params: SaveSettingsParams; response: SaveSettingsResult };
+      getPipelineSnapshot: { params: undefined; response: GetPipelineSnapshotResult };
     };
     messages: {};
   }>;
@@ -208,6 +273,7 @@ export type AppRPC = {
       agentError: AgentError;
       agentInstallDone: AgentInstallDone;
       agentEnhanceDone: AgentEnhanceDone;
+      pipelineSnapshotUpdated: PipelineSnapshotIPC;
     };
   }>;
 };
