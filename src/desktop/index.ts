@@ -1,7 +1,8 @@
 import { BrowserWindow, PATHS } from 'electrobun/bun';
 import path from 'path';
 import { existsSync } from 'fs';
-import { createRpc } from '../ipc/handlers';
+import { createRpc, getPoller } from '../ipc/handlers';
+import { closeHistoryDb } from '../monitor/index';
 import { acpManager } from '../ipc/acpManager';
 import { initDatabase } from '../db/database';
 
@@ -15,9 +16,9 @@ try {
 
 const rpc = createRpc();
 
-// Close all ACP sessions when the app exits
-process.on('exit', () => acpManager.closeAll());
-process.on('SIGINT', () => { acpManager.closeAll(); process.exit(0); });
+// Close all ACP sessions, stop monitor poller, and close history DB when the app exits
+process.on('exit', () => { acpManager.closeAll(); getPoller().stop(); closeHistoryDb(); });
+process.on('SIGINT', () => { acpManager.closeAll(); getPoller().stop(); closeHistoryDb(); process.exit(0); });
 
 // PATHS.VIEWS_FOLDER is correct when running as a packaged binary.
 // In electrobun dev mode, fall back to the build output folder if VIEWS_FOLDER doesn't exist.
@@ -31,6 +32,7 @@ console.log('Worflow Agent desktop starting. View:', viewUrl);
 const win = new BrowserWindow({
   title: 'Worflow Agent',
   frame: { x: 100, y: 100, width: 1920, height: 1080 },
+  renderer: 'native',
   url: viewUrl,
   rpc,
   titleBarStyle: 'default',
@@ -38,3 +40,7 @@ const win = new BrowserWindow({
 });
 
 console.log('Worflow Agent desktop started.');
+
+if (process.env.NODE_ENV === 'production') {
+  win.webview.closeDevTools();
+}

@@ -87,6 +87,15 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 
 → Siguiente: @cloe Implementa la feature. Las instrucciones estan en docs/features/<slug>/status.md seccion "Handoff Leo → Cloe".
 
+## Metricas de Leo
+- archivos_leidos:
+- archivos_creados:
+- archivos_modificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
+
 ---
 
 ## Handoff Cloe → Max
@@ -102,6 +111,15 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 **Advertencias para Max:**
 
 → Siguiente: @max Verifica la feature. El handoff de Cloe esta en docs/features/<slug>/status.md seccion "Handoff Cloe → Max".
+
+## Metricas de Cloe
+- archivos_leidos:
+- archivos_creados:
+- archivos_modificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
 
 ---
 
@@ -119,6 +137,16 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 
 → Siguiente: @ada Optimiza la feature. Max aprobo — ver docs/features/<slug>/status.md seccion "Handoff Max → Ada".
 
+## Metricas de Max
+- archivos_leidos:
+- bugs_criticos:
+- bugs_altos:
+- items_checklist_verificados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
+
 ---
 
 ## Handoff Ada → Cipher
@@ -133,6 +161,18 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 
 → Siguiente: @cipher Audita la feature antes del release. Ver docs/features/<slug>/status.md seccion "Handoff Ada → Cipher".
 
+## Metricas de Ada
+- archivos_leidos:
+- archivos_modificados:
+- bundle_antes_mb:
+- bundle_despues_mb:
+- optimizaciones_aplicadas:
+- optimizaciones_descartadas:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
+
 ---
 
 ## Resultado de Cipher
@@ -142,6 +182,18 @@ Fecha apertura: <fecha hoy YYYY-MM-DD>
 **Vulnerabilidades encontradas:**
 
 **Decision:** APROBADO PARA MERGE / BLOQUEADO
+
+## Metricas de Cipher
+- archivos_leidos:
+- vulnerabilidades_criticas:
+- vulnerabilidades_altas:
+- vulnerabilidades_medias:
+- riesgos_aceptados:
+- rework: no
+- iteraciones: 1
+- confianza:
+- gaps_declarados:
+- decision: APROBADO / APROBADO_CON_RIESGOS / BLOQUEADO
 
 ---
 

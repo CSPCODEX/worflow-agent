@@ -10,6 +10,9 @@ export default {
   build: {
     bun: {
       entrypoint: 'src/desktop/index.ts',
+      define: {
+        'process.env.NODE_ENV': '"production"',
+      },
     },
     views: {
       main: {
@@ -19,6 +22,7 @@ export default {
     copy: {
       'src/renderer/index.html': 'views/main/index.html',
       'src/renderer/style.css': 'views/main/style.css',
+      'src/monitor/ui/monitor-styles.css': 'views/main/monitor-styles.css',
     },
     buildFolder: 'build',
     artifactFolder: 'artifacts',

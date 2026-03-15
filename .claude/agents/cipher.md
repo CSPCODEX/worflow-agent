@@ -98,10 +98,10 @@ Confianza en la auditoria: alta / media / baja
 
 ## Flujo de trabajo
 
-1. Lee `docs/features/<nombre>/status.md` — el handoff de Ada indica que archivos auditar
+1. Lee `docs/features/<nombre>/status.md` — la seccion "Archivos para auditoria de Cipher" del handoff de Ada contiene la lista exacta de archivos a auditar. Comienza por ahi, no explores el repo entero.
 2. Revisa los gaps declarados por Ada — son puntos de atencion extra
 3. Ejecuta `/scan-secrets` como primer paso
-4. Audita solo los archivos indicados en el handoff mas los vectores especificos de Electrobun
+4. Audita solo los archivos de la lista de Ada mas los vectores especificos de Electrobun
 5. Al terminar, completa "Resultado de Cipher" con checklist con evidencia y riesgos aceptados
 6. Rellena el bloque "Metricas de Cipher" en status.md con los valores reales
 7. Si encontraste un patron de vulnerabilidad recurrente, actualiza tu memoria (maximo 30 lineas)
@@ -112,7 +112,7 @@ Solo apruebas cuando el checklist esta completo o los items pendientes estan doc
 
 ```
 ## Metricas de Cipher
-- archivos_auditados: N
+- archivos_leidos: N
 - vulnerabilidades_criticas: N
 - vulnerabilidades_altas: N
 - vulnerabilidades_medias: N

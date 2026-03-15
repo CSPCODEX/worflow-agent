@@ -196,10 +196,16 @@ advertencias_para_cipher:
 
 ### Metricas de Ada
 ```
-archivos_modificados: 5 (acpManager.ts, handlers.ts, chat.ts, app.ts, package.json)
-mejora_bundle: -606 KB dependencia eliminada; renderer 21.94 KB confirmado
+archivos_leidos: 6
+archivos_modificados: 5
+bundle_antes_mb: 10.27
+bundle_despues_mb: 9.66
+optimizaciones_aplicadas: 4
+optimizaciones_descartadas: 0
 rework: no
 iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 deuda_tecnica_pendiente:
   - generateAgentCore usa spawnSync (bun install) que bloquea event loop ~30s durante creación de agente
   - listAgents no tiene caché — O(n) lecturas de disco en cada llamada
@@ -248,18 +254,14 @@ decision: APROBADO
 
 ### Metricas de Cipher
 ```
-archivos_auditados: 10
-  - src/ipc/handlers.ts
-  - src/ipc/acpManager.ts
-  - src/generators/agentGenerator.ts
-  - src/templates/basic-agent/index.ts.tpl
-  - src/renderer/index.html
-  - src/renderer/app.ts
-  - src/renderer/views/chat.ts
-  - src/renderer/views/create-agent.ts
-  - src/renderer/components/agent-list.ts
-  - src/cli/validations.ts
-vulnerabilidades_encontradas: 2 (1 alta, 1 baja) — ambas remediadas
-rework_solicitado: no — remediaciones aplicadas en esta misma sesion
+archivos_leidos: 10
+vulnerabilidades_criticas: 0
+vulnerabilidades_altas: 1
+vulnerabilidades_medias: 0
+riesgos_aceptados: 3
+rework: no
 iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+decision: APROBADO
 ```

@@ -306,6 +306,14 @@ listProviders: async () => {
 
 ## Metricas de Leo
 
+archivos_leidos: 12
+archivos_creados: 8
+archivos_modificados: 9
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 1
+
 - Archivos a crear: 8 (7 templates providers + 1 .env.tpl implicito en scaffoldAgent)
 - Archivos a modificar: 9
 - Migraciones DB: 1 (v3, columna provider)
@@ -363,6 +371,14 @@ listProviders: async () => {
 
 ## Metricas de Cloe
 
+archivos_leidos: 10
+archivos_creados: 9
+archivos_modificados: 9
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 - Archivos creados: 9 (8 templates + src/utils/crypto.ts)
 - Archivos modificados: 9
 - Errores de TS nuevos introducidos: 0 (errores preexistentes en agentRepository, client.ts, acpManager.ts, database.ts no tocados)
@@ -398,6 +414,13 @@ listProviders: async () => {
 Los cinco providers tienen el patron `chat()` identico (delegar en `chatStream`). Los tres providers con API key tienen el constructor identico (leer env, validar, desencriptar). No se puede extraer a un helper compartido sin romper la restriccion de templates autocontenidos. La duplicacion es intencional por diseño — cada agente generado debe ser independiente de `src/`.
 
 ### Metricas de Ada
+
+archivos_leidos: 6
+archivos_modificados: 3
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 
 - Archivos modificados: 3
 - `spawnSync` eliminados: 1 (el unico que quedaba en el codebase bajo `src/generators/`)
@@ -507,6 +530,17 @@ Ninguna. La feature puede mergearse a `main`.
 ---
 
 ## Metricas de Cipher
+
+archivos_leidos: 12
+vulnerabilidades_criticas: 0
+vulnerabilidades_altas: 0
+vulnerabilidades_medias: 1
+riesgos_aceptados: 3
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+decision: APROBADO_CON_RIESGOS
 
 - Archivos auditados: 12
 - Vulnerabilidades criticas: 0

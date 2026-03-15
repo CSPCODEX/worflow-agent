@@ -1,13 +1,69 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
-import { mkdirSync, rmSync } from 'fs';
-import type { AppRPC, AgentInfo, AgentEnhanceDone, ProviderId, DeleteAgentResult } from '../types/ipc';
+import { rmSync, existsSync } from 'fs';
+import path, { join } from 'path';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
-import { validateAgentName } from '../cli/validations';
-import { AGENTS_DIR } from '../db/userDataDir';
+import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
 import { agentRepository } from '../db/agentRepository';
 import { conversationRepository, messageRepository } from '../db/conversationRepository';
 import { enhancePrompt } from '../enhancer/promptEnhancer';
+import {
+  handleGenerateAgent,
+  handleListAgents,
+  handleCreateSession,
+  handleSaveMessage,
+  handleDeleteAgent,
+  handleLoadSettings,
+  handleSaveSettings,
+} from './handlerLogic';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends } from '../monitor/index';
+import type { PipelineSnapshot } from '../monitor/index';
+
+// Instanciar poller. Busca docs/ subiendo desde process.cwd() hasta encontrarlo.
+// En Electrobun dev, process.cwd() apunta al bin/ del build, no al repo root.
+// En produccion docs/ no existe y el monitor retornara snapshot vacio.
+function findDocsDir(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, 'docs');
+    if (existsSync(candidate)) return candidate;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.join(process.cwd(), 'docs');
+}
+const docsDir = findDocsDir();
+console.log('[monitor] docsDir:', docsDir);
+const poller = new PipelinePoller({
+  docsDir,
+  pollIntervalMs: 30_000,
+  historyDbPath: join(USER_DATA_DIR, 'monitor-history.db'),
+});
+// NOTA: poller.start() se llama dentro de createRpc(), despues de registrar onSnapshot,
+// para garantizar que el primer scan ya tenga el callback registrado y el push llegue al renderer.
+
+function sanitizeForIpc(s: string): string {
+  return s.replace(/[^\x20-\x7E]/g, '?');
+}
+
+function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
+  return {
+    features: snapshot.features.map(({ filePath: _fp, ...f }) => ({
+      ...f,
+      handoffs: f.handoffs,
+      metrics: f.metrics,
+    })),
+    bugs: snapshot.bugs.map(({ filePath: _fp, ...b }) => ({
+      ...b,
+      agentMetrics: b.agentMetrics as Record<string, AgentMetricsIPC>,
+    })),
+    agentSummaries: snapshot.agentSummaries,
+    lastUpdatedAt: snapshot.lastUpdatedAt,
+    parseErrors: snapshot.parseErrors.map(sanitizeForIpc),
+  };
+}
 
 async function enhanceAndPersist(
   agentId: string,
@@ -30,10 +86,13 @@ async function enhanceAndPersist(
 
   rpcSend({
     agentName,
-    agentDir,
     strategy: result.strategy,
     ...(result.error ? { error: result.error } : {}),
   });
+}
+
+export function getPoller(): PipelinePoller {
+  return poller;
 }
 
 export function createRpc() {
@@ -52,93 +111,21 @@ export function createRpc() {
           };
         },
 
-        generateAgent: async (config) => {
-          if (!config?.name) return { success: false, error: 'Agent name required' };
-          const nameError = validateAgentName(config.name);
-          if (nameError) return { success: false, error: nameError };
+        generateAgent: async (config) =>
+          handleGenerateAgent(config, AGENTS_DIR, {
+            agentRepository,
+            scaffoldAgent,
+            installAgentDeps,
+            enhanceAndPersist,
+            onInstallDone: (p) => (rpc as any).send.agentInstallDone(p),
+            onEnhanceDone: (p) => (rpc as any).send.agentEnhanceDone(p),
+            rmSync,
+          }),
 
-          const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
-          if (config.provider && !VALID_PROVIDERS.includes(config.provider as ProviderId)) {
-            return { success: false, error: `Proveedor inválido: "${config.provider}".` };
-          }
+        listAgents: async () => handleListAgents(),
 
-          // Validate against DB before touching the filesystem
-          const existing = agentRepository.findByName(config.name);
-          if (existing) return { success: false, error: `El agente "${config.name}" ya existe.` };
-
-          mkdirSync(AGENTS_DIR, { recursive: true });
-
-          try {
-            // Phase 1 — fast: create dirs, copy templates, write files.
-            const agentDir = await scaffoldAgent(config, AGENTS_DIR);
-
-            // Register in DB immediately after scaffolding so listAgents can see it.
-            // If the insert fails, roll back the scaffolded directory to avoid orphaned folders.
-            let insertedAgent;
-            try {
-              insertedAgent = agentRepository.insert({
-                name: config.name,
-                description: config.description,
-                systemPrompt: config.role,
-                model: '',
-                hasWorkspace: config.needsWorkspace ?? false,
-                path: agentDir,
-                provider: config.provider ?? 'lmstudio',
-              });
-            } catch (dbErr: any) {
-              try { rmSync(agentDir, { recursive: true, force: true }); } catch {}
-              throw dbErr;
-            }
-
-            // Phase 2 — slow: bun install runs in background.
-            installAgentDeps(agentDir, (installError) => {
-              (rpc as any).send.agentInstallDone({
-                agentDir,
-                agentName: config.name,
-                ...(installError ? { error: installError } : {}),
-              });
-            });
-
-            // Phase 3 — enhance: improve system prompt in background (parallel to bun install).
-            enhanceAndPersist(
-              insertedAgent.id,
-              agentDir,
-              config.name,
-              config.role,
-              (payload) => (rpc as any).send.agentEnhanceDone(payload)
-            ).catch((e) => console.error('[enhancer] Error inesperado en enhance:', e));
-
-            return { success: true };
-          } catch (e: any) {
-            return { success: false, error: e.message };
-          }
-        },
-
-        listAgents: async () => {
-          const records = agentRepository.findAll();
-          const agents: AgentInfo[] = records.map((r) => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            hasWorkspace: r.hasWorkspace,
-            status: r.status,
-            createdAt: r.createdAt,
-            provider: (r.provider ?? 'lmstudio') as ProviderId,
-          }));
-          return { agents };
-        },
-
-        createSession: async ({ agentName }) => {
-          if (!agentName?.trim()) return { success: false, error: 'agentName is required' };
-          const nameError = validateAgentName(agentName.trim());
-          if (nameError) return { success: false, error: nameError };
-
-          const agent = agentRepository.findByName(agentName.trim());
-          if (!agent) return { success: false, error: `Agente "${agentName}" no encontrado en la base de datos.` };
-          if (agent.status === 'broken') return { success: false, error: `El agente "${agentName}" no se encuentra en disco. Esta marcado como roto.` };
-
-          return acpManager.createSession(agentName.trim(), agent.path);
-        },
+        createSession: async (params) =>
+          handleCreateSession(params, { agentRepository, acpManager }),
 
         sendMessage: async ({ sessionId, message }) => {
           return acpManager.sendMessage(sessionId, message);
@@ -190,59 +177,102 @@ export function createRpc() {
           };
         },
 
-        saveMessage: async ({ conversationId, role, content }) => {
-          const VALID_ROLES = ['user', 'assistant', 'system'] as const;
-          if (!VALID_ROLES.includes(role as any)) {
-            return { success: false, error: `role inválido: "${role}". Debe ser uno de: user, assistant, system.` };
-          }
-          try {
-            const record = messageRepository.save({ conversationId, role, content });
-            return {
-              success: true,
-              message: {
-                id: record.id,
-                conversationId: record.conversationId,
-                role: record.role,
-                content: record.content,
-                createdAt: record.createdAt,
-              },
-            };
-          } catch (e: any) {
-            return { success: false, error: e.message };
-          }
-        },
+        saveMessage: async (params) => handleSaveMessage(params),
 
         deleteConversation: async ({ conversationId }) => {
           conversationRepository.delete(conversationId);
           return { success: true };
         },
 
-        deleteAgent: async ({ agentId, agentName }): Promise<DeleteAgentResult> => {
-          if (!agentId?.trim()) return { success: false, error: 'agentId es requerido' };
-          if (!agentName?.trim()) return { success: false, error: 'agentName es requerido' };
+        deleteAgent: async (params) =>
+          handleDeleteAgent(params, { agentRepository, acpManager, rmSync }),
 
+        loadSettings: async () => handleLoadSettings(),
+
+        saveSettings: async (params) => handleSaveSettings(params),
+
+        getPipelineSnapshot: async () => {
+          const snapshot = poller.getSnapshot();
+          return { snapshot: snapshotToIPC(snapshot) };
+        },
+
+        getHistory: async (params: GetHistoryParams): Promise<GetHistoryResult> => {
+          const db = getHistoryDb();
+          if (!db) return { events: [], totalCount: 0 };
           try {
-            const agent = agentRepository.findById(agentId.trim());
-            if (!agent) return { success: false, error: `Agente con id "${agentId}" no encontrado.` };
-
-            acpManager.closeSessionByAgentName(agentName.trim());
-
-            try {
-              rmSync(agent.path, { recursive: true, force: true });
-            } catch (e: any) {
-              console.error(`[deleteAgent] No se pudo borrar ${agent.path}:`, e.message);
-            }
-
-            agentRepository.delete(agentId.trim());
-
-            return { success: true };
+            // Validar params — whitelist para campos sensibles
+            const safeParams = {
+              itemSlug: typeof params?.itemSlug === 'string' ? params.itemSlug : undefined,
+              itemType:
+                params?.itemType === 'feature' || params?.itemType === 'bug'
+                  ? params.itemType
+                  : undefined,
+              agentId: ['leo', 'cloe', 'max', 'ada', 'cipher'].includes(params?.agentId ?? '')
+                ? (params.agentId as 'leo' | 'cloe' | 'max' | 'ada' | 'cipher')
+                : undefined,
+              eventType: [
+                'feature_state_changed',
+                'bug_state_changed',
+                'handoff_completed',
+                'metrics_updated',
+              ].includes(params?.eventType ?? '')
+                ? params.eventType
+                : undefined,
+              limit: typeof params?.limit === 'number' ? Math.min(params.limit, 500) : 100,
+              offset: typeof params?.offset === 'number' ? Math.max(params.offset, 0) : 0,
+            };
+            const result = queryHistory(db, safeParams);
+            return {
+              events: result.events.map((e) => ({
+                ...e,
+                // Sanitizar strings a ASCII puro (BUG #001 — IPC no soporta non-ASCII en Windows)
+                itemTitle: e.itemTitle.replace(/[^\x20-\x7E]/g, '?'),
+                fromValue: e.fromValue?.replace(/[^\x20-\x7E]/g, '?') ?? null,
+                toValue: e.toValue.replace(/[^\x20-\x7E]/g, '?'),
+              })),
+              totalCount: result.totalCount,
+            };
           } catch (e: any) {
-            return { success: false, error: e.message };
+            console.error('[handlers] getHistory error:', e.message);
+            return { events: [], totalCount: 0 };
+          }
+        },
+
+        getAgentTrends: async (_params: undefined): Promise<GetAgentTrendsResult> => {
+          const db = getHistoryDb();
+          if (!db) return { trends: [] };
+          try {
+            const snapshot = poller.getSnapshot();
+            const currentSummaries = snapshot.agentSummaries.map((s) => ({
+              agentId: s.agentId,
+              reworkRate: s.reworkRate,
+              avgIterations: s.avgIterations,
+              avgConfidence: s.avgConfidence,
+            }));
+            const trends = queryAgentTrends(db, currentSummaries);
+            return { trends };
+          } catch (e: any) {
+            console.error('[handlers] getAgentTrends error:', e.message);
+            return { trends: [] };
           }
         },
       },
     },
   });
+
+  // Wire poller snapshot events to webview via rpc.send.
+  // onSnapshot se registra ANTES de start() para que el primer scan llegue al renderer.
+  poller.onSnapshot((snapshot) => {
+    try {
+      (rpc as any).send.pipelineSnapshotUpdated(snapshotToIPC(snapshot));
+    } catch (_e) {
+      // Transport no listo aun (scan inicial en startup) — el renderer pide el snapshot via getPipelineSnapshot al abrir la vista
+    }
+  });
+
+  // Arrancar el poller aqui garantiza que onSnapshot ya esta registrado
+  // cuando se ejecuta el primer scan inmediato dentro de start().
+  poller.start();
 
   // Wire acpManager streaming events to webview via rpc.send
   acpManager.setMessageCallback((type, sessionId, data) => {

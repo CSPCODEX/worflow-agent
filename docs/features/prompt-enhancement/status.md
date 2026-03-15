@@ -337,6 +337,14 @@ Importante: registrar ambos listeners ANTES de llamar a `rpc.request.generateAge
 
 ## Metricas de Leo
 
+archivos_leidos: 8
+archivos_creados: 4
+archivos_modificados: 6
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 - Archivos nuevos: 4
 - Archivos modificados: 6
 - Nuevos tipos IPC: 1 (AgentEnhanceDone)
@@ -391,6 +399,14 @@ Importante: registrar ambos listeners ANTES de llamar a `rpc.request.generateAge
 
 ## Metricas de Cloe
 
+archivos_leidos: 8
+archivos_creados: 4
+archivos_modificados: 7
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+
 - Archivos nuevos: 4 (src/enhancer/*.ts)
 - Archivos modificados: 7 (migrations, agentRepository, agentGenerator, ipc.ts, handlers.ts, app.ts, create-agent.ts)
 - Lineas añadidas estimadas: ~200
@@ -424,6 +440,15 @@ Importante: registrar ambos listeners ANTES de llamar a `rpc.request.generateAge
 - `spawnSync` en `generateAgent` (CLI path, linea 130) sigue siendo bloqueante — es intencional para el flujo de terminal interactivo, no es un issue de seguridad.
 
 ## Metricas de Ada
+
+archivos_leidos: 6
+archivos_modificados: 3
+optimizaciones_aplicadas: 4
+optimizaciones_descartadas: 0
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
 
 - Archivos modificados: 3 (agentGenerator.ts, handlers.ts, staticEnhancer.ts)
 - Lineas eliminadas: ~28
@@ -502,6 +527,17 @@ Importante: registrar ambos listeners ANTES de llamar a `rpc.request.generateAge
 7. **XSS via strategy en renderer:** `create-agent.ts` usa `detail.strategy` solo en comparaciones `=== 'lmstudio'` y `=== 'static'` para elegir un string literal. `showFeedback` asigna con `feedback.textContent`. El valor de `strategy` nunca se interpola en innerHTML. Descartado.
 
 ## Metricas de Cipher
+
+archivos_leidos: 10
+vulnerabilidades_criticas: 0
+vulnerabilidades_altas: 0
+vulnerabilidades_medias: 1
+riesgos_aceptados: 2
+rework: no
+iteraciones: 1
+confianza: alta
+gaps_declarados: 0
+decision: APROBADO_CON_RIESGOS
 
 - Archivos auditados: 10
 - Vulnerabilidades criticas: 0

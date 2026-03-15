@@ -74,14 +74,12 @@ export interface AgentError {
 }
 
 export interface AgentInstallDone {
-  agentDir: string;
   agentName: string;
   error?: string;
 }
 
 export interface AgentEnhanceDone {
   agentName: string;
-  agentDir: string;
   strategy: 'lmstudio' | 'static' | 'failed';
   error?: string;
 }
@@ -160,6 +158,139 @@ export interface DeleteAgentResult {
   error?: string;
 }
 
+// --- Monitor types ---
+
+// FeatureRecord e BugRecord "seguros para IPC" — sin filePath (ruta interna)
+export interface FeatureRecordIPC {
+  slug: string;
+  title: string;
+  state: string;
+  branch: string;
+  openedAt: string;
+  handoffs: HandoffStatusIPC[];
+  metrics: AgentMetricsIPC[];
+}
+
+export interface BugRecordIPC {
+  id: string;
+  slug: string;
+  title: string;
+  state: string;
+  openedAt: string;
+  hasSecurityImplication: boolean;
+  agentMetrics: Record<string, AgentMetricsIPC>;
+}
+
+export interface AgentMetricsIPC {
+  agentId: string;
+  archivosLeidos: number | null;
+  archivosCreados: number | null;
+  archivosModificados: number | null;
+  rework: boolean | null;
+  iteraciones: number | null;
+  confianza: 'alta' | 'media' | 'baja' | null;
+  gapsDeclarados: number | null;
+}
+
+export interface HandoffStatusIPC {
+  from: string;
+  to: string;
+  completed: boolean;
+  hasRework: boolean;
+}
+
+export interface AgentSummaryIPC {
+  agentId: string;
+  totalFeatures: number;
+  avgIterations: number;
+  reworkCount: number;
+  reworkRate: number;
+  avgConfidence: number;
+  totalGapsDeclared: number;
+  completedHandoffs: number;
+}
+
+export interface PipelineSnapshotIPC {
+  features: FeatureRecordIPC[];
+  bugs: BugRecordIPC[];
+  agentSummaries: AgentSummaryIPC[];
+  lastUpdatedAt: string;
+  parseErrors: string[];
+}
+
+export interface GetPipelineSnapshotResult {
+  snapshot: PipelineSnapshotIPC;
+}
+
+// --- Monitor History types ---
+
+export type PipelineEventType =
+  | 'feature_state_changed'
+  | 'bug_state_changed'
+  | 'handoff_completed'
+  | 'metrics_updated';
+
+export interface HistoryEventIPC {
+  id: number;
+  eventType: PipelineEventType;
+  itemType: 'feature' | 'bug';
+  itemSlug: string;
+  itemTitle: string;
+  fromValue: string | null;
+  toValue: string;
+  agentId: string | null;
+  recordedAt: string;
+}
+
+export interface AgentTrendIPC {
+  agentId: string;
+  historicReworkRate: number;
+  historicAvgIterations: number;
+  historicAvgConfidence: number;
+  totalHistoricSamples: number;
+  reworkTrend: 'mejorando' | 'empeorando' | 'estable' | 'sin_datos';
+}
+
+export interface GetHistoryParams {
+  itemSlug?: string;
+  itemType?: 'feature' | 'bug';
+  agentId?: string;
+  eventType?: PipelineEventType;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetHistoryResult {
+  events: HistoryEventIPC[];
+  totalCount: number;
+}
+
+export interface GetAgentTrendsResult {
+  trends: AgentTrendIPC[];
+}
+
+// --- Settings types ---
+
+export interface AppSettings {
+  lmstudioHost: string;
+  enhancerModel: string;
+  dataDir: string;          // readonly, valor de USER_DATA_DIR
+}
+
+export interface LoadSettingsResult {
+  settings: AppSettings;
+}
+
+export interface SaveSettingsParams {
+  lmstudioHost: string;
+  enhancerModel: string;
+}
+
+export interface SaveSettingsResult {
+  success: boolean;
+  error?: string;
+}
+
 export type AppRPC = {
   bun: RPCSchema<{
     requests: {
@@ -175,6 +306,11 @@ export type AppRPC = {
       saveMessage: { params: SaveMessageParams; response: SaveMessageResult };
       deleteConversation: { params: DeleteConversationParams; response: DeleteConversationResult };
       deleteAgent: { params: DeleteAgentParams; response: DeleteAgentResult };
+      loadSettings: { params: undefined; response: LoadSettingsResult };
+      saveSettings: { params: SaveSettingsParams; response: SaveSettingsResult };
+      getPipelineSnapshot: { params: undefined; response: GetPipelineSnapshotResult };
+      getHistory: { params: GetHistoryParams; response: GetHistoryResult };
+      getAgentTrends: { params: undefined; response: GetAgentTrendsResult };
     };
     messages: {};
   }>;
@@ -186,6 +322,7 @@ export type AppRPC = {
       agentError: AgentError;
       agentInstallDone: AgentInstallDone;
       agentEnhanceDone: AgentEnhanceDone;
+      pipelineSnapshotUpdated: PipelineSnapshotIPC;
     };
   }>;
 };

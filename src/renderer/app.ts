@@ -1,9 +1,10 @@
 import { Electroview } from 'electrobun/view';
-import type { AppRPC } from '../types/ipc';
-import type { AgentInfo } from '../types/ipc';
+import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
 import { renderAgentList } from './components/agent-list';
 import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
+import { renderSettings } from './views/settings';
+import { renderMonitor, type MonitorViewHandle } from './views/monitor';
 
 const rpc = Electroview.defineRPC<AppRPC>({
   handlers: {
@@ -25,6 +26,9 @@ const rpc = Electroview.defineRPC<AppRPC>({
       agentEnhanceDone: (payload) => {
         document.dispatchEvent(new CustomEvent('agent:enhance-done', { detail: payload }));
       },
+      pipelineSnapshotUpdated: (payload) => {
+        document.dispatchEvent(new CustomEvent('monitor:snapshot', { detail: payload }));
+      },
     },
   },
 });
@@ -41,11 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let activeChatHandle: ChatHandle | null = null;
   let activeAgentName: string | null = null;
+  let activeSettingsHandle: { cleanup(): void } | null = null;
+  let activeMonitorHandle: MonitorViewHandle | null = null;
 
   function teardownCurrentView() {
     activeChatHandle?.cleanup();
     activeChatHandle = null;
     activeAgentName = null;
+    activeSettingsHandle?.cleanup();
+    activeSettingsHandle = null;
+    activeMonitorHandle?.cleanup();
+    activeMonitorHandle = null;
   }
 
   function showCreate() {
@@ -61,7 +71,51 @@ document.addEventListener('DOMContentLoaded', () => {
     activeChatHandle = renderChat(mainContentEl, agent.name);
   }
 
+  function showSettings() {
+    teardownCurrentView();
+    activeSettingsHandle = renderSettings(mainContentEl);
+  }
+
+  function showMonitor() {
+    teardownCurrentView();
+    const emptySnapshot: PipelineSnapshotIPC = {
+      features: [],
+      bugs: [],
+      agentSummaries: [],
+      lastUpdatedAt: '',
+      parseErrors: [],
+    };
+    const rpc = (window as any).appRpc;
+    activeMonitorHandle = renderMonitor(
+      mainContentEl,
+      emptySnapshot,
+      () => {
+        rpc.request.getPipelineSnapshot()
+          .then((r: { snapshot: PipelineSnapshotIPC }) => {
+            activeMonitorHandle?.updateSnapshot(r.snapshot);
+          })
+          .catch(console.error);
+      },
+      (params: GetHistoryParams): Promise<GetHistoryResult> =>
+        (rpc as any).request.getHistory(params),
+      (): Promise<GetAgentTrendsResult> =>
+        (rpc as any).request.getAgentTrends()
+    );
+    // Pedir snapshot al arrancar la vista
+    rpc.request.getPipelineSnapshot()
+      .then((r: { snapshot: PipelineSnapshotIPC }) => {
+        activeMonitorHandle?.updateSnapshot(r.snapshot);
+      })
+      .catch(console.error);
+  }
+
   btnNewAgent.addEventListener('click', showCreate);
+
+  const btnSettings = document.getElementById('btn-settings')!;
+  btnSettings.addEventListener('click', showSettings);
+
+  const btnMonitor = document.getElementById('btn-monitor')!;
+  btnMonitor.addEventListener('click', showMonitor);
 
   // Refresh agent list when an agent is created
   document.addEventListener('agent:created', () => {
