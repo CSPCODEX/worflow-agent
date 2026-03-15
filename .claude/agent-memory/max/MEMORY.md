@@ -118,6 +118,8 @@
 - Estado efimero en pollers con persistencia: si el poller tiene DB de respaldo, SIEMPRE seedear su cache desde la DB al arrancar
 - Maps de strings a enum: auditar cobertura contra TODOS los status.md reales del repo, no solo contra el enum — BUG #010 y #011
 - Formato bold `**Clave:**` en status.md antiguos no capturado por regex de parser — BUG #011
+- IPC on-demand + re-render periodico del DOM: si la Promise del IPC resuelve en un elemento ya destruido, la vista queda con spinner congelado. FIX: en restoreExpanded, si agente esta en expandedAgents sin cache, relanzar el IPC directamente. Detectado en graficas-evolucion-metricas-agentes:restoreExpandedCharts:678-690
+- Schema drift en testHistoryDb.ts: si historyDb.ts añade migration v2 y testHistoryDb.ts no se actualiza, los tests del monitor fallan con "no such column". Verificar sync al revisar features que toquen el schema del monitor.
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime
