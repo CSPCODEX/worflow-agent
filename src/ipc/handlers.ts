@@ -20,6 +20,10 @@ import {
 import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline } from '../monitor/index';
 import type { PipelineSnapshot } from '../monitor/index';
 
+// Agentes validos del pipeline — usados para whitelisting en handlers IPC.
+const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
+type ValidAgentId = typeof VALID_AGENTS[number];
+
 // Instanciar poller. Busca docs/ subiendo desde process.cwd() hasta encontrarlo.
 // En Electrobun dev, process.cwd() apunta al bin/ del build, no al repo root.
 // En produccion docs/ no existe y el monitor retornara snapshot vacio.
@@ -209,8 +213,8 @@ export function createRpc() {
                 params?.itemType === 'feature' || params?.itemType === 'bug'
                   ? params.itemType
                   : undefined,
-              agentId: ['leo', 'cloe', 'max', 'ada', 'cipher'].includes(params?.agentId ?? '')
-                ? (params.agentId as 'leo' | 'cloe' | 'max' | 'ada' | 'cipher')
+              agentId: (VALID_AGENTS as readonly string[]).includes(params?.agentId ?? '')
+                ? (params.agentId as ValidAgentId)
                 : undefined,
               eventType: [
                 'feature_state_changed',
