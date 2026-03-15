@@ -162,6 +162,17 @@
 - Tests de monitor importan directamente desde `src/monitor/core/` (no desde `src/monitor/index.ts`) — las funciones reciben `db: Database` como parametro, son 100% testeables sin deps externas
 - Scripts nuevos en package.json: `test:async` y `test:monitor` — el script `test` existente no cambia
 
+### Scripts CLI standalone — sync-docs-git-state
+- Scripts en `scripts/` son standalone — NO importan nada de `src/`
+- Solo imports de Node.js built-ins: `node:child_process`, `node:fs`, `node:path`
+- `spawnSync` es correcto en scripts CLI — bloqueo del event loop aceptable (no es handler IPC)
+- Idempotencia obligatoria: ejecutar dos veces no cambia el resultado ni duplica lineas
+- Regex de parseo de status.md deben ser exactos con `^` (inicio de linea) — no usar includes()/startsWith()
+- Formato lineas de estado en status.md: `Estado:` y `Estado final:` (ambas variantes, regex separados)
+- Posible variacion en status.md antiguos: `**Estado:**` (con markdown bold) — verificar antes de implementar
+- `git branch --merged main` puede fallar si `main` no existe localmente — fallback a `origin/main`
+- `git fetch` puede fallar sin internet — siempre try/catch en fetch, continuar con datos locales
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -176,6 +187,7 @@
 ### [ENTREGADO] Plan de monitor-historial-metricas — Estado: listo para Cloe
 ### [ENTREGADO] Plan de graficas-evolucion-metricas-agentes — Estado: APROBADO (Cipher)
 ### [ENTREGADO] Plan de bun-test-ipc-handlers — Estado: listo para Cloe
+### [ENTREGADO] Plan de sync-docs-git-state — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -202,6 +214,7 @@
 - Graficas en UI: SVG inline como string — sin canvas ni librerias, funciona en cualquier webview
 - Tests de handlers: NUNCA importar `handlers.ts` en tests — usar `handlerLogic.ts` con DI. `handlers.ts` crashea fuera de Electrobun por `defineElectrobunRPC`
 - Tests de DB del monitor: usar `testHistoryDb.ts` (DB :memory: con schema de historyDb.ts) — analogo a testDb.ts para la DB principal
+- Scripts CLI en `scripts/`: standalone, solo built-ins de Node.js, spawnSync aceptable (no son handlers IPC)
 
 ## Contexto acumulado del proyecto
 
@@ -221,6 +234,7 @@
 
 ## Pendientes y proximos pasos
 
+- Cloe implementa sync-docs-git-state segun docs/features/sync-docs-git-state/status.md
 - Cloe implementa bun-test-ipc-handlers segun docs/features/bun-test-ipc-handlers/status.md
 - graficas-evolucion-metricas-agentes ya esta APROBADA — merge pendiente
 - Max verifica bun-test-ipc-handlers tras implementacion de Cloe

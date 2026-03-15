@@ -108,3 +108,4 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 | 2026-03-15 | monitor-pipeline-agentes | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja aceptada (slug sin escapeHtml en title=). |
 | 2026-03-15 | monitor-historial-metricas | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 3 riesgos aceptados (todos enum-bounded o produccion sin docs/). |
 | 2026-03-15 | graficas-evolucion-metricas-agentes | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo aceptado (agentId en atributos data-*, filesystem local). |
+| 2026-03-15 | sync-docs-git-state | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo informativo aceptado (path traversal via slug requiere acceso previo al repo). |

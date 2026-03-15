@@ -144,6 +144,18 @@
 - Error tipico: `'../types/ipc'` solo sube un nivel y resuelve a `src/renderer/types/ipc` (no existe)
 - Verificar con `bun run tsc --noEmit 2>&1 | grep TS2307` que el modulo se encuentra
 
+## Formato de lineas Estado: en status.md (dos variantes confirmadas)
+- Formato plano (mayoria): `Estado: ...` / `Estado final: ...` — regex `/^Estado:\s/` y `/^Estado final:\s/`
+- Formato bold (archivos mas antiguos, ej. delete-agent, prompt-enhancement, persistence, bug/001): `**Estado:** ...` — regex `/^\*\*Estado:\*\*\s/`
+- Al escribir scripts que modifican status.md, siempre cubrir AMBOS formatos con regex separados
+- No hay `**Estado final:**` en ningun archivo existente (solo `Estado final:` plano)
+
+## Scripts CLI standalone (no IPC)
+- `spawnSync` de node:child_process es correcto en scripts CLI — no reemplazar por Bun.spawn async
+- Solo imports de `node:child_process`, `node:fs`, `node:path` — sin dependencias externas
+- Chars no-ASCII en comentarios JSDoc estan bien (no viajan por ningun canal); en strings de runtime (console.log/warn) usar ASCII puro por compatibilidad con terminales Windows
+- `process.cwd()` como repo root: el script debe ejecutarse desde la raiz via `bun run <script>`
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
@@ -155,3 +167,4 @@
 - graficas-evolucion-metricas-agentes: COMPLETO (1 archivos creados, 6 modificados) — listo para QA Max
 - bug/013-boton-actualizar-no-funciona: COMPLETO (0 archivos creados, 5 modificados) — listo para QA Max
 - bug/014-bundle-failed-desktop-app: COMPLETO (0 archivos creados, 2 modificados) — listo para QA Max
+- sync-docs-git-state: COMPLETO (1 archivos creados, 3 modificados) — listo para QA Max
