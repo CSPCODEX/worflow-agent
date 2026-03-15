@@ -31,3 +31,4 @@ docs/
 | [suite-tests-ipc-db](./features/suite-tests-ipc-db/) | En implementacion | Cloe |
 | [devtools-csp-produccion](./features/devtools-csp-produccion/) | En implementacion | Cloe |
 | [settings-panel](./features/settings-panel/) | Listo para implementacion | Cloe |
+| [monitor-pipeline-agentes](./features/monitor-pipeline-agentes/) | En implementacion | Cloe |

@@ -85,8 +85,18 @@
 - Footers del sidebar: `padding + border-top` para separacion visual
 - Checklist antes de entregar: grep de TODAS las clases nuevas en `style.css` — si alguna no existe, añadirla
 
+## Patron modulo autocontenido (monitor)
+- Estructura: `src/<modulo>/core/*.ts` (sin imports externos) + `src/<modulo>/ui/*.ts` (solo tipos IPC del host) + `src/<modulo>/index.ts` (API publica)
+- Thin re-export en `src/renderer/views/<modulo>.ts` para mantener convencion de imports del renderer
+- Poller/timer: instanciar en scope del modulo de handlers.ts (NO dentro de createRpc ni de un handler IPC)
+- Exportar `getPoller()` desde handlers.ts para que desktop/index.ts pueda llamar `stop()` en process.on('exit')
+- `snapshotToIPC()`: omitir `filePath` con destructuring `{ filePath: _fp, ...rest }` — patron de seguridad
+- CSS de modulo: prefijo unico (`.monitor-`) para evitar colisiones; copiado al build via `copy` en electrobun.config.ts
+- sidebar-footer con 2+ botones: añadir `display: flex; flex-direction: column; gap: 6px` al CSS del footer
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
 - multi-provider-support: COMPLETO (9 archivos creados, 9 modificados) — listo para QA Max
 - settings-panel: COMPLETO (2 archivos creados, 6 modificados) — listo para QA Max
+- monitor-pipeline-agentes: COMPLETO (8 archivos creados, 7 modificados) — listo para QA Max

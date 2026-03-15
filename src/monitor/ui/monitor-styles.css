@@ -1,0 +1,343 @@
+/* ============================================================
+   Monitor Pipeline — estilos exclusivos
+   Prefijo .monitor- en todos los selectores para evitar
+   colisiones con style.css del host.
+   ============================================================ */
+
+.monitor-view {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Header */
+.monitor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #111;
+  flex-shrink: 0;
+}
+
+.monitor-header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.monitor-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.monitor-timestamp {
+  font-size: 11px;
+  color: #666;
+}
+
+.monitor-btn-refresh {
+  background: #2a2a2a;
+  color: #aaa;
+  border: 1px solid #3a3a3a;
+  border-radius: 5px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.monitor-btn-refresh:hover {
+  background: #333;
+  color: #e0e0e0;
+}
+
+/* Tabs */
+.monitor-tabs {
+  display: flex;
+  border-bottom: 1px solid #2a2a2a;
+  background: #111;
+  flex-shrink: 0;
+}
+
+.monitor-tab {
+  padding: 10px 20px;
+  font-size: 13px;
+  color: #888;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.monitor-tab:hover {
+  color: #ccc;
+}
+
+.monitor-tab.active {
+  color: #fff;
+  border-bottom-color: #2d4a7a;
+}
+
+/* Tab panels */
+.monitor-panel {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.monitor-panel.active {
+  display: block;
+}
+
+/* Section titles within panels */
+.monitor-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  margin-top: 24px;
+}
+
+.monitor-section-title:first-child {
+  margin-top: 0;
+}
+
+/* Filter row */
+.monitor-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.monitor-filter-row label {
+  font-size: 12px;
+  color: #888;
+}
+
+.monitor-filter-select {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 12px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+/* Tables */
+.monitor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.monitor-table th {
+  text-align: left;
+  padding: 8px 10px;
+  color: #777;
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.monitor-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #1e1e1e;
+  color: #ccc;
+  vertical-align: middle;
+}
+
+.monitor-table tr:hover td {
+  background: #1a1a1a;
+}
+
+.monitor-table-empty {
+  padding: 16px 10px;
+  color: #555;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* State badges */
+.monitor-state {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.monitor-state-EN_PLANIFICACION { background: #1a2a4a; color: #6a9ed4; }
+.monitor-state-EN_IMPLEMENTACION { background: #3a2a00; color: #d4a830; }
+.monitor-state-EN_VERIFICACION { background: #2a1a3a; color: #9a6ad4; }
+.monitor-state-EN_OPTIMIZACION { background: #0a2a2a; color: #4ab8b8; }
+.monitor-state-EN_AUDITORIA { background: #1a2a2a; color: #4ab8a0; }
+.monitor-state-AUDITADO { background: #0a2a0a; color: #5ab85a; }
+.monitor-state-MERGEADO { background: #0a2a0a; color: #7ad47a; }
+.monitor-state-BLOQUEADO { background: #3a0a0a; color: #d46060; }
+.monitor-state-DESCONOCIDO { background: #2a2a2a; color: #777; }
+.monitor-state-ABIERTO { background: #3a2a00; color: #d4a830; }
+.monitor-state-EN_DIAGNOSTICO { background: #1a1a3a; color: #6a7ed4; }
+.monitor-state-RESUELTO { background: #0a2a0a; color: #5ab85a; }
+
+/* Handoff icons */
+.monitor-handoffs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.monitor-handoff-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.monitor-handoff-icon.done {
+  background: #0a2a0a;
+  color: #5ab85a;
+}
+
+.monitor-handoff-icon.pending {
+  background: #2a2a2a;
+  color: #555;
+}
+
+.monitor-handoff-icon.rework {
+  background: #3a2a00;
+  color: #d4a830;
+}
+
+.monitor-handoff-arrow {
+  font-size: 9px;
+  color: #444;
+}
+
+/* Agent cards grid */
+.monitor-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.monitor-agent-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.monitor-agent-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  text-transform: capitalize;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.monitor-agent-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.monitor-agent-card-label {
+  color: #777;
+}
+
+.monitor-agent-card-value {
+  color: #ccc;
+  font-weight: 500;
+}
+
+.monitor-agent-card-value.rework-high {
+  color: #d46060;
+}
+
+.monitor-agent-card-value.confidence-alta {
+  color: #5ab85a;
+}
+
+.monitor-agent-card-value.confidence-media {
+  color: #d4a830;
+}
+
+.monitor-agent-card-value.confidence-baja {
+  color: #d46060;
+}
+
+/* Error list */
+.monitor-errors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.monitor-error-item {
+  background: #2a1a1a;
+  border: 1px solid #4a2a2a;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #d4a0a0;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.monitor-no-errors {
+  color: #5ab85a;
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.monitor-empty-state {
+  color: #555;
+  font-size: 13px;
+  padding: 20px 0;
+  font-style: italic;
+}
+
+/* Rework indicator */
+.monitor-rework-yes {
+  color: #d4a830;
+  font-weight: 500;
+}
+
+.monitor-rework-no {
+  color: #555;
+}
+
+/* Security badge */
+.monitor-security-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  background: #3a0a0a;
+  color: #d46060;
+}

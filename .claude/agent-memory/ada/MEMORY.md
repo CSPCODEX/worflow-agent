@@ -40,6 +40,19 @@
 - Aplicado en: `settingsRepository.getAll()` — 2 round-trips → 1
 - Patron: `const map = new Map(rows.map(r => [r.key, r.value])); return { fieldA: map.get('key_a') ?? DEFAULT_A, ... }`
 
+## Patrón: poller.start() y registro de callbacks
+
+- Si un poller hace scan inmediato en `start()`, registrar los callbacks ANTES de llamar `start()`.
+- En Electrobun, los callbacks de IPC push se registran dentro de `createRpc()`. Si `start()` se llama en scope del módulo (antes de `createRpc()`), el primer push se pierde.
+- Solución: mover `start()` al final de `createRpc()`, después de `onSnapshot()`. No requiere cambiar la firma ni el tipo del poller.
+- Aplicado en: `src/ipc/handlers.ts` — monitor feature.
+
+## Patrón: constantes de módulo vs inline en funciones
+
+- Arrays/objetos constantes usados en 2+ funciones del mismo archivo → extraer a constante de módulo.
+- Ejemplo: `ALL_AGENTS: AgentId[]` declarado inline en `parseFeatureStatus` y `parseBugStatus` → constante de módulo.
+- No extraer entre archivos del mismo módulo si la restricción de portabilidad lo justifica.
+
 ## Deuda técnica identificada
 - `listAgents` sin caché — diferir a v1.1 con métricas reales
 - `child_process` todavía importado en `acpManager.ts` y `client.ts` — fuera de scope de Ada

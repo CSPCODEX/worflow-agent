@@ -19,6 +19,7 @@
 - Canal nuevo multi-provider: `listProviders`
 - Canal nuevo delete: `deleteAgent`
 - Canales nuevos settings: `loadSettings`, `saveSettings`
+- Canales nuevos monitor: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -100,6 +101,26 @@
 - El renderer NO debe tener `connect-src http://localhost:*` — toda comunicacion con LLMs va via IPC al main process
 - CSP base correcta para apps Electrobun: `default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://localhost:*;`
 
+### Monitor de pipeline — modulo autocontenido (monitor-pipeline-agentes)
+- Vive en `src/monitor/` con subcarpetas `core/`, `ui/`, `index.ts`
+- `core/*.ts` NO importan nada fuera de `src/monitor/` — solo `node:fs`, `node:path`, y tipos internos
+- `ui/monitor-view.ts` importa SOLO tipos de `src/types/ipc.ts` — unico acoplamiento aceptado con el host
+- API publica unica: `src/monitor/index.ts` — el host solo importa desde aqui
+- `monitor.track(event)` es no-op en v1 — API declarada para v2
+- Fuente de datos: `docs/features/*/status.md` y `docs/bugs/*/status.md` leidos via `node:fs`
+- Estrategia: polling cada 30s (no file watcher) — mas portable, suficiente para handoffs
+- `PipelinePoller` tiene `start()`, `stop()`, `getSnapshot()`, `forceRefresh()`, `onSnapshot(cb)`
+- `poller.start()` se llama en el SCOPE del modulo en handlers.ts — NO dentro de un handler IPC
+- `poller.stop()` se llama en `process.on('exit')` en `src/desktop/index.ts` junto a `acpManager.closeAll()`
+- Snapshots internos tienen `filePath` en `FeatureRecord` y `BugRecord` — este campo NUNCA viaja por IPC
+- `snapshotToIPC()` en handlers.ts omite `filePath` via destructuring `{ filePath: _fp, ...rest }`
+- `parseErrors[]` en snapshot deben sanitizarse a ASCII antes de viajar por IPC: `.replace(/[^\x20-\x7E]/g, '?')`
+- UI: 3 tabs (Pipeline, Agentes, Errores). CSS con prefijo `.monitor-` para evitar colisiones con style.css
+- `updateSnapshot()` en monitor-view.ts es incremental — NO hace re-render completo del container
+- El monitor es una herramienta de desarrollo: docs/ no existe en el bundle de produccion → snapshot vacio
+- `process.cwd()` para resolver `docs/` desde handlers.ts: correcto en dev, no en produccion (comportamiento aceptable)
+- Monitor-styles.css se copia al build via `electrobun.config.ts > build.copy`
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -110,6 +131,7 @@
 ### [ENTREGADO] Plan de remove-agentdir-ipc — Estado: listo para Cloe
 ### [ENTREGADO] Plan de devtools-csp-produccion — Estado: listo para Cloe
 ### [ENTREGADO] Plan de settings-panel — Estado: listo para Cloe
+### [ENTREGADO] Plan de monitor-pipeline-agentes — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -122,13 +144,14 @@
 - Orden en handlers que destruyen recursos: validar → verificar en DB → cerrar sesiones activas → borrar filesystem → borrar DB
 - Si una operacion falla tras crear un directorio, intentar limpiar filesystem (best-effort)
 - DB queries: siempre prepared statements, nunca interpolacion de strings
-- Eventos DOM en renderer: kebab-case con prefijo de dominio (agent:install-done, agent:enhance-done, agent:deleted)
+- Eventos DOM en renderer: kebab-case con prefijo de dominio (agent:install-done, agent:enhance-done, agent:deleted, monitor:snapshot)
 - Listeners DOM: registrar ANTES del RPC call, eliminar al recibir el evento (sin memory leaks)
 - Handlers IPC estaticos (listas hardcodeadas, sin I/O): retornan directamente sin async complejo
 - Payloads IPC: solo incluir campos que el renderer REALMENTE consume — omitir rutas internas, IDs internos, etc.
 - NODE_ENV en produccion: inyectar via `build.bun.define: { 'process.env.NODE_ENV': '"production"' }` en electrobun.config.ts
 - Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
 - Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
+- Modulos autocontenidos (monitor): cero imports hacia fuera de su carpeta, API publica via index.ts, integracion via inyeccion en el host
 
 ## Contexto acumulado del proyecto
 
@@ -143,10 +166,12 @@
 - index.ts de agentes generados: SYSTEM_PROMPT esta en linea `const SYSTEM_PROMPT = "...";`
 - Electrobun IPC: WebSocket en localhost puerto dinamico (50000-65535) — afecta CSP del renderer
 - Gap conocido: `LMStudioClient` constructor — campo exacto para el host puede ser `baseUrl` u otro — verificar en node_modules
+- La linea "Estado final:" y "Estado:" coexisten en status.md — parsear ambas variantes
+- status.md de features: "Handoff X -> Y" completado si tiene >120 chars de contenido real (no solo placeholder "> Agente: completa...")
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa settings-panel segun docs/features/settings-panel/status.md
+- Cloe implementa monitor-pipeline-agentes segun docs/features/monitor-pipeline-agentes/status.md
 - Max verifica cada componente con su checklist
 - Ada limpia si hay dependencias huerfanas
 - Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release
