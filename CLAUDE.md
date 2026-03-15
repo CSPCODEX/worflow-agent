@@ -91,7 +91,27 @@ Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de
 | `/acp-debug` | Max | Diagnose ACP agent connection issues |
 | `/bundle-check` | Ada | Analyze and audit Electrobun bundle size |
 | `/scan-secrets` | Cipher | Scan codebase for exposed secrets |
-| `/commit` | Anyone | Commit siguiendo Conventional Commits con co-author devlitus |
+| `/commit` | **Solo Max** | Commit tras aprobacion del pipeline — Conventional Commits con co-author devlitus |
+| `/create-pr` | **Solo Max** | Crear PR solo cuando el usuario lo pida explicitamente |
+
+### Reglas de commits, push y PR (OBLIGATORIAS)
+
+```
+1. COMMITS — Solo Max, solo tras aprobacion del ultimo agente del pipeline
+   - Features: despues de que Cipher apruebe (APROBADO / APROBADO_CON_RIESGOS)
+   - Bugs sin seguridad: despues del "QA aprobado" final de Max
+   - Bugs con seguridad: despues de que Cipher apruebe
+
+2. PUSH — Solo despues de tener commits en la rama, cuando el usuario lo pida
+
+3. PR — Solo cuando el usuario lo pida explicitamente. Nunca de forma proactiva.
+
+4. MERGE — NINGUN agente puede hacer merge de ninguna rama, nunca.
+   Si el usuario pide merge, responder: "El merge debe hacerlo el usuario en GitHub."
+```
+
+**Ningun agente excepto Max puede invocar `/commit` o `/create-pr`.**
+**Ningun agente puede ejecutar `git merge`, `gh pr merge`, ni ningun equivalente.**
 
 ### Agent memory
 
