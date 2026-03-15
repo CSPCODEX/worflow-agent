@@ -111,6 +111,27 @@
 - Guard en el seed: solo asignar `cachedSnapshot` si el resultado tiene al menos 1 item — si la DB esta vacia, dejar `null` para comportamiento de bootstrap correcto
 - Degradacion graceful en seed: try/catch que loguea pero no relanza — el componente sigue funcionando en modo "cold start" si el seed falla
 
+## SVG inline generado desde TypeScript (graficas)
+- Patron: funcion pura `renderLineChart(points, metric, color): string` — retorna string SVG, sin efectos DOM
+- Polilines segmentadas: acumular puntos en `currentSegment[]`, vaciar al encontrar null — genera multiples `<polyline>` en lugar de uno con gaps
+- Caso 1 punto: `step = 0`, coordenada X = `DRAW_X0 + DRAW_W / 2` (centrado)
+- Guard division por cero: `if (maxY === 0) maxY = 1` — siempre antes de calcular coordenadas Y
+- `escapeHtml()` obligatorio en etiquetas SVG `<text>` que muestran datos del filesystem (slugs)
+- `overflow: visible` en el SVG para que el contenido no se recorte — pero el contenedor padre puede tener `overflow: hidden`
+
+## Estado expandido persistente con re-renders frecuentes
+- Patron: `expandedAgents: Set<string>` + `chartsCache: Map<string, T[]>` en el closure
+- `restoreExpandedCharts()`: funcion que itera el Set y restaura display+innerHTML desde cache — llamar despues de cada `innerHTML =` en el contenedor padre
+- Event delegation en el contenedor padre (no en cada card) — sobrevive re-renders del innerHTML
+
+## Patrones de tests con bun:test
+- `mock.module('../../src/db/database', ...)` ANTES de cualquier import que use `getDatabase()` -- orden critico
+- Helper de DB en memoria: singleton modular con `setup/get/teardown` -- patron identico para DB principal y DB del monitor
+- `FeatureState` y `BugState` en tests: usar valores del enum TS (`'EN_PLANIFICACION'`) NO strings del status.md (`'EN PLANIFICACION'`)
+- Fire-and-forget timing test: `performance.now()` disponible en Bun globalmente; threshold 50ms, stub delay 80ms
+- `setTimeout(cb, delay)` como stub de macrotask para verificar que el handler retorna antes del callback
+- Tests del monitor importan funciones puras desde `src/monitor/core/` directamente -- no necesitan mock de Electrobun
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
@@ -119,3 +140,4 @@
 - monitor-pipeline-agentes: COMPLETO (8 archivos creados, 7 modificados) — listo para QA Max
 - monitor-historial-metricas: COMPLETO (3 archivos creados, 9 modificados) — listo para QA Max
 - bug/009-duplicados-db-restart: COMPLETO (0 archivos creados, 2 modificados) — pendiente verificacion Max
+- graficas-evolucion-metricas-agentes: COMPLETO (1 archivos creados, 6 modificados) — listo para QA Max

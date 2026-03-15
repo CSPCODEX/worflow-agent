@@ -9,6 +9,9 @@ import type {
   GetAgentTrendsResult,
   HistoryEventIPC,
   AgentTrendIPC,
+  GetAgentTimelineParams,
+  GetAgentTimelineResult,
+  AgentTimelinePoint,
 } from '../../types/ipc';
 
 // NOTA: el import de types/ipc.ts es el UNICO acoplamiento con el host.
@@ -46,15 +49,28 @@ function formatTimestamp(iso: string): string {
 }
 
 function handoffIcons(handoffs: HandoffStatusIPC[]): string {
-  // Pairs: L->C, C->M, M->A, A->Ci
+  // Pairs: L->C, C->M, M->A, A->Ci  (4 pairs, 5 agents)
   const labels = ['L', 'C', 'M', 'A', 'Ci'];
+  const arrow = '<span class="monitor-handoff-arrow">></span>';
+
+  if (handoffs.length === 0) {
+    // Edge case: no handoff data — render only Ci with pending state
+    return `<div class="monitor-handoffs"><span class="monitor-handoff-icon pending" title="Ci: destino final del pipeline">Ci</span></div>`;
+  }
+
   const icons = handoffs.map((h, i) => {
     const label = labels[i] ?? '?';
     const cls = h.hasRework ? 'rework' : h.completed ? 'done' : 'pending';
     const title = `${h.from}->${h.to}: ${h.completed ? 'completo' : 'pendiente'}${h.hasRework ? ' (rework)' : ''}`;
-    const arrow = i < handoffs.length - 1 ? '<span class="monitor-handoff-arrow">></span>' : '';
+    // Arrow always present — Ci node always follows
     return `<span class="monitor-handoff-icon ${cls}" title="${title}">${label}</span>${arrow}`;
   });
+
+  // Fifth node: Cipher — destination agent, not origin of any handoff
+  const last = handoffs[handoffs.length - 1];
+  const lastCls = last ? (last.hasRework ? 'rework' : last.completed ? 'done' : 'pending') : 'pending';
+  icons.push(`<span class="monitor-handoff-icon ${lastCls}" title="Ci: destino final del pipeline">Ci</span>`);
+
   return `<div class="monitor-handoffs">${icons.join('')}</div>`;
 }
 
@@ -112,6 +128,215 @@ function renderBugsTable(bugs: BugRecordIPC[], filterState: string): string {
         : '<span style="color:#555;font-size:11px">no</span>'}</td>
     </tr>
   `).join('');
+}
+
+// ──────────────────────────────────────────────
+// Graficas SVG de evolucion por agente
+// ──────────────────────────────────────────────
+
+type ChartMetric = 'rework' | 'iteraciones' | 'confianza';
+
+function extractValues(points: AgentTimelinePoint[], metric: ChartMetric): (number | null)[] {
+  return points.map((p) => {
+    if (metric === 'rework') return p.rework;
+    if (metric === 'iteraciones') return p.iteraciones;
+    return p.confianza;
+  });
+}
+
+function renderLineChart(
+  points: AgentTimelinePoint[],
+  metric: ChartMetric,
+  color: string,
+): string {
+  const TITLE: Record<ChartMetric, string> = {
+    rework: 'Rework',
+    iteraciones: 'Iteraciones',
+    confianza: 'Confianza',
+  };
+  const MAX_Y: Record<ChartMetric, number> = {
+    rework: 1,
+    iteraciones: 0, // calculado dinamicamente
+    confianza: 3,
+  };
+
+  const values = extractValues(points, metric);
+  const validValues = values.filter((v): v is number => v !== null);
+
+  // Area SVG: viewBox 0 0 280 110
+  // Area de dibujo: x 30..260 (230px), y 15..80 (65px)
+  // Etiquetas eje X: y 95
+  const SVG_W = 280;
+  const SVG_H = 110;
+  const DRAW_X0 = 30;
+  const DRAW_X1 = 260;
+  const DRAW_Y0 = 15; // arriba
+  const DRAW_Y1 = 80; // abajo
+  const DRAW_W = DRAW_X1 - DRAW_X0; // 230
+  const DRAW_H = DRAW_Y1 - DRAW_Y0; // 65
+
+  if (validValues.length === 0) {
+    return `<svg viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" class="monitor-chart-svg">
+      <text x="${SVG_W / 2}" y="${SVG_H / 2}" text-anchor="middle" font-size="10" fill="#555">Sin datos</text>
+      <text x="${SVG_W / 2}" y="8" text-anchor="middle" font-size="9" fill="#666">${TITLE[metric]}</text>
+    </svg>`;
+  }
+
+  // Calcular maxY
+  let maxY = MAX_Y[metric];
+  if (metric === 'iteraciones') {
+    maxY = Math.max(5, ...validValues);
+  }
+  if (maxY === 0) maxY = 1; // evitar division por cero
+
+  const n = points.length;
+  const step = n > 1 ? DRAW_W / (n - 1) : 0;
+
+  // Calcular coordenadas SVG para cada punto (null -> null)
+  const coords: ({ cx: number; cy: number } | null)[] = values.map((v, i) => {
+    if (v === null) return null;
+    const cx = n > 1 ? DRAW_X0 + i * step : DRAW_X0 + DRAW_W / 2;
+    const cy = DRAW_Y1 - (v / maxY) * DRAW_H;
+    return { cx: Math.round(cx), cy: Math.round(cy) };
+  });
+
+  // Construir segmentos de polyline — solo entre puntos consecutivos no-null
+  const polylineSegments: string[] = [];
+  let currentSegment: string[] = [];
+  for (const c of coords) {
+    if (c !== null) {
+      currentSegment.push(`${c.cx},${c.cy}`);
+    } else {
+      if (currentSegment.length > 1) {
+        polylineSegments.push(currentSegment.join(' '));
+      }
+      currentSegment = [];
+    }
+  }
+  if (currentSegment.length > 1) polylineSegments.push(currentSegment.join(' '));
+
+  const polylinesHtml = polylineSegments
+    .map((pts) => `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/>`)
+    .join('');
+
+  // Puntos (circulos) para cada coordenada no-null
+  const circlesHtml = coords
+    .filter((c): c is { cx: number; cy: number } => c !== null)
+    .map((c) => `<circle cx="${c.cx}" cy="${c.cy}" r="3" fill="${color}"/>`)
+    .join('');
+
+  // Etiquetas eje X (slug truncado a 8 chars)
+  const labelsHtml = points
+    .map((p, i) => {
+      const x = n > 1 ? DRAW_X0 + i * step : DRAW_X0 + DRAW_W / 2;
+      const label = p.itemSlug.length > 8 ? p.itemSlug.slice(0, 8) + '.' : p.itemSlug;
+      return `<text x="${Math.round(x)}" y="95" text-anchor="middle" font-size="7" fill="#555">${escapeHtml(label)}</text>`;
+    })
+    .join('');
+
+  // Etiquetas eje Y
+  const yMaxLabel = metric === 'rework' ? '1' : metric === 'confianza' ? 'alta' : String(maxY);
+  const yMinLabel = '0';
+
+  return `<svg viewBox="0 0 ${SVG_W} ${SVG_H}" width="${SVG_W}" height="${SVG_H}" class="monitor-chart-svg">
+    <text x="${SVG_W / 2}" y="8" text-anchor="middle" font-size="9" fill="#666">${TITLE[metric]}</text>
+    <line x1="${DRAW_X0}" y1="${DRAW_Y0}" x2="${DRAW_X0}" y2="${DRAW_Y1}" stroke="#2a2a2a" stroke-width="1"/>
+    <line x1="${DRAW_X0}" y1="${DRAW_Y1}" x2="${DRAW_X1}" y2="${DRAW_Y1}" stroke="#2a2a2a" stroke-width="1"/>
+    <text x="${DRAW_X0 - 3}" y="${DRAW_Y0 + 4}" text-anchor="end" font-size="7" fill="#555">${yMaxLabel}</text>
+    <text x="${DRAW_X0 - 3}" y="${DRAW_Y1}" text-anchor="end" font-size="7" fill="#555">${yMinLabel}</text>
+    ${polylinesHtml}
+    ${circlesHtml}
+    ${labelsHtml}
+  </svg>`;
+}
+
+function renderCombinedChart(points: AgentTimelinePoint[]): string {
+  if (points.length === 0) {
+    return `<p class="monitor-chart-empty">Sin datos historicos para este agente.</p>`;
+  }
+
+  const VB_W = 900, VB_H = 175;
+  const X0 = 55, X1 = 870, Y0 = 18, Y1 = 98;
+  const DW = X1 - X0;
+  const DH = Y1 - Y0;
+  const n = points.length;
+  const step = n > 1 ? DW / (n - 1) : 0;
+  // Mostrar etiqueta cada N puntos segun densidad
+  const labelEvery = n > 20 ? 3 : n > 10 ? 2 : 1;
+
+  const iterVals = points.map(p => p.iteraciones).filter((v): v is number => v !== null);
+  const maxIter = Math.max(5, ...iterVals);
+
+  const COLORS: Record<ChartMetric, string> = {
+    rework:      '#e57373',
+    iteraciones: '#4a9eff',
+    confianza:   '#66bb6a',
+  };
+
+  function toNorm(metric: ChartMetric, v: number | null): number | null {
+    if (v === null) return null;
+    if (metric === 'rework')      return v;
+    if (metric === 'iteraciones') return v / maxIter;
+    return (v - 1) / 2;
+  }
+
+  function buildPolyline(metric: ChartMetric): string {
+    const coords: ({ cx: number; cy: number } | null)[] = points.map((p, i) => {
+      const raw = metric === 'rework' ? p.rework : metric === 'iteraciones' ? p.iteraciones : p.confianza;
+      const norm = toNorm(metric, raw);
+      if (norm === null) return null;
+      return {
+        cx: Math.round(n > 1 ? X0 + i * step : X0 + DW / 2),
+        cy: Math.round(Y1 - norm * DH),
+      };
+    });
+
+    const segs: string[] = [];
+    let seg: string[] = [];
+    for (const c of coords) {
+      if (c) { seg.push(`${c.cx},${c.cy}`); }
+      else   { if (seg.length > 1) segs.push(seg.join(' ')); seg = []; }
+    }
+    if (seg.length > 1) segs.push(seg.join(' '));
+
+    const color = COLORS[metric];
+    return segs.map(pts =>
+      `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>`
+    ).join('') + coords.filter((c): c is {cx:number;cy:number} => c !== null)
+      .map(c => `<circle cx="${c.cx}" cy="${c.cy}" r="3" fill="${color}"/>`)
+      .join('');
+  }
+
+  const gridLines = [0.25, 0.5, 0.75].map(v =>
+    `<line x1="${X0}" y1="${Math.round(Y1 - v * DH)}" x2="${X1}" y2="${Math.round(Y1 - v * DH)}" stroke="#222" stroke-width="1" stroke-dasharray="4,4"/>`
+  ).join('');
+
+  const xLabels = points.map((p, i) => {
+    if (i % labelEvery !== 0) return '';
+    const x = Math.round(n > 1 ? X0 + i * step : X0 + DW / 2);
+    const label = p.itemSlug.length > 14 ? p.itemSlug.slice(0, 14) + '.' : p.itemSlug;
+    return `<text x="${x}" y="${Y1 + 8}" text-anchor="end" font-size="8" fill="#666"
+      transform="rotate(-40 ${x} ${Y1 + 8})">${escapeHtml(label)}</text>`;
+  }).join('');
+
+  const legend = (['rework', 'iteraciones', 'confianza'] as ChartMetric[]).map((m, i) => {
+    const lx = VB_W - 200 + i * 68;
+    return `<rect x="${lx}" y="6" width="8" height="8" fill="${COLORS[m]}" rx="1"/>
+    <text x="${lx + 11}" y="14" font-size="9" fill="#888">${m.charAt(0).toUpperCase() + m.slice(1)}</text>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${VB_W} ${VB_H}" width="100%" preserveAspectRatio="xMidYMid meet" class="monitor-chart-svg">
+    ${legend}
+    <line x1="${X0}" y1="${Y0}" x2="${X0}" y2="${Y1}" stroke="#333" stroke-width="1"/>
+    <line x1="${X0}" y1="${Y1}" x2="${X1}" y2="${Y1}" stroke="#333" stroke-width="1"/>
+    <text x="${X0 - 4}" y="${Y0 + 4}" text-anchor="end" font-size="8" fill="#555">1</text>
+    <text x="${X0 - 4}" y="${Y1}" text-anchor="end" font-size="8" fill="#555">0</text>
+    ${gridLines}
+    ${buildPolyline('rework')}
+    ${buildPolyline('iteraciones')}
+    ${buildPolyline('confianza')}
+    ${xLabels}
+  </svg>`;
 }
 
 // ──────────────────────────────────────────────
@@ -259,7 +484,8 @@ export function renderMonitor(
   initialSnapshot: PipelineSnapshotIPC,
   onRefresh: () => void,
   onGetHistory: (params: GetHistoryParams) => Promise<GetHistoryResult>,
-  onGetAgentTrends: () => Promise<GetAgentTrendsResult>
+  onGetAgentTrends: () => Promise<GetAgentTrendsResult>,
+  onGetAgentTimeline: (params: GetAgentTimelineParams) => Promise<GetAgentTimelineResult>,
 ): MonitorViewHandle {
   // Estado local de la vista
   let currentSnapshot = initialSnapshot;
@@ -276,6 +502,10 @@ export function renderMonitor(
 
   // Mapa de tendencias: agentId -> AgentTrendIPC
   let trendsMap = new Map<string, AgentTrendIPC>();
+
+  // Cache y estado expandido de graficas
+  const chartsCache = new Map<string, AgentTimelinePoint[]>();
+  let chartsInitialized = false;
 
   // ── Render inicial del esqueleto HTML ──
   container.innerHTML = `
@@ -347,6 +577,7 @@ export function renderMonitor(
         <div class="monitor-agents-grid" id="mon-agents-grid">
           <p class="monitor-empty-state">Cargando datos de agentes...</p>
         </div>
+        <div class="monitor-agent-charts-section" id="mon-agent-charts-section"></div>
       </div>
 
       <!-- Panel: Errores -->
@@ -405,6 +636,7 @@ export function renderMonitor(
   const featuresBodyEl = container.querySelector<HTMLElement>('#mon-features-body')!;
   const bugsBodyEl = container.querySelector<HTMLElement>('#mon-bugs-body')!;
   const agentsGridEl = container.querySelector<HTMLElement>('#mon-agents-grid')!;
+  const agentChartsSectionEl = container.querySelector<HTMLElement>('#mon-agent-charts-section')!;
   const errorsListEl = container.querySelector<HTMLElement>('#mon-errors-list')!;
   const historyBodyEl = container.querySelector<HTMLElement>('#mon-history-body')!;
   const historyPaginationEl = container.querySelector<HTMLElement>('#mon-history-pagination')!;
@@ -501,6 +733,41 @@ export function renderMonitor(
       });
   }
 
+  // ── Renderizar seccion de graficas (una fila por agente) ──
+  function renderChartsSectionRows(agentIds: string[]) {
+    agentChartsSectionEl.innerHTML = agentIds.map(id =>
+      `<div class="monitor-chart-agent-row">
+        <div class="monitor-chart-agent-label">${id.charAt(0).toUpperCase() + id.slice(1)}</div>
+        <div class="monitor-chart-agent-content" id="mon-chart-content-${id}">
+          <p class="monitor-chart-loading">Cargando...</p>
+        </div>
+      </div>`
+    ).join('');
+
+    for (const id of agentIds) {
+      if (chartsCache.has(id)) {
+        const el = agentChartsSectionEl.querySelector<HTMLElement>(`#mon-chart-content-${id}`);
+        if (el) el.innerHTML = renderCombinedChart(chartsCache.get(id)!);
+      } else {
+        fetchAndRenderChart(id);
+      }
+    }
+  }
+
+  function fetchAndRenderChart(agentId: string) {
+    onGetAgentTimeline({ agentId })
+      .then((result) => {
+        chartsCache.set(agentId, result.points);
+        const el = agentChartsSectionEl.querySelector<HTMLElement>(`#mon-chart-content-${agentId}`);
+        if (el) el.innerHTML = renderCombinedChart(result.points);
+      })
+      .catch((err) => {
+        console.error('[monitor-view] fetchAndRenderChart error:', err);
+        const el = agentChartsSectionEl.querySelector<HTMLElement>(`#mon-chart-content-${agentId}`);
+        if (el) el.innerHTML = '<p class="monitor-chart-empty">Error al cargar datos.</p>';
+      });
+  }
+
   // ── Actualizar solo las partes del DOM que cambian (INCREMENTAL) ──
   function updateSnapshot(snapshot: PipelineSnapshotIPC) {
     currentSnapshot = snapshot;
@@ -529,6 +796,10 @@ export function renderMonitor(
       agentsGridEl.innerHTML = snapshot.agentSummaries
         .map((s) => renderAgentCard(s, trendsMap.get(s.agentId)))
         .join('');
+      if (!chartsInitialized) {
+        chartsInitialized = true;
+        renderChartsSectionRows(snapshot.agentSummaries.map(s => s.agentId));
+      }
     }
 
     // Lista de errores

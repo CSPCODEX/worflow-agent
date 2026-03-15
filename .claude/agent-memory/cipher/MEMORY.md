@@ -36,6 +36,13 @@
 - Sanitizacion IPC BUG #001: handlers.ts:229-231 aplica .replace(/[^\x20-\x7E]/g, '?') a itemTitle, fromValue, toValue. Patron correcto.
 - closeHistoryDb() conectado a process.on('exit') y process.on('SIGINT') en desktop/index.ts:20-21. Cierre limpio confirmado.
 
+### graficas-evolucion-metricas-agentes v1.0 (2026-03-15)
+- Sin vulnerabilidades nuevas. Auditoria limpia: 0 criticas, 0 altas, 0 medias, 0 bajas.
+- SQL injection: prepared statement con ? posicional en timelineRepository.ts:17-23. agentId nunca en el string SQL.
+- VALID_AGENTS whitelist como constante de modulo (Ada refactor) — patron de referencia para handlers de consulta por agentId.
+- escapeHtml en etiquetas SVG eje X (monitor-view.ts:220) — slugs del filesystem correctamente escapados.
+- s.agentId sin escapeHtml en data-agent, data-agent-toggle, id= — filesystem local controlado, produccion sin docs/. Aceptado.
+
 ## Patron recurrente detectado — validacion asimetrica de params IPC
 
 En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHost?.trim()` (linea 225) pero `enhancerModel` no usa `?.` en la validacion de longitud (linea 231). Este patron de validacion asimetrica es un vector recurrente: al añadir nuevos campos opcionales a un handler IPC, los campos que no son el "campo principal" tienden a omitirse de la defensa con optional chaining. Verificar sistematicamente que TODOS los campos de params usan `?.` o tienen un guard explicito de null/undefined antes de acceder a propiedades.
@@ -65,6 +72,7 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 - slug sin escapeHtml en title= (monitor-view.ts:75,103) — filesystem local controlado, produccion sin docs/
 - itemSlug no sanitizado a ASCII en IPC del historial — slug del repo es siempre ASCII por convencion; produccion sin docs/
 - h.from / h.to y s.agentId sin escapeHtml en template literals — valores enum hardcoded de PIPELINE_PAIRS/PIPELINE_ORDER, nunca input del usuario
+- s.agentId sin escapeHtml en data-agent, data-agent-toggle, id="mon-charts-..." (monitor-view.ts:294,321,324) — nombre de directorio del repo, nunca input externo; produccion sin docs/
 
 ## Superficies de ataque del proyecto
 
@@ -77,7 +85,7 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 7. **agentDir en IPC messages**: REMEDIADO en remove-agentdir-ipc. Patron: nunca incluir paths del filesystem en payloads IPC que el renderer no consuma.
 8. **API key en IPC plaintext**: viaja del renderer al main antes de encriptarse. Aceptado en threat model desktop local.
 9. **handleListAgents**: `r.path` (ruta del filesystem) correctamente excluido del mapper — solo se expone id, name, description, hasWorkspace, status, createdAt, provider. Verificar en futuras features que nuevos campos de DB no filtren paths al renderer.
-10. **getHistory/getAgentTrends**: nuevos handlers IPC con whitelist completa — itemType, agentId, eventType, limit, offset. Patron de referencia para futuros handlers de consulta con filtros multiples.
+10. **getHistory/getAgentTrends/getAgentTimeline**: handlers IPC de consulta con whitelist VALID_AGENTS como constante de modulo. Patron de referencia para futuros handlers de consulta con filtros por agentId.
 
 ## Quirks de Electrobun relevantes para auditoria
 
@@ -99,3 +107,4 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 | 2026-03-14 | settings-panel | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 1 media (TypeError enhancerModel sin optional chaining). |
 | 2026-03-15 | monitor-pipeline-agentes | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja aceptada (slug sin escapeHtml en title=). |
 | 2026-03-15 | monitor-historial-metricas | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 3 riesgos aceptados (todos enum-bounded o produccion sin docs/). |
+| 2026-03-15 | graficas-evolucion-metricas-agentes | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo aceptado (agentId en atributos data-*, filesystem local). |
