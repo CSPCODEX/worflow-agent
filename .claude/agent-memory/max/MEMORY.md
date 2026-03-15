@@ -55,6 +55,17 @@
 - Comando de verificacion: grep de todas las clases CSS del componente contra style.css antes de aprobar
 - Confirmado en feature settings-panel: `.settings-view`, `.btn-settings`, `.sidebar-footer` — ninguna existia en style.css
 
+### Registro de callback antes de primer scan — patron poller
+- Si poller.start() se llama en scope del modulo (fuera de createRpc), el scan inmediato ocurre ANTES de que onSnapshot() se registre
+- El primer push no llega al renderer — el renderer debe hacer request explicito al abrir la vista
+- No es un bug funcional si la vista siempre llama getPipelineSnapshot() al arrancar (patron correcto)
+- Verificar siempre que la vista pide snapshot explicito al montarse, no solo espera el push
+
+### Non-null assertion sobre cache potencialmente null
+- `cachedSnapshot!` en poller.ts es peligroso si scan() falla en la primera llamada
+- Si buildSnapshot lanza (muy raro) y cachedSnapshot es null, el type assertion engana al caller
+- Pattern seguro: retornar snapshot vacio por defecto en lugar de usar `!`
+
 ## Areas problematicas recurrentes
 
 - Verificación de PATHS en Windows dev mode — siempre requiere runtime check
@@ -65,6 +76,7 @@
 - sendMessage RPC esperando resultado del agente — siempre debe ser fire-and-forget
 - response.content de LM Studio con tokens de razonamiento — siempre filtrar antes de emitir
 - Clases CSS de nuevos componentes: verificar que existan en style.css antes de aprobar — BUG #007 confirmado en 2 features distintas
+- Typos en nombres de campo: `gapsDeclados` en lugar de `gapsDeclarados` — revisar nomenclatura en tipos al aprobar
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime

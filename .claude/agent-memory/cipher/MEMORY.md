@@ -27,9 +27,16 @@
 ### settings-panel v1.0 (2026-03-14)
 - [MEDIA -> PENDIENTE] `params.enhancerModel.length` en handlerLogic.ts:231 sin optional chaining — TypeError si enhancerModel es undefined/null. Ocurre FUERA del try/catch. Fix: `(params.enhancerModel ?? '').length` en validacion y `(params.enhancerModel ?? '').trim()` en el set. No explotable desde el renderer actual (settings.ts siempre envia el campo), pero gap de robustez del handler.
 
+### monitor-pipeline-agentes v1.0 (2026-03-15)
+- [BAJA -> ACEPTADA] `f.slug` y `b.slug` en `title="${...}"` sin escapeHtml en monitor-view.ts:75,103. Vector: nombre de directorio con comillas en docs/features/. Requiere acceso de escritura al filesystem del repo. En produccion docs/ no existe. No bloqueante.
+
 ## Patron recurrente detectado — validacion asimetrica de params IPC
 
 En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHost?.trim()` (linea 225) pero `enhancerModel` no usa `?.` en la validacion de longitud (linea 231). Este patron de validacion asimetrica es un vector recurrente: al añadir nuevos campos opcionales a un handler IPC, los campos que no son el "campo principal" tienden a omitirse de la defensa con optional chaining. Verificar sistematicamente que TODOS los campos de params usan `?.` o tienen un guard explicito de null/undefined antes de acceder a propiedades.
+
+## Patron recurrente — escapeHtml incompleto en atributos HTML
+
+En renderizadores que usan template literals para innerHTML, es facil olvidar escapeHtml en atributos HTML (title=, data-*=) mientras si se aplica al contenido de texto. Checklist: auditar TODOS los `${...}` en template literals que van a innerHTML, no solo los del contenido visible — especialmente atributos como title, data-x, value, href. Los campos enum-bounded (AgentId, FeatureState) son seguros sin escape porque TypeScript garantiza los valores posibles. Los campos de texto libre del filesystem (slug, branch, title, id) requieren escapeHtml sin excepcion.
 
 ## Riesgos aceptados
 
@@ -45,12 +52,13 @@ En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHos
 - `lmstudioHost` sin validacion de formato URL en settings — SDK maneja el error de conexion WebSocket con fallback
 - `dataDir` (USER_DATA_DIR) viaja por IPC como campo informativo readonly — ruta del filesystem, no secret
 - Strings non-ASCII en lmStudioEnhancer.ts:24,51 — capturados en stderr por promptEnhancer, no viajan por IPC
+- slug sin escapeHtml en title= (monitor-view.ts:75,103) — filesystem local controlado, produccion sin docs/
 
 ## Superficies de ataque del proyecto
 
 1. **IPC handlers (main process)**: punto critico — datos del renderer llegan sin tipo en runtime. Mitigacion: validar todos los params antes de operaciones de filesystem o spawn. Patron: optional chaining `?.` en TODOS los accesos a campos de params, no solo en el campo principal.
 2. **agentName -> path.join**: principal vector de path traversal. Siempre validar con `/^[a-z0-9-]+$/` antes de usar en rutas.
-3. **innerHTML en renderer**: XSS si se descuida. Patron seguro: `textContent` para user input, `escapeHtml()` para datos del backend en innerHTML. Template literals estaticos en innerHTML son seguros solo si no tienen interpolaciones `${}` con datos externos.
+3. **innerHTML en renderer**: XSS si se descuida. Patron seguro: `textContent` para user input, `escapeHtml()` para datos del backend en innerHTML. Template literals estaticos en innerHTML son seguros solo si no tienen interpolaciones `${}` con datos externos. CRITICO: auditar tambien atributos HTML (title=, data-*=), no solo el contenido de texto.
 4. **spawn en acpManager**: ejecuta `bun run start` en directorio del agente — el agentName valida que el path sea seguro.
 5. **SYSTEM_ROLE en templates**: inyectado como string en codigo TypeScript. agentGenerator.ts escapa `"` y `\n` — suficiente para el contexto de template string.
 6. **Campos de texto libre en DB**: no causan SQL injection por prepared statements. `role` ya tiene whitelist en handlers.ts.
@@ -76,3 +84,4 @@ En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHos
 | 2026-03-14 | remove-agentdir-ipc | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas nuevas. Fix correcto y completo. |
 | 2026-03-14 | devtools-csp-produccion | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 2 riesgos aceptados (limitaciones de framework). |
 | 2026-03-14 | settings-panel | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 1 media (TypeError enhancerModel sin optional chaining). |
+| 2026-03-15 | monitor-pipeline-agentes | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja aceptada (slug sin escapeHtml en title=). |
