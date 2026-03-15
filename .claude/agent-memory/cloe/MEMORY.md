@@ -132,6 +132,18 @@
 - `setTimeout(cb, delay)` como stub de macrotask para verificar que el handler retorna antes del callback
 - Tests del monitor importan funciones puras desde `src/monitor/core/` directamente -- no necesitan mock de Electrobun
 
+## Declaracion duplicada en mismo scope de modulo (TS2451)
+- Causa tipica: merge/rebase incompleto deja dos `const X = ...` en el mismo scope de modulo
+- Electrobun bundler (Bun TS) aborta el bundle completo con TS2451 — bloquea el arranque de la app
+- Fix: identificar cual declaracion tiene el `type alias` asociado (la correcta) y eliminar la segunda suelta
+- Verificar con `bun run tsc --noEmit 2>&1 | grep TS2451` que desaparece
+
+## Import path relativo desde subdirectorios del renderer
+- `src/renderer/components/*.ts` necesita `'../../types/ipc'` para llegar a `src/types/ipc.ts`
+- `src/renderer/views/*.ts` necesita `'../../types/ipc'` — mismo nivel que components/
+- Error tipico: `'../types/ipc'` solo sube un nivel y resuelve a `src/renderer/types/ipc` (no existe)
+- Verificar con `bun run tsc --noEmit 2>&1 | grep TS2307` que el modulo se encuentra
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
@@ -142,3 +154,4 @@
 - bug/009-duplicados-db-restart: COMPLETO (0 archivos creados, 2 modificados) — pendiente verificacion Max
 - graficas-evolucion-metricas-agentes: COMPLETO (1 archivos creados, 6 modificados) — listo para QA Max
 - bug/013-boton-actualizar-no-funciona: COMPLETO (0 archivos creados, 5 modificados) — listo para QA Max
+- bug/014-bundle-failed-desktop-app: COMPLETO (0 archivos creados, 2 modificados) — listo para QA Max

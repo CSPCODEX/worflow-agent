@@ -1,4 +1,4 @@
-import type { AgentInfo } from '../types/ipc';
+import type { AgentInfo } from '../../types/ipc';
 import { showConfirmDialog } from './confirm-dialog';
 
 type SelectCallback = (agent: AgentInfo) => void;

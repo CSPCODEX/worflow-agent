@@ -52,8 +52,6 @@ function sanitizeForIpc(s: string): string {
   return s.replace(/[^\x20-\x7E]/g, '?');
 }
 
-const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
-
 function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
   return {
     features: snapshot.features.map(({ filePath: _fp, ...f }) => ({
