@@ -94,9 +94,28 @@
 - CSS de modulo: prefijo unico (`.monitor-`) para evitar colisiones; copiado al build via `copy` en electrobun.config.ts
 - sidebar-footer con 2+ botones: añadir `display: flex; flex-direction: column; gap: 6px` al CSS del footer
 
+## SQLite modulo-local (historial del monitor)
+- La DB del historial vive en historyDb.ts con su propio singleton `_historyDb` — completamente independiente de src/db/database.ts
+- `db.query<T, []>(...).get([])` y `db.run(..., [val])` generan TS2345/TS2554 en este proyecto — son errores preexistentes del tipado de bun:sqlite, no regresiones nuevas
+- `detectChanges(prev, curr)`: funcion pura sin efectos secundarios — si prev=null, genera eventos de bootstrap para TODOS los items existentes (comportamiento correcto para el primer scan)
+- Transaccion en persistChanges: `db.transaction(() => { for events; for metrics })()` — atomicidad garantizada
+- Paginacion con innerHTML reemplazado: los botones Anterior/Siguiente se recrean en cada llamada, por lo que los listeners son seguros (no hay acumulacion)
+- cleanupHistoryDb en process.on('exit') AND process.on('SIGINT') en desktop/index.ts — siempre cerrar la DB en ambos handlers
+- Callbacks on-demand para historial: loadHistory() se llama al activar el tab, no al montar la vista — evita llamadas IPC innecesarias
+- Tabs con logica on-demand: patron `if (tab === 'xxx') loadXxx()` dentro de activateTab() para cargar datos solo cuando el usuario los solicita
+
+## Seeding de estado desde SQLite al arrancar un poller/worker
+- Patron "seed from DB on start": si un componente tiene `cachedState = null` en cada proceso nuevo, leer el ultimo estado desde la DB antes del primer ciclo de procesamiento — evita detectar como "nuevo" todo lo que ya existia
+- Query optima para "ultimo valor por key": `SELECT x FROM t INNER JOIN (SELECT key, MAX(id) as max_id FROM t GROUP BY key) latest ON t.id = latest.max_id` — usa MAX(id) como proxy de recencia, sin subconsultas correlacionadas
+- `.prepare<T, []>(...).all()` — para statements sin parametros en bun:sqlite, usar `.all()` sin argumentos (no `.all([])`); con parametros usar `.all(...params)` como spread
+- Guard en el seed: solo asignar `cachedSnapshot` si el resultado tiene al menos 1 item — si la DB esta vacia, dejar `null` para comportamiento de bootstrap correcto
+- Degradacion graceful en seed: try/catch que loguea pero no relanza — el componente sigue funcionando en modo "cold start" si el seed falla
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
 - multi-provider-support: COMPLETO (9 archivos creados, 9 modificados) — listo para QA Max
 - settings-panel: COMPLETO (2 archivos creados, 6 modificados) — listo para QA Max
 - monitor-pipeline-agentes: COMPLETO (8 archivos creados, 7 modificados) — listo para QA Max
+- monitor-historial-metricas: COMPLETO (3 archivos creados, 9 modificados) — listo para QA Max
+- bug/009-duplicados-db-restart: COMPLETO (0 archivos creados, 2 modificados) — pendiente verificacion Max

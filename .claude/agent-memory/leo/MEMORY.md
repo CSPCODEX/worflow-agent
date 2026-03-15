@@ -19,7 +19,8 @@
 - Canal nuevo multi-provider: `listProviders`
 - Canal nuevo delete: `deleteAgent`
 - Canales nuevos settings: `loadSettings`, `saveSettings`
-- Canales nuevos monitor: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
+- Canales nuevos monitor v1: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
+- Canales nuevos monitor v2 (historial): `getHistory` (request) + `getAgentTrends` (request)
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -103,7 +104,7 @@
 
 ### Monitor de pipeline — modulo autocontenido (monitor-pipeline-agentes)
 - Vive en `src/monitor/` con subcarpetas `core/`, `ui/`, `index.ts`
-- `core/*.ts` NO importan nada fuera de `src/monitor/` — solo `node:fs`, `node:path`, y tipos internos
+- `core/*.ts` NO importan nada fuera de `src/monitor/` — solo `node:fs`, `node:path`, `bun:sqlite`, y tipos internos
 - `ui/monitor-view.ts` importa SOLO tipos de `src/types/ipc.ts` — unico acoplamiento aceptado con el host
 - API publica unica: `src/monitor/index.ts` — el host solo importa desde aqui
 - `monitor.track(event)` es no-op en v1 — API declarada para v2
@@ -121,6 +122,21 @@
 - `process.cwd()` para resolver `docs/` desde handlers.ts: correcto en dev, no en produccion (comportamiento aceptable)
 - Monitor-styles.css se copia al build via `electrobun.config.ts > build.copy`
 
+### Monitor historial SQLite — extension del modulo monitor (monitor-historial-metricas)
+- Decision: persistir eventos de cambio (deltas), NO snapshots completos — snapshots cada 30s generan datos redundantes masivos
+- Un evento = un cambio detectado: `feature_state_changed | bug_state_changed | handoff_completed | metrics_updated`
+- La DB del historial vive en `path.join(USER_DATA_DIR, 'monitor-history.db')` — decidido por el host, no por el modulo
+- `MonitorConfig` extiende con `historyDbPath?: string` — opcional, degradacion graceful si ausente o si falla init
+- `historyDb.ts` es un singleton propio del modulo — completamente independiente de `src/db/database.ts`
+- Migraciones del historial embebidas en `historyDb.ts::applyHistoryMigrations()` — NO en `src/db/migrations.ts`
+- `changeDetector.ts` es una funcion pura — no toca la DB, solo compara dos snapshots y retorna eventos
+- Orden en `poller.scan()`: detectChanges(prev, curr) ANTES de actualizar `this.cachedSnapshot`
+- `getHistory` y `getAgentTrends` son queries SQLite sincronas — NO fire-and-forget
+- Los handlers de historial validan params contra whitelist antes de pasar a queryHistory (seguridad)
+- UI: tab 4 "Historial" con tabla de eventos + indicadores de tendencia en cards de agentes existentes
+- Sin graficos SVG/Canvas — tablas filtradas responden todas las preguntas de tendencias
+- `getHistoryDb` se exporta desde `src/monitor/index.ts` (no desde core/) para mantener API publica del modulo
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -132,6 +148,7 @@
 ### [ENTREGADO] Plan de devtools-csp-produccion — Estado: listo para Cloe
 ### [ENTREGADO] Plan de settings-panel — Estado: listo para Cloe
 ### [ENTREGADO] Plan de monitor-pipeline-agentes — Estado: listo para Cloe
+### [ENTREGADO] Plan de monitor-historial-metricas — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -152,6 +169,8 @@
 - Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
 - Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
 - Modulos autocontenidos (monitor): cero imports hacia fuera de su carpeta, API publica via index.ts, integracion via inyeccion en el host
+- Handlers de consulta SQLite (getHistory, getAgentTrends): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
+- Extensiones de modulo autocontenido: nuevos archivos van en src/monitor/core/, nuevos exports van en src/monitor/index.ts
 
 ## Contexto acumulado del proyecto
 
@@ -171,7 +190,7 @@
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa monitor-pipeline-agentes segun docs/features/monitor-pipeline-agentes/status.md
-- Max verifica cada componente con su checklist
-- Ada limpia si hay dependencias huerfanas
-- Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release
+- Cloe implementa monitor-historial-metricas segun docs/features/monitor-historial-metricas/status.md
+- Max verifica la feature
+- Ada optimiza si hay queries repetidas o imports redundantes
+- Cipher audita validacion de params en getHistory (whitelist de agentId, eventType, itemType)
