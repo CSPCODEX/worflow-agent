@@ -110,6 +110,19 @@
 - Al revisar handlers.ts: verificar que todos los canales declarados en AppRPC.bun.requests tienen su handler en el objeto `requests` de `defineElectrobunRPC`
 - Al revisar app.ts: verificar que la llamada a renderMonitor/renderXxx pasa exactamente N argumentos si la funcion tiene N parametros obligatorios
 
+### Declaracion duplicada de constante en el mismo scope de modulo — BUG #014
+- Patron: merge o refactor incompleto deja una segunda `const X = ...` en el mismo archivo, en el scope del modulo (no en una funcion)
+- Resultado: TS2451 en ambas lineas — el bundler de Electrobun aborta con "Bundle failed" sin mostrar el TS error
+- El output de `electrobun dev` es demasiado parco — SIEMPRE ejecutar `bun run tsc --noEmit` para ver el error exacto cuando Electrobun falla con "Bundle failed"
+- Archivo afectado: `src/ipc/handlers.ts` lineas 24 y 55 — segunda declaracion de `VALID_AGENTS` sin su type alias, entre `sanitizeForIpc` y `snapshotToIPC`
+- FIX: eliminar la declaracion duplicada (la segunda, linea 55)
+
+### Import path incorrecto en componente renderer — BUG #014 (segundo error)
+- Patron: componente en `src/renderer/components/` importa con `'../types/ipc'` — resuelve a `src/renderer/types/ipc` (no existe)
+- El tipo correcto vive en `src/types/ipc.ts` — el import debe ser `'../../types/ipc'`
+- Archivo afectado: `src/renderer/components/agent-list.ts` linea 1
+- Al revisar un componente renderer: SIEMPRE verificar que sus imports relativos resuelven al archivo real
+
 ## Areas problematicas recurrentes
 
 - Verificación de PATHS en Windows dev mode — siempre requiere runtime check
@@ -128,6 +141,8 @@
 - IPC on-demand + re-render periodico del DOM: si la Promise del IPC resuelve en un elemento ya destruido, la vista queda con spinner congelado. FIX: en restoreExpanded, si agente esta en expandedAgents sin cache, relanzar el IPC directamente. Detectado en graficas-evolucion-metricas-agentes:restoreExpandedCharts:678-690
 - Schema drift en testHistoryDb.ts: si historyDb.ts añade migration v2 y testHistoryDb.ts no se actualiza, los tests del monitor fallan con "no such column". Verificar sync al revisar features que toquen el schema del monitor.
 - Canal IPC "completamente disenado pero no conectado": monitor-view importa tipos que no existen en ipc.ts, handler no registrado en handlers.ts, argumento faltante en la llamada del renderer — siempre verificar la cadena completa types.ts → handlers.ts → app.ts al aprobar canales nuevos
+- electrobun dev "Bundle failed" no muestra el error real: SIEMPRE correr `bun run tsc --noEmit` para obtener los TS errors exactos
+- Import paths relativos en renderer/components: verificar que resuelven al archivo real — `../types/ipc` desde `components/` es incorrecto, debe ser `../../types/ipc`
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime
