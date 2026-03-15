@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none';" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://localhost:*;" />
   <title>Worflow Agent</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
   <div id="app">
     <aside id="sidebar">
@@ -15,6 +18,9 @@
         <button id="btn-new-agent" class="btn-primary">+ Nuevo</button>
       </div>
       <div id="agent-list" class="agent-list"></div>
+      <div class="sidebar-footer">
+        <button id="btn-settings" class="btn-settings">Ajustes</button>
+      </div>
     </aside>
     <main id="main-content" class="main-content">
       <div class="empty-state">
@@ -24,4 +30,5 @@
   </div>
   <script type="module" src="./app.js"></script>
 </body>
+
 </html>

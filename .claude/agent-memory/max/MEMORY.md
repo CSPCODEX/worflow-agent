@@ -49,9 +49,11 @@
 ### Componentes renderer sin CSS — BUG #007
 - Un componente `.ts` puede existir y ser logicamente correcto pero tener CERO clases CSS en style.css
 - Patron: Cloe crea el componente TypeScript pero no agrega las reglas CSS al stylesheet
-- Efecto critico si el componente usa `document.body.appendChild` sin `position: fixed`: el elemento queda en flujo normal y rompe el layout de `#app` (que tiene `height: 100vh; display: flex`)
-- Verificar siempre que cada clase CSS usada en `.innerHTML` o `createElement` exista en `style.css`
-- Archivo de alto riesgo: cualquier componente nuevo en `src/renderer/components/`
+- Efecto critico si el componente usa clases que no existen: layout roto dentro de `#main-content` (`display: flex; flex-direction: column; height: 100vh`)
+- El hijo sin `flex: 1` queda colapsado en la esquina superior — no ocupa el espacio disponible
+- Verificar SIEMPRE con grep que cada clase usada en `.innerHTML` o `createElement` exista en `style.css`
+- Comando de verificacion: grep de todas las clases CSS del componente contra style.css antes de aprobar
+- Confirmado en feature settings-panel: `.settings-view`, `.btn-settings`, `.sidebar-footer` — ninguna existia en style.css
 
 ## Areas problematicas recurrentes
 
@@ -62,7 +64,7 @@
 - Cualquier await a subproceso externo dentro de handler IPC — bloquea y causa timeout (usar fire-and-forget)
 - sendMessage RPC esperando resultado del agente — siempre debe ser fire-and-forget
 - response.content de LM Studio con tokens de razonamiento — siempre filtrar antes de emitir
-- Clases CSS de nuevos componentes: verificar que existan en style.css antes de aprobar
+- Clases CSS de nuevos componentes: verificar que existan en style.css antes de aprobar — BUG #007 confirmado en 2 features distintas
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime

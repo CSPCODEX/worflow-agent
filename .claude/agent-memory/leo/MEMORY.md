@@ -18,6 +18,7 @@
 - Nuevos canales de persistencia: `createConversation`, `listConversations`, `getMessages`, `saveMessage`, `deleteConversation`
 - Canal nuevo multi-provider: `listProviders`
 - Canal nuevo delete: `deleteAgent`
+- Canales nuevos settings: `loadSettings`, `saveSettings`
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -36,6 +37,15 @@
 - Agentes con path inexistente → status 'broken', no crashea
 - Migrations siempre idempotentes: CREATE TABLE IF NOT EXISTS; ALTER TABLE para columnas nuevas
 
+### Settings — tabla `settings` ya existente en migration v1
+- Tabla `settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)` creada en migration v1 — NO requiere migration nueva
+- `src/db/settingsRepository.ts` — CRUD con defaults hardcodeados en el codigo, no en DB
+- Patron de defaults: el repositorio retorna el default si la fila no existe (no se insertan defaults en DB al arrancar)
+- Claves definidas: `lmstudio_host` (default `ws://127.0.0.1:1234`), `enhancer_model` (default `""`)
+- `dataDir` se expone en loadSettings como campo readonly derivado de USER_DATA_DIR — NO se persiste en settings
+- Handlers: `loadSettings` (sync, siempre resuelve con defaults si DB falla) y `saveSettings` (sync, validacion de inputs)
+- loadSettings/saveSettings NO son fire-and-forget — son operaciones sincronas sin subprocesos externos
+
 ### Background tasks en handlers IPC — patron establecido
 - Tareas lentas (bun install, LM Studio calls) se lanzan sin await despues del return del handler
 - Siempre se termina con `.catch((e) => console.error(...))` para no crashear el proceso
@@ -50,6 +60,7 @@
 - Timeout LM Studio: 15 segundos via `Promise.race`
 - `enhance_status` en DB: 'pending' → 'done' | 'static' | 'failed'
 - Reescritura de index.ts: regex sobre linea `const SYSTEM_PROMPT = "..."`, no re-render del template
+- `lmStudioEnhancer.ts` usa `LMStudioClient({ baseUrl: host })` donde host viene de settingsRepository — NO hardcodeado
 
 ### Multi-provider LLM — Strategy Pattern
 - Interfaz `LLMProvider` con `chat()` y `chatStream()` — definida en `providers/types.ts` del agente generado
@@ -58,7 +69,7 @@
 - Todos los archivos de providers se copian siempre al agente — usuario cambia de provider editando solo .env
 - Factory usa imports dinamicos para evitar cargar SDKs no usados
 - Ollama no requiere SDK externo — usa fetch nativo de Bun (HTTP localhost:11434)
-- El enhancer (src/enhancer/) NO se modifica — sigue usando LM Studio del host, es independiente del provider del agente
+- El enhancer (src/enhancer/) usa LM Studio del host via settings — independiente del provider del agente
 - AgentConfig tiene campo `provider: ProviderId` — se propaga automaticamente a todos los call-sites de scaffoldAgent
 - DB: columna `provider TEXT DEFAULT 'lmstudio'` — migration v3 — agentes existentes son backward compat
 
@@ -70,6 +81,25 @@
 - Evento DOM `agent:deleted` (patron igual a `agent:created`)
 - `activeAgentName: string | null` en app.ts para detectar si el agente eliminado esta en chat
 
+### Reduccion de superficie IPC — patron de seguridad (remove-agentdir-ipc)
+- Los payloads de eventos IPC al renderer NO deben incluir rutas de filesystem internas
+- Regla: si el renderer no consume un campo, ese campo no viaja en el canal IPC
+- Cuando una funcion interna necesita un dato (ej. `agentDir` para `rewriteAgentIndexTs`) pero ese dato
+  no debe exponerse al renderer, el dato permanece como parametro de funcion y se omite solo del objeto
+  literal que se pasa a `rpcSend`. No se refactoriza la firma de la funcion interna.
+- Excepcion: `dataDir` en loadSettings se expone al renderer como campo informativo readonly — aceptable
+  porque es el directorio de datos de la app (no una ruta de agente individual)
+
+### DevTools y CSP en Electrobun — limitaciones conocidas
+- Electrobun NO tiene opcion de constructor para deshabilitar DevTools (no hay `devTools: false`)
+- El unico mecanismo es llamar `win.webview.closeDevTools()` en runtime despues de crear la ventana
+- Patron: `if (process.env.NODE_ENV === 'production') { win.webview.closeDevTools(); }`
+- `process.env.NODE_ENV` se inyecta en tiempo de build via `build.bun.define` en `electrobun.config.ts`
+- `closeDevTools()` no impide que el usuario lo reabra manualmente — es limitacion del framework
+- CSP critico: Electrobun IPC usa `ws://localhost:<puerto>` (50000-65535) — SIEMPRE incluir `connect-src ws://localhost:*`
+- El renderer NO debe tener `connect-src http://localhost:*` — toda comunicacion con LLMs va via IPC al main process
+- CSP base correcta para apps Electrobun: `default-src 'none'; script-src 'self'; style-src 'self'; connect-src ws://localhost:*;`
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -77,6 +107,9 @@
 ### [ENTREGADO] Plan de prompt-enhancement — Estado: listo para Cloe
 ### [ENTREGADO] Plan de multi-provider-support — Estado: listo para Cloe
 ### [ENTREGADO] Plan de delete-agent — Estado: listo para Cloe
+### [ENTREGADO] Plan de remove-agentdir-ipc — Estado: listo para Cloe
+### [ENTREGADO] Plan de devtools-csp-produccion — Estado: listo para Cloe
+### [ENTREGADO] Plan de settings-panel — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -92,6 +125,10 @@
 - Eventos DOM en renderer: kebab-case con prefijo de dominio (agent:install-done, agent:enhance-done, agent:deleted)
 - Listeners DOM: registrar ANTES del RPC call, eliminar al recibir el evento (sin memory leaks)
 - Handlers IPC estaticos (listas hardcodeadas, sin I/O): retornan directamente sin async complejo
+- Payloads IPC: solo incluir campos que el renderer REALMENTE consume — omitir rutas internas, IDs internos, etc.
+- NODE_ENV en produccion: inyectar via `build.bun.define: { 'process.env.NODE_ENV': '"production"' }` en electrobun.config.ts
+- Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
+- Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
 
 ## Contexto acumulado del proyecto
 
@@ -104,10 +141,12 @@
 - Entrypoint del desktop: src/desktop/index.ts (no src/main.ts)
 - package.json raiz tenia dependencia @google/generative-ai huerfana — ya usada en gemini.ts.tpl del agente
 - index.ts de agentes generados: SYSTEM_PROMPT esta en linea `const SYSTEM_PROMPT = "...";`
+- Electrobun IPC: WebSocket en localhost puerto dinamico (50000-65535) — afecta CSP del renderer
+- Gap conocido: `LMStudioClient` constructor — campo exacto para el host puede ser `baseUrl` u otro — verificar en node_modules
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa delete-agent segun docs/features/delete-agent/status.md
+- Cloe implementa settings-panel segun docs/features/settings-panel/status.md
 - Max verifica cada componente con su checklist
 - Ada limpia si hay dependencias huerfanas
 - Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release

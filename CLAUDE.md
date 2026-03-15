@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Be critical and constructive with your opinions and suggestions; if the user is mistaken, kindly correct them by explaining why and proposing the best solution.
 
 ## Commands
 
@@ -56,7 +57,7 @@ El flujo es:
 **Pasos que Claude ejecuta al detectar una nueva feature:**
 1. Genera el slug desde la descripción (lowercase, guiones, máx 5 palabras)
 2. Crea la rama: `git switch -c feature/<slug>`
-3. Crea `docs/features/<slug>/status.md` con la estructura definida en `.claude/skills/feature.md`
+3. Crea `docs/features/<slug>/status.md` con la estructura definida en `.claude/skills/feature/SKILL.md`
 4. Confirma al usuario con el siguiente paso: `@leo <descripcion>...`
 
 ### Bug flow (lightweight)
@@ -73,7 +74,7 @@ El flujo es:
 1. Genera el ID (`ls docs/bugs/ | wc -l` + 1, formato `001`)
 2. Genera el slug desde la descripción (lowercase, guiones, máx 5 palabras)
 3. Crea la rama: `git switch -c bug/<id>-<slug>`
-4. Crea `docs/bugs/<id>-<slug>/status.md` con la estructura definida en `.claude/commands/bug.md`
+4. Crea `docs/bugs/<id>-<slug>/status.md` con la estructura definida en `.claude/skills/bug/SKILL.md`
 5. Confirma al usuario con el siguiente paso: `@max Diagnostica el bug #<id>...`
 
 Leo y Ada no participan en bugs. Cipher solo entra si Max marca implicaciones de seguridad. Ver `docs/AGENTS.md` para documentación completa.

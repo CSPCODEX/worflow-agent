@@ -31,6 +31,7 @@ console.log('Worflow Agent desktop starting. View:', viewUrl);
 const win = new BrowserWindow({
   title: 'Worflow Agent',
   frame: { x: 100, y: 100, width: 1920, height: 1080 },
+  renderer: 'native',
   url: viewUrl,
   rpc,
   titleBarStyle: 'default',
@@ -38,3 +39,7 @@ const win = new BrowserWindow({
 });
 
 console.log('Worflow Agent desktop started.');
+
+if (process.env.NODE_ENV === 'production') {
+  win.webview.closeDevTools();
+}

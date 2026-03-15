@@ -1,9 +1,9 @@
 import { Electroview } from 'electrobun/view';
-import type { AppRPC } from '../types/ipc';
-import type { AgentInfo } from '../types/ipc';
+import type { AppRPC, AgentInfo } from '../types/ipc';
 import { renderAgentList } from './components/agent-list';
 import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
+import { renderSettings } from './views/settings';
 
 const rpc = Electroview.defineRPC<AppRPC>({
   handlers: {
@@ -41,11 +41,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let activeChatHandle: ChatHandle | null = null;
   let activeAgentName: string | null = null;
+  let activeSettingsHandle: { cleanup(): void } | null = null;
 
   function teardownCurrentView() {
     activeChatHandle?.cleanup();
     activeChatHandle = null;
     activeAgentName = null;
+    activeSettingsHandle?.cleanup();
+    activeSettingsHandle = null;
   }
 
   function showCreate() {
@@ -61,7 +64,15 @@ document.addEventListener('DOMContentLoaded', () => {
     activeChatHandle = renderChat(mainContentEl, agent.name);
   }
 
+  function showSettings() {
+    teardownCurrentView();
+    activeSettingsHandle = renderSettings(mainContentEl);
+  }
+
   btnNewAgent.addEventListener('click', showCreate);
+
+  const btnSettings = document.getElementById('btn-settings')!;
+  btnSettings.addEventListener('click', showSettings);
 
   // Refresh agent list when an agent is created
   document.addEventListener('agent:created', () => {

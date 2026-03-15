@@ -10,6 +10,9 @@ export default {
   build: {
     bun: {
       entrypoint: 'src/desktop/index.ts',
+      define: {
+        'process.env.NODE_ENV': '"production"',
+      },
     },
     views: {
       main: {
