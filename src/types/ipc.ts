@@ -222,6 +222,53 @@ export interface GetPipelineSnapshotResult {
   snapshot: PipelineSnapshotIPC;
 }
 
+// --- Monitor History types ---
+
+export type PipelineEventType =
+  | 'feature_state_changed'
+  | 'bug_state_changed'
+  | 'handoff_completed'
+  | 'metrics_updated';
+
+export interface HistoryEventIPC {
+  id: number;
+  eventType: PipelineEventType;
+  itemType: 'feature' | 'bug';
+  itemSlug: string;
+  itemTitle: string;
+  fromValue: string | null;
+  toValue: string;
+  agentId: string | null;
+  recordedAt: string;
+}
+
+export interface AgentTrendIPC {
+  agentId: string;
+  historicReworkRate: number;
+  historicAvgIterations: number;
+  historicAvgConfidence: number;
+  totalHistoricSamples: number;
+  reworkTrend: 'mejorando' | 'empeorando' | 'estable' | 'sin_datos';
+}
+
+export interface GetHistoryParams {
+  itemSlug?: string;
+  itemType?: 'feature' | 'bug';
+  agentId?: string;
+  eventType?: PipelineEventType;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetHistoryResult {
+  events: HistoryEventIPC[];
+  totalCount: number;
+}
+
+export interface GetAgentTrendsResult {
+  trends: AgentTrendIPC[];
+}
+
 // --- Settings types ---
 
 export interface AppSettings {
@@ -262,6 +309,8 @@ export type AppRPC = {
       loadSettings: { params: undefined; response: LoadSettingsResult };
       saveSettings: { params: SaveSettingsParams; response: SaveSettingsResult };
       getPipelineSnapshot: { params: undefined; response: GetPipelineSnapshotResult };
+      getHistory: { params: GetHistoryParams; response: GetHistoryResult };
+      getAgentTrends: { params: undefined; response: GetAgentTrendsResult };
     };
     messages: {};
   }>;

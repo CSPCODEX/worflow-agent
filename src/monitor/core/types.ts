@@ -12,6 +12,7 @@ export type FeatureState =
   | 'EN_OPTIMIZACION'
   | 'EN_AUDITORIA'
   | 'AUDITADO'
+  | 'LISTO_PARA_MERGE'
   | 'MERGEADO'
   | 'BLOQUEADO'
   | 'DESCONOCIDO';
@@ -104,7 +105,69 @@ export interface PipelineEvent {
 export interface MonitorConfig {
   docsDir: string;               // Ruta absoluta a la carpeta docs/ del repo
   pollIntervalMs?: number;       // Default: 30000 (30 segundos)
+  historyDbPath?: string;        // Ruta al archivo SQLite de historial. Si no se provee, historial deshabilitado.
 }
 
 // Callback que el poller llama cada vez que tiene un nuevo snapshot
 export type SnapshotCallback = (snapshot: PipelineSnapshot) => void;
+
+// ── Tipos de historial ──
+
+export type PipelineEventType =
+  | 'feature_state_changed'
+  | 'bug_state_changed'
+  | 'handoff_completed'
+  | 'metrics_updated';
+
+// Evento de cambio persistido en la DB
+export interface HistoryEvent {
+  id: number;
+  eventType: PipelineEventType;
+  itemType: 'feature' | 'bug';
+  itemSlug: string;
+  itemTitle: string;
+  fromValue: string | null;
+  toValue: string;
+  agentId: AgentId | null;
+  recordedAt: string;   // ISO 8601
+}
+
+// Metricas historicas de un agente en un item (feature o bug)
+export interface AgentMetricsHistoryEntry {
+  id: number;
+  agentId: AgentId;
+  itemType: 'feature' | 'bug';
+  itemSlug: string;
+  rework: boolean | null;
+  iteraciones: number | null;
+  confianza: 'alta' | 'media' | 'baja' | null;
+  gapsDeclarados: number | null;
+  recordedAt: string;
+}
+
+// Tendencia calculada para un agente basada en el historial
+export interface AgentTrend {
+  agentId: AgentId;
+  historicReworkRate: number;       // promedio historico (0-1)
+  historicAvgIterations: number;
+  historicAvgConfidence: number;
+  totalHistoricSamples: number;
+  // Comparacion con el estado actual: 'mejorando' | 'empeorando' | 'estable' | 'sin_datos'
+  reworkTrend: 'mejorando' | 'empeorando' | 'estable' | 'sin_datos';
+}
+
+// Resultado de consulta de historial de eventos
+export interface HistoryQueryResult {
+  events: HistoryEvent[];
+  totalCount: number;
+}
+
+// Filtros para consulta de historial
+export interface HistoryQuery {
+  itemSlug?: string;
+  itemType?: 'feature' | 'bug';
+  agentId?: AgentId;
+  eventType?: PipelineEventType;
+  limit?: number;   // Default: 100
+  offset?: number;  // Default: 0
+}

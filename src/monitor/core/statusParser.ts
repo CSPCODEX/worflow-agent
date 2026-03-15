@@ -8,17 +8,23 @@ const FEATURE_STATE_MAP: Record<string, FeatureState> = {
   'EN PLANIFICACION': 'EN_PLANIFICACION',
   'EN IMPLEMENTACION': 'EN_IMPLEMENTACION',
   'LISTO PARA IMPLEMENTACION': 'EN_IMPLEMENTACION',
+  'IMPLEMENTADO': 'EN_VERIFICACION',
   'EN VERIFICACION': 'EN_VERIFICACION',
+  'CORRECCION COMPLETADA': 'EN_VERIFICACION',
   'EN OPTIMIZACION': 'EN_OPTIMIZACION',
+  'OPTIMIZADO': 'EN_AUDITORIA',
   'EN AUDITORIA': 'EN_AUDITORIA',
   'AUDITADO': 'AUDITADO',
+  'LISTO PARA MERGE': 'LISTO_PARA_MERGE',
+  'APROBADO PARA MERGE': 'LISTO_PARA_MERGE',
+  'APROBADO': 'LISTO_PARA_MERGE',
   'MERGEADO': 'MERGEADO',
   'BLOQUEADO': 'BLOQUEADO',
 };
 
-// Extrae el valor de una linea "Clave: valor" (case-insensitive en la clave)
+// Extrae el valor de una linea "Clave: valor" o "**Clave:** valor" (formato bold de markdown)
 function extractLine(content: string, key: string): string | null {
-  const regex = new RegExp(`^${key}:\\s*(.+)$`, 'mi');
+  const regex = new RegExp(`^\\*{0,2}${key}:\\*{0,2}\\s*(.+)$`, 'mi');
   return content.match(regex)?.[1]?.trim() ?? null;
 }
 
@@ -112,7 +118,11 @@ export function parseFeatureStatus(
   const title = titleMatch?.[1]?.replace(/^Feature\s*[--]\s*/i, '').trim() ?? slug;
 
   const rawState = extractLine(content, 'Estado final') ?? extractLine(content, 'Estado') ?? '';
-  const normalizedState = rawState.toUpperCase().replace(/[^A-Z\s]/g, '').trim();
+  // Truncar al primer em-dash (U+2014/U+2013) o guion doble (--) para manejar valores compuestos
+  // como "AUDITADO -- listo para merge" o "APROBADO -- LISTO PARA MERGE A MAIN".
+  // El texto relevante del estado es siempre la primera parte antes del separador.
+  const rawStateTruncated = rawState.split(/\s*[\u2014\u2013]|\s*--/).shift() ?? rawState;
+  const normalizedState = rawStateTruncated.toUpperCase().replace(/[^A-Z\s]/g, '').trim();
   const state: FeatureState = FEATURE_STATE_MAP[normalizedState] ?? 'DESCONOCIDO';
 
   const branch = extractLine(content, 'Rama') ?? '';
@@ -136,14 +146,21 @@ export function parseBugStatus(
   const titleMatch = content.match(/^#\s+(.+)$/m);
   const title = titleMatch?.[1]?.replace(/^Bug\s*#\d+\s*[--]\s*/i, '').trim() ?? slug;
 
-  const rawState = extractLine(content, 'Estado') ?? '';
-  const normalizedState = rawState.toUpperCase().trim();
+  const rawState =
+    extractLine(content, 'Estado') ??
+    extractLine(content, 'Status') ??   // formato ingles antiguo (bugs 004/005/006)
+    '';
+  // Limpiar posibles backticks del valor antes de normalizar
+  const normalizedState = rawState.replace(/`/g, '').toUpperCase().trim();
   const BUG_STATE_MAP: Record<string, BugState> = {
     'ABIERTO': 'ABIERTO',
     'EN DIAGNOSTICO': 'EN_DIAGNOSTICO',
+    'EN PROGRESO': 'EN_DIAGNOSTICO',
     'EN IMPLEMENTACION': 'EN_IMPLEMENTACION',
     'EN VERIFICACION': 'EN_VERIFICACION',
     'RESUELTO': 'RESUELTO',
+    'RESOLVED': 'RESUELTO',
+    'VERIFIED': 'RESUELTO',
   };
   const state: BugState = BUG_STATE_MAP[normalizedState] ?? 'DESCONOCIDO';
 

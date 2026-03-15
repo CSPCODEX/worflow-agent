@@ -19,7 +19,9 @@
 - Canal nuevo multi-provider: `listProviders`
 - Canal nuevo delete: `deleteAgent`
 - Canales nuevos settings: `loadSettings`, `saveSettings`
-- Canales nuevos monitor: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
+- Canales nuevos monitor v1: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
+- Canales nuevos monitor v2 (historial): `getHistory` (request) + `getAgentTrends` (request)
+- Canal nuevo monitor v3 (graficas): `getAgentTimeline` (request) — { agentId } -> serie temporal por agente
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -103,7 +105,7 @@
 
 ### Monitor de pipeline — modulo autocontenido (monitor-pipeline-agentes)
 - Vive en `src/monitor/` con subcarpetas `core/`, `ui/`, `index.ts`
-- `core/*.ts` NO importan nada fuera de `src/monitor/` — solo `node:fs`, `node:path`, y tipos internos
+- `core/*.ts` NO importan nada fuera de `src/monitor/` — solo `node:fs`, `node:path`, `bun:sqlite`, y tipos internos
 - `ui/monitor-view.ts` importa SOLO tipos de `src/types/ipc.ts` — unico acoplamiento aceptado con el host
 - API publica unica: `src/monitor/index.ts` — el host solo importa desde aqui
 - `monitor.track(event)` es no-op en v1 — API declarada para v2
@@ -121,6 +123,45 @@
 - `process.cwd()` para resolver `docs/` desde handlers.ts: correcto en dev, no en produccion (comportamiento aceptable)
 - Monitor-styles.css se copia al build via `electrobun.config.ts > build.copy`
 
+### Monitor historial SQLite — extension del modulo monitor (monitor-historial-metricas)
+- Decision: persistir eventos de cambio (deltas), NO snapshots completos — snapshots cada 30s generan datos redundantes masivos
+- Un evento = un cambio detectado: `feature_state_changed | bug_state_changed | handoff_completed | metrics_updated`
+- La DB del historial vive en `path.join(USER_DATA_DIR, 'monitor-history.db')` — decidido por el host, no por el modulo
+- `MonitorConfig` extiende con `historyDbPath?: string` — opcional, degradacion graceful si ausente o si falla init
+- `historyDb.ts` es un singleton propio del modulo — completamente independiente de `src/db/database.ts`
+- Migraciones del historial embebidas en `historyDb.ts::applyHistoryMigrations()` — NO en `src/db/migrations.ts`
+- `changeDetector.ts` es una funcion pura — no toca la DB, solo compara dos snapshots y retorna eventos
+- Orden en `poller.scan()`: detectChanges(prev, curr) ANTES de actualizar `this.cachedSnapshot`
+- `getHistory` y `getAgentTrends` son queries SQLite sincronas — NO fire-and-forget
+- Los handlers de historial validan params contra whitelist antes de pasar a queryHistory (seguridad)
+- UI: tab 4 "Historial" con tabla de eventos + indicadores de tendencia en cards de agentes existentes
+- Sin graficos SVG/Canvas — tablas filtradas responden todas las preguntas de tendencias
+- `getHistoryDb` se exporta desde `src/monitor/index.ts` (no desde core/) para mantener API publica del modulo
+
+### Graficas SVG inline — monitor tab Agentes (graficas-evolucion-metricas-agentes)
+- `queryAgentTrends` NO es util para graficas — devuelve promedios, no series temporales
+- Nueva funcion `queryAgentTimeline(db, agentId)` en `src/monitor/core/timelineRepository.ts` — retorna filas ordenadas ASC
+- Canal IPC nuevo `getAgentTimeline { agentId }` — bajo demanda, un agente a la vez
+- Seccion colapsable por agente con boton toggle — no siempre visible para no saturar la UI
+- Tres graficas SVG por agente: Rework (0-1), Iteraciones (0-max), Confianza (0-3)
+- SVG generado como string en TypeScript — sin canvas, sin librerias externas
+- Coordenadas: area 30..260 x 15..80, puntos null omitidos de polyline (segmentos separados)
+- Cache en memoria: `chartsCache: Map<agentId, AgentTimelinePoint[]>` en el closure de renderMonitor
+- Event delegation en `agentsGridEl` para clicks de toggle — los cards se re-renderizan en updateSnapshot
+- Al re-renderizar cards en updateSnapshot: restaurar graficas desde chartsCache para agentes en expandedAgents
+- Confianza mapeada: alta=3, media=2, baja=1, null=null (numero para eje Y numerico)
+- El ancho SVG (280px) puede exceder cards de 200px min — `overflow: visible` en SVG mitiga el recorte
+
+### Tests de comportamiento async — bun-test-ipc-handlers
+- `handlers.ts` NO se puede importar en tests — llama `defineElectrobunRPC` que require entorno Electrobun
+- Patron establecido: testear `handlerLogic.ts` (logica pura con DI) para handlers, nunca `handlers.ts`
+- `tests/helpers/testHistoryDb.ts` — helper analogo a `testDb.ts` pero para el schema del monitor (monitor-history.db)
+- El schema de `testHistoryDb.ts` es una copia literal de las migrations de `historyDb.ts` — sincronizar manualmente si se añaden migrations futuras
+- Tests async miden timing con `performance.now()` — threshold de 50ms para fire-and-forget (handler debe retornar en < 50ms aunque stub tenga delay de 80ms)
+- La distincion macrotask (`setTimeout`) vs microtask (`Promise.resolve`) es critica para los asserts de ordering: `onInstallDone` usa setTimeout, por lo que el flag es false inmediatamente despues del `await handleGenerateAgent(...)`
+- Tests de monitor importan directamente desde `src/monitor/core/` (no desde `src/monitor/index.ts`) — las funciones reciben `db: Database` como parametro, son 100% testeables sin deps externas
+- Scripts nuevos en package.json: `test:async` y `test:monitor` — el script `test` existente no cambia
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -132,6 +173,9 @@
 ### [ENTREGADO] Plan de devtools-csp-produccion — Estado: listo para Cloe
 ### [ENTREGADO] Plan de settings-panel — Estado: listo para Cloe
 ### [ENTREGADO] Plan de monitor-pipeline-agentes — Estado: listo para Cloe
+### [ENTREGADO] Plan de monitor-historial-metricas — Estado: listo para Cloe
+### [ENTREGADO] Plan de graficas-evolucion-metricas-agentes — Estado: APROBADO (Cipher)
+### [ENTREGADO] Plan de bun-test-ipc-handlers — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -152,6 +196,12 @@
 - Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
 - Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
 - Modulos autocontenidos (monitor): cero imports hacia fuera de su carpeta, API publica via index.ts, integracion via inyeccion en el host
+- Handlers de consulta SQLite (getHistory, getAgentTrends, getAgentTimeline): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
+- Extensiones de modulo autocontenido: nuevos archivos van en src/monitor/core/, nuevos exports van en src/monitor/index.ts
+- Event delegation en contenedores re-renderizables: un listener en el padre, no por elemento hijo
+- Graficas en UI: SVG inline como string — sin canvas ni librerias, funciona en cualquier webview
+- Tests de handlers: NUNCA importar `handlers.ts` en tests — usar `handlerLogic.ts` con DI. `handlers.ts` crashea fuera de Electrobun por `defineElectrobunRPC`
+- Tests de DB del monitor: usar `testHistoryDb.ts` (DB :memory: con schema de historyDb.ts) — analogo a testDb.ts para la DB principal
 
 ## Contexto acumulado del proyecto
 
@@ -171,7 +221,6 @@
 
 ## Pendientes y proximos pasos
 
-- Cloe implementa monitor-pipeline-agentes segun docs/features/monitor-pipeline-agentes/status.md
-- Max verifica cada componente con su checklist
-- Ada limpia si hay dependencias huerfanas
-- Cipher audita IPC handlers (validacion de inputs) y spawn de procesos antes del release
+- Cloe implementa bun-test-ipc-handlers segun docs/features/bun-test-ipc-handlers/status.md
+- graficas-evolucion-metricas-agentes ya esta APROBADA — merge pendiente
+- Max verifica bun-test-ipc-handlers tras implementacion de Cloe

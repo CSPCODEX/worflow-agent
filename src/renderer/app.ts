@@ -1,5 +1,5 @@
 import { Electroview } from 'electrobun/view';
-import type { AppRPC, AgentInfo, PipelineSnapshotIPC } from '../types/ipc';
+import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
 import { renderAgentList } from './components/agent-list';
 import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
@@ -86,13 +86,21 @@ document.addEventListener('DOMContentLoaded', () => {
       parseErrors: [],
     };
     const rpc = (window as any).appRpc;
-    activeMonitorHandle = renderMonitor(mainContentEl, emptySnapshot, () => {
-      rpc.request.getPipelineSnapshot()
-        .then((r: { snapshot: PipelineSnapshotIPC }) => {
-          activeMonitorHandle?.updateSnapshot(r.snapshot);
-        })
-        .catch(console.error);
-    });
+    activeMonitorHandle = renderMonitor(
+      mainContentEl,
+      emptySnapshot,
+      () => {
+        rpc.request.getPipelineSnapshot()
+          .then((r: { snapshot: PipelineSnapshotIPC }) => {
+            activeMonitorHandle?.updateSnapshot(r.snapshot);
+          })
+          .catch(console.error);
+      },
+      (params: GetHistoryParams): Promise<GetHistoryResult> =>
+        (rpc as any).request.getHistory(params),
+      (): Promise<GetAgentTrendsResult> =>
+        (rpc as any).request.getAgentTrends()
+    );
     // Pedir snapshot al arrancar la vista
     rpc.request.getPipelineSnapshot()
       .then((r: { snapshot: PipelineSnapshotIPC }) => {

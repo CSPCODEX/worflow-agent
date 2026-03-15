@@ -66,6 +66,43 @@
 - Si buildSnapshot lanza (muy raro) y cachedSnapshot es null, el type assertion engana al caller
 - Pattern seguro: retornar snapshot vacio por defecto en lugar de usar `!`
 
+### bun:sqlite query API — patron de parametros — BUG recurrente en nueva DB
+- Cloe usa `db.query<T, []>(...).get([])` y `.all([...params])` — INCORRECTO: TS2554 / TS2345
+- La API de bun:sqlite pasa parametros como argumentos posicionales, NO como array wrapeado
+- FIX: `.get()` sin argumentos para queries sin params, `.get(...params)` con spread para queries con params
+- Lo mismo para `.all()`: `.all(...params)` o `.all(singleParam)`
+- SIEMPRE verificar con git stash que los errores son nuevos y no preexistentes antes de reportar
+- Confirmado en feature monitor-historial-metricas: historyRepository.ts:129,133,153 eran errores nuevos
+  aunque Cloe los reporto como preexistentes — la prueba con baseline lo desmiente
+
+### Estado efimero del poller no persiste entre reinicios — BUG #009
+- `cachedSnapshot = null` en cada arranque: el primer scan siempre compara contra nada
+- `detectChanges(null, snapshot)` trata TODOS los items como nuevos — duplicados garantizados
+- La deduplicacion por ventana de tiempo (alternativa B) es una mala solucion: ventana arbitraria, falsos negativos para cambios reales rapidos, no resuelve la causa raiz
+- FIX correcto (alternativa A): seedear `cachedSnapshot` en `PipelinePoller.start()` desde la DB antes del primer scan
+- Requiere nueva funcion `loadLastKnownStates(db)` en historyRepository.ts — query por ultimo estado de cada item
+- Caso de primer arranque (DB vacia): el snapshot seeded queda con arrays vacios, comportamiento correcto sin logica extra
+- changeDetector.ts es una funcion pura correcta — NO tocar al resolver este bug
+
+### Cobertura de FEATURE_STATE_MAP — BUG #010 y #011
+- El mapa de strings -> enum DEBE cubrir TODAS las variantes usadas en los status.md reales del repo
+- Variantes comunes no mapeadas: `LISTO PARA MERGE`, `APROBADO PARA MERGE` (semanticamente identicos)
+- Variantes con sufijo compuesto (`AUDITADO — listo para merge`) son problematicas: el strip `/[^A-Z\s]/g` convierte el em-dash en espacio, produciendo `AUDITADO  LISTO PARA MERGE` — NO esta en el mapa
+- Al auditar un bug de parser: SIEMPRE extraer todos los valores de "Estado final:" y "Estado:" de todos los status.md y compararlos contra el mapa completo — no solo el valor reportado
+- BUG_STATE_MAP tiene el mismo problema: `EN PROGRESO` no esta mapeado (BUG #003 seria DESCONOCIDO)
+- stateBadge() en monitor-view.ts es generica (usa la clase CSS dinamicamente) — NO necesita cambio cuando se añade un estado nuevo; SOLO necesita CSS nuevo en monitor-styles.css
+- Nuevo estado a añadir al enum: `LISTO_PARA_MERGE` (distinto de `AUDITADO` — estado post-auditoria pre-merge; distinto de `MERGEADO` — aun en rama de feature)
+
+### Formato inconsistente de status.md — causa de DESCONOCIDO en parser — BUG #011
+- El parser usa `^Estado:\s*(.+)$` — NO captura `**Estado:** valor` (formato bold de markdown)
+- Cinco features usan bold: delete-agent, multi-provider-support, persistence, prompt-enhancement, y bug/001
+- Tres bugs usan formato completamente diferente (clave `Status` en ingles + valor entre backticks): 004, 005, 006
+- Un archivo usa `**Fase:**` en lugar de `**Estado:**`: electrobun-migration — no hay fix pragmatico
+- FIX correcto: ampliar regex de `extractLine` a `^\*{0,2}Estado:\*{0,2}\s*(.+)$` (captura con y sin bold)
+- Para bugs: anadir fallback `extractLine(content, 'Status')` y limpiar backticks del valor raw
+- Valores especificos no mapeados: `OPTIMIZADO` (mapear a `EN_AUDITORIA`), `IMPLEMENTADO` (mapear a `EN_VERIFICACION`), `CORRECCION COMPLETADA` (mapear a `EN_VERIFICACION`), `RESOLVED` y `VERIFIED` en BUG_STATE_MAP (mapear a `RESUELTO`)
+- Todos los mapeos son al enum existente — NO se necesitan estados nuevos en types.ts
+
 ## Areas problematicas recurrentes
 
 - Verificación de PATHS en Windows dev mode — siempre requiere runtime check
@@ -77,6 +114,12 @@
 - response.content de LM Studio con tokens de razonamiento — siempre filtrar antes de emitir
 - Clases CSS de nuevos componentes: verificar que existan en style.css antes de aprobar — BUG #007 confirmado en 2 features distintas
 - Typos en nombres de campo: `gapsDeclados` en lugar de `gapsDeclarados` — revisar nomenclatura en tipos al aprobar
+- bun:sqlite params como array vs spread: Cloe reincide en este patron — verificar siempre en features con DB nueva
+- Estado efimero en pollers con persistencia: si el poller tiene DB de respaldo, SIEMPRE seedear su cache desde la DB al arrancar
+- Maps de strings a enum: auditar cobertura contra TODOS los status.md reales del repo, no solo contra el enum — BUG #010 y #011
+- Formato bold `**Clave:**` en status.md antiguos no capturado por regex de parser — BUG #011
+- IPC on-demand + re-render periodico del DOM: si la Promise del IPC resuelve en un elemento ya destruido, la vista queda con spinner congelado. FIX: en restoreExpanded, si agente esta en expandedAgents sin cache, relanzar el IPC directamente. Detectado en graficas-evolucion-metricas-agentes:restoreExpandedCharts:678-690
+- Schema drift en testHistoryDb.ts: si historyDb.ts añade migration v2 y testHistoryDb.ts no se actualiza, los tests del monitor fallan con "no such column". Verificar sync al revisar features que toquen el schema del monitor.
 
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime
