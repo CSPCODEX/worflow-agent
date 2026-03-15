@@ -4,6 +4,11 @@ import type {
   FeatureRecordIPC,
   BugRecordIPC,
   HandoffStatusIPC,
+  GetHistoryParams,
+  GetHistoryResult,
+  GetAgentTrendsResult,
+  HistoryEventIPC,
+  AgentTrendIPC,
 } from '../../types/ipc';
 
 // NOTA: el import de types/ipc.ts es el UNICO acoplamiento con el host.
@@ -127,13 +132,30 @@ function confidenceClass(avg: number): string {
   return 'confidence-baja';
 }
 
-function renderAgentCard(s: AgentSummaryIPC): string {
+function trendLabel(trend: AgentTrendIPC['reworkTrend']): string {
+  switch (trend) {
+    case 'mejorando':   return 'mejorando';
+    case 'empeorando':  return 'empeorando';
+    case 'estable':     return 'estable';
+    case 'sin_datos':   return 'sin datos';
+  }
+}
+
+function renderAgentCard(s: AgentSummaryIPC, trend?: AgentTrendIPC): string {
   const reworkPct = s.totalFeatures > 0
     ? Math.round(s.reworkRate * 100) + '%'
     : '--';
   const reworkCls = s.reworkRate > 0.3 ? 'rework-high' : '';
   const confLabel = confidenceLabel(s.avgConfidence);
   const confCls = confidenceClass(s.avgConfidence);
+
+  const trendBlock = trend
+    ? `
+      <div class="monitor-agent-card-row">
+        <span class="monitor-agent-card-label">Tendencia rework</span>
+        <span class="monitor-agent-card-value monitor-trend-${trend.reworkTrend}">${trendLabel(trend.reworkTrend)}</span>
+      </div>`
+    : '';
 
   return `
     <div class="monitor-agent-card" data-agent="${s.agentId}">
@@ -162,6 +184,7 @@ function renderAgentCard(s: AgentSummaryIPC): string {
         <span class="monitor-agent-card-label">Handoffs completados</span>
         <span class="monitor-agent-card-value">${s.totalFeatures > 0 ? s.completedHandoffs : '--'}</span>
       </div>
+      ${trendBlock}
     </div>
   `;
 }
@@ -198,19 +221,61 @@ function buildFilterOptions(states: string[], current: string): string {
 }
 
 // ──────────────────────────────────────────────
+// Render de la tabla del historial
+// ──────────────────────────────────────────────
+
+function eventTypeLabel(t: HistoryEventIPC['eventType']): string {
+  switch (t) {
+    case 'feature_state_changed': return 'Estado feature';
+    case 'bug_state_changed':     return 'Estado bug';
+    case 'handoff_completed':     return 'Handoff';
+    case 'metrics_updated':       return 'Metricas';
+  }
+}
+
+function renderHistoryRows(events: HistoryEventIPC[]): string {
+  if (events.length === 0) {
+    return `<tr><td colspan="7" class="monitor-table-empty">Sin eventos historicos.</td></tr>`;
+  }
+  return events.map((e) => `
+    <tr>
+      <td style="font-size:11px;color:#777;white-space:nowrap">${escapeHtml(e.recordedAt.slice(0, 16).replace('T', ' '))}</td>
+      <td><span class="monitor-state monitor-state-${escapeHtml(e.itemType)}">${escapeHtml(e.itemType)}</span></td>
+      <td title="${escapeHtml(e.itemSlug)}">${escapeHtml(e.itemTitle)}</td>
+      <td style="font-size:11px;color:#aaa">${eventTypeLabel(e.eventType)}</td>
+      <td style="font-size:11px;color:#777">${e.fromValue !== null ? escapeHtml(e.fromValue) : '<span style="color:#444">-</span>'}</td>
+      <td style="font-size:11px;color:#ccc">${escapeHtml(e.toValue)}</td>
+      <td style="font-size:11px;color:#888">${e.agentId !== null ? escapeHtml(e.agentId) : '-'}</td>
+    </tr>
+  `).join('');
+}
+
+// ──────────────────────────────────────────────
 // Entry point principal
 // ──────────────────────────────────────────────
 
 export function renderMonitor(
   container: HTMLElement,
   initialSnapshot: PipelineSnapshotIPC,
-  onRefresh: () => void
+  onRefresh: () => void,
+  onGetHistory: (params: GetHistoryParams) => Promise<GetHistoryResult>,
+  onGetAgentTrends: () => Promise<GetAgentTrendsResult>
 ): MonitorViewHandle {
   // Estado local de la vista
   let currentSnapshot = initialSnapshot;
-  let activeTab: 'pipeline' | 'agents' | 'errors' = 'pipeline';
+  let activeTab: 'pipeline' | 'agents' | 'errors' | 'history' = 'pipeline';
   let featureFilter = 'all';
   let bugFilter = 'all';
+
+  // Estado del historial
+  let historyOffset = 0;
+  let historyTypeFilter = 'all';
+  let historyAgentFilter = 'all';
+  let historyTotalCount = 0;
+  const HISTORY_PAGE_SIZE = 100;
+
+  // Mapa de tendencias: agentId -> AgentTrendIPC
+  let trendsMap = new Map<string, AgentTrendIPC>();
 
   // ── Render inicial del esqueleto HTML ──
   container.innerHTML = `
@@ -227,6 +292,7 @@ export function renderMonitor(
         <button class="monitor-tab active" data-tab="pipeline" id="mon-tab-pipeline">Pipeline</button>
         <button class="monitor-tab" data-tab="agents" id="mon-tab-agents">Agentes</button>
         <button class="monitor-tab" data-tab="errors" id="mon-tab-errors">Errores</button>
+        <button class="monitor-tab" data-tab="history" id="mon-tab-history">Historial</button>
       </div>
 
       <!-- Panel: Pipeline -->
@@ -289,6 +355,44 @@ export function renderMonitor(
           <p class="monitor-empty-state">Cargando...</p>
         </div>
       </div>
+
+      <!-- Panel: Historial -->
+      <div class="monitor-panel" id="mon-panel-history">
+        <div class="monitor-filter-row">
+          <label for="mon-history-type-filter">Tipo:</label>
+          <select id="mon-history-type-filter" class="monitor-filter-select">
+            <option value="all">Todos</option>
+            <option value="feature">Features</option>
+            <option value="bug">Bugs</option>
+          </select>
+          <label for="mon-history-agent-filter">Agente:</label>
+          <select id="mon-history-agent-filter" class="monitor-filter-select">
+            <option value="all">Todos</option>
+            <option value="leo">leo</option>
+            <option value="cloe">cloe</option>
+            <option value="max">max</option>
+            <option value="ada">ada</option>
+            <option value="cipher">cipher</option>
+          </select>
+        </div>
+        <table class="monitor-table">
+          <thead>
+            <tr>
+              <th>Cuando</th>
+              <th>Tipo</th>
+              <th>Item</th>
+              <th>Evento</th>
+              <th>Antes</th>
+              <th>Despues</th>
+              <th>Agente</th>
+            </tr>
+          </thead>
+          <tbody id="mon-history-body">
+            <tr><td colspan="7" class="monitor-table-empty">Selecciona el tab para cargar.</td></tr>
+          </tbody>
+        </table>
+        <div class="monitor-history-pagination" id="mon-history-pagination"></div>
+      </div>
     </div>
   `;
 
@@ -302,9 +406,13 @@ export function renderMonitor(
   const bugsBodyEl = container.querySelector<HTMLElement>('#mon-bugs-body')!;
   const agentsGridEl = container.querySelector<HTMLElement>('#mon-agents-grid')!;
   const errorsListEl = container.querySelector<HTMLElement>('#mon-errors-list')!;
+  const historyBodyEl = container.querySelector<HTMLElement>('#mon-history-body')!;
+  const historyPaginationEl = container.querySelector<HTMLElement>('#mon-history-pagination')!;
+  const historyTypeFilterEl = container.querySelector<HTMLSelectElement>('#mon-history-type-filter')!;
+  const historyAgentFilterEl = container.querySelector<HTMLSelectElement>('#mon-history-agent-filter')!;
 
   // ── Activar/desactivar tabs ──
-  function activateTab(tab: 'pipeline' | 'agents' | 'errors') {
+  function activateTab(tab: 'pipeline' | 'agents' | 'errors' | 'history') {
     activeTab = tab;
     tabButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset['tab'] === tab);
@@ -313,6 +421,84 @@ export function renderMonitor(
     panels.forEach((p) => p.classList.remove('active'));
     const active = container.querySelector<HTMLElement>(`#mon-panel-${tab}`);
     if (active) active.classList.add('active');
+
+    // Al activar Historial: cargar datos si aun no se han cargado
+    if (tab === 'history') {
+      loadHistory(0);
+    }
+    // Al activar Agentes: cargar trends
+    if (tab === 'agents') {
+      loadAgentTrends();
+    }
+  }
+
+  // ── Cargar historial (on-demand) ──
+  function loadHistory(newOffset: number) {
+    historyOffset = newOffset;
+    historyBodyEl.innerHTML = `<tr><td colspan="7" class="monitor-table-empty">Cargando...</td></tr>`;
+    historyPaginationEl.innerHTML = '';
+
+    const params: GetHistoryParams = {
+      limit: HISTORY_PAGE_SIZE,
+      offset: historyOffset,
+    };
+    if (historyTypeFilter !== 'all') {
+      params.itemType = historyTypeFilter as 'feature' | 'bug';
+    }
+    if (historyAgentFilter !== 'all') {
+      params.agentId = historyAgentFilter;
+    }
+
+    onGetHistory(params)
+      .then((result) => {
+        historyTotalCount = result.totalCount;
+        historyBodyEl.innerHTML = renderHistoryRows(result.events);
+        renderHistoryPagination();
+      })
+      .catch((err) => {
+        console.error('[monitor-view] loadHistory error:', err);
+        historyBodyEl.innerHTML = `<tr><td colspan="7" class="monitor-table-empty">Error al cargar historial.</td></tr>`;
+      });
+  }
+
+  function renderHistoryPagination() {
+    const hasMore = historyOffset + HISTORY_PAGE_SIZE < historyTotalCount;
+    const hasPrev = historyOffset > 0;
+    if (!hasMore && !hasPrev) {
+      historyPaginationEl.innerHTML = `<span class="monitor-history-count">${historyTotalCount} evento${historyTotalCount !== 1 ? 's' : ''}</span>`;
+      return;
+    }
+    const prevBtn = hasPrev
+      ? `<button class="monitor-btn-page" id="mon-hist-prev">Anterior</button>`
+      : '';
+    const nextBtn = hasMore
+      ? `<button class="monitor-btn-page" id="mon-hist-next">Siguiente</button>`
+      : '';
+    historyPaginationEl.innerHTML = `
+      <span class="monitor-history-count">${historyTotalCount} evento${historyTotalCount !== 1 ? 's' : ''} — pagina ${Math.floor(historyOffset / HISTORY_PAGE_SIZE) + 1}</span>
+      ${prevBtn}${nextBtn}
+    `;
+    historyPaginationEl.querySelector<HTMLButtonElement>('#mon-hist-prev')
+      ?.addEventListener('click', () => loadHistory(historyOffset - HISTORY_PAGE_SIZE));
+    historyPaginationEl.querySelector<HTMLButtonElement>('#mon-hist-next')
+      ?.addEventListener('click', () => loadHistory(historyOffset + HISTORY_PAGE_SIZE));
+  }
+
+  // ── Cargar tendencias de agentes (on-demand) ──
+  function loadAgentTrends() {
+    onGetAgentTrends()
+      .then((result) => {
+        trendsMap = new Map(result.trends.map((t) => [t.agentId, t]));
+        // Re-renderizar cards de agentes con los trends cargados
+        if (currentSnapshot.agentSummaries.length > 0) {
+          agentsGridEl.innerHTML = currentSnapshot.agentSummaries
+            .map((s) => renderAgentCard(s, trendsMap.get(s.agentId)))
+            .join('');
+        }
+      })
+      .catch((err) => {
+        console.error('[monitor-view] loadAgentTrends error:', err);
+      });
   }
 
   // ── Actualizar solo las partes del DOM que cambian (INCREMENTAL) ──
@@ -340,7 +526,9 @@ export function renderMonitor(
     if (snapshot.agentSummaries.length === 0) {
       agentsGridEl.innerHTML = '<p class="monitor-empty-state">Sin datos de agentes disponibles.</p>';
     } else {
-      agentsGridEl.innerHTML = snapshot.agentSummaries.map(renderAgentCard).join('');
+      agentsGridEl.innerHTML = snapshot.agentSummaries
+        .map((s) => renderAgentCard(s, trendsMap.get(s.agentId)))
+        .join('');
     }
 
     // Lista de errores
@@ -361,7 +549,7 @@ export function renderMonitor(
 
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      const tab = btn.dataset['tab'] as 'pipeline' | 'agents' | 'errors';
+      const tab = btn.dataset['tab'] as 'pipeline' | 'agents' | 'errors' | 'history';
       if (tab) activateTab(tab);
     });
   });
@@ -375,6 +563,18 @@ export function renderMonitor(
     bugFilter = bugFilter_El.value;
     bugsBodyEl.innerHTML = renderBugsTable(currentSnapshot.bugs, bugFilter);
   });
+
+  // Listeners del historial
+  function onHistoryTypeChange() {
+    historyTypeFilter = historyTypeFilterEl.value;
+    loadHistory(0);
+  }
+  function onHistoryAgentChange() {
+    historyAgentFilter = historyAgentFilterEl.value;
+    loadHistory(0);
+  }
+  historyTypeFilterEl.addEventListener('change', onHistoryTypeChange);
+  historyAgentFilterEl.addEventListener('change', onHistoryAgentChange);
 
   // Listener del evento push del poller (registrado aqui, limpiado en cleanup)
   function onMonitorSnapshot(e: Event) {
@@ -392,6 +592,8 @@ export function renderMonitor(
     cleanup() {
       document.removeEventListener('monitor:snapshot', onMonitorSnapshot);
       refreshBtn.removeEventListener('click', onRefresh);
+      historyTypeFilterEl.removeEventListener('change', onHistoryTypeChange);
+      historyAgentFilterEl.removeEventListener('change', onHistoryAgentChange);
     },
     updateSnapshot,
   };

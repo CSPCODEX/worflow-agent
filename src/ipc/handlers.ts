@@ -1,10 +1,10 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
-import path from 'path';
-import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC } from '../types/ipc';
+import path, { join } from 'path';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
-import { AGENTS_DIR } from '../db/userDataDir';
+import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
 import { agentRepository } from '../db/agentRepository';
 import { conversationRepository, messageRepository } from '../db/conversationRepository';
 import { enhancePrompt } from '../enhancer/promptEnhancer';
@@ -17,7 +17,7 @@ import {
   handleLoadSettings,
   handleSaveSettings,
 } from './handlerLogic';
-import { PipelinePoller } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends } from '../monitor/index';
 import type { PipelineSnapshot } from '../monitor/index';
 
 // Instanciar poller. Busca docs/ subiendo desde process.cwd() hasta encontrarlo.
@@ -36,7 +36,11 @@ function findDocsDir(): string {
 }
 const docsDir = findDocsDir();
 console.log('[monitor] docsDir:', docsDir);
-const poller = new PipelinePoller({ docsDir, pollIntervalMs: 30_000 });
+const poller = new PipelinePoller({
+  docsDir,
+  pollIntervalMs: 30_000,
+  historyDbPath: join(USER_DATA_DIR, 'monitor-history.db'),
+});
 // NOTA: poller.start() se llama dentro de createRpc(), despues de registrar onSnapshot,
 // para garantizar que el primer scan ya tenga el callback registrado y el push llegue al renderer.
 
@@ -190,6 +194,67 @@ export function createRpc() {
         getPipelineSnapshot: async () => {
           const snapshot = poller.getSnapshot();
           return { snapshot: snapshotToIPC(snapshot) };
+        },
+
+        getHistory: async (params: GetHistoryParams): Promise<GetHistoryResult> => {
+          const db = getHistoryDb();
+          if (!db) return { events: [], totalCount: 0 };
+          try {
+            // Validar params — whitelist para campos sensibles
+            const safeParams = {
+              itemSlug: typeof params?.itemSlug === 'string' ? params.itemSlug : undefined,
+              itemType:
+                params?.itemType === 'feature' || params?.itemType === 'bug'
+                  ? params.itemType
+                  : undefined,
+              agentId: ['leo', 'cloe', 'max', 'ada', 'cipher'].includes(params?.agentId ?? '')
+                ? (params.agentId as 'leo' | 'cloe' | 'max' | 'ada' | 'cipher')
+                : undefined,
+              eventType: [
+                'feature_state_changed',
+                'bug_state_changed',
+                'handoff_completed',
+                'metrics_updated',
+              ].includes(params?.eventType ?? '')
+                ? params.eventType
+                : undefined,
+              limit: typeof params?.limit === 'number' ? Math.min(params.limit, 500) : 100,
+              offset: typeof params?.offset === 'number' ? Math.max(params.offset, 0) : 0,
+            };
+            const result = queryHistory(db, safeParams);
+            return {
+              events: result.events.map((e) => ({
+                ...e,
+                // Sanitizar strings a ASCII puro (BUG #001 — IPC no soporta non-ASCII en Windows)
+                itemTitle: e.itemTitle.replace(/[^\x20-\x7E]/g, '?'),
+                fromValue: e.fromValue?.replace(/[^\x20-\x7E]/g, '?') ?? null,
+                toValue: e.toValue.replace(/[^\x20-\x7E]/g, '?'),
+              })),
+              totalCount: result.totalCount,
+            };
+          } catch (e: any) {
+            console.error('[handlers] getHistory error:', e.message);
+            return { events: [], totalCount: 0 };
+          }
+        },
+
+        getAgentTrends: async (_params: undefined): Promise<GetAgentTrendsResult> => {
+          const db = getHistoryDb();
+          if (!db) return { trends: [] };
+          try {
+            const snapshot = poller.getSnapshot();
+            const currentSummaries = snapshot.agentSummaries.map((s) => ({
+              agentId: s.agentId,
+              reworkRate: s.reworkRate,
+              avgIterations: s.avgIterations,
+              avgConfidence: s.avgConfidence,
+            }));
+            const trends = queryAgentTrends(db, currentSummaries);
+            return { trends };
+          } catch (e: any) {
+            console.error('[handlers] getAgentTrends error:', e.message);
+            return { trends: [] };
+          }
         },
       },
     },

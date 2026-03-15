@@ -187,6 +187,7 @@
 .monitor-state-EN_OPTIMIZACION { background: #0a2a2a; color: #4ab8b8; }
 .monitor-state-EN_AUDITORIA { background: #1a2a2a; color: #4ab8a0; }
 .monitor-state-AUDITADO { background: #0a2a0a; color: #5ab85a; }
+.monitor-state-LISTO_PARA_MERGE { background: #0a2a3a; color: #3ab8d4; }
 .monitor-state-MERGEADO { background: #0a2a0a; color: #7ad47a; }
 .monitor-state-BLOQUEADO { background: #3a0a0a; color: #d46060; }
 .monitor-state-DESCONOCIDO { background: #2a2a2a; color: #777; }
@@ -329,6 +330,56 @@
 
 .monitor-rework-no {
   color: #555;
+}
+
+/* Trend indicators en cards de agentes */
+.monitor-trend-mejorando {
+  color: #4caf50;
+  font-weight: 500;
+}
+
+.monitor-trend-empeorando {
+  color: #f44336;
+  font-weight: 500;
+}
+
+.monitor-trend-estable {
+  color: #aaa;
+}
+
+.monitor-trend-sin_datos {
+  color: #555;
+  font-style: italic;
+}
+
+/* History tab — paginacion */
+.monitor-history-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 4px 0;
+  font-size: 12px;
+}
+
+.monitor-history-count {
+  color: #666;
+  font-size: 11px;
+}
+
+.monitor-btn-page {
+  background: #2a2a2a;
+  color: #aaa;
+  border: 1px solid #3a3a3a;
+  border-radius: 5px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.monitor-btn-page:hover {
+  background: #333;
+  color: #e0e0e0;
 }
 
 /* Security badge */

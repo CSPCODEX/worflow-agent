@@ -3,6 +3,8 @@
 // Ninguna importacion del host debe existir aqui ni en core/*.
 export { PipelinePoller } from './core/poller';
 export { buildSnapshot } from './core/aggregator';
+export { getHistoryDb, closeHistoryDb } from './core/historyDb';
+export { queryHistory, queryAgentTrends } from './core/historyRepository';
 export type {
   PipelineSnapshot,
   FeatureRecord,
@@ -16,6 +18,12 @@ export type {
   AgentId,
   FeatureState,
   BugState,
+  HistoryEvent,
+  AgentMetricsHistoryEntry,
+  AgentTrend,
+  HistoryQuery,
+  HistoryQueryResult,
+  PipelineEventType,
 } from './core/types';
 
 // monitor.track() es el punto de entrada para eventos futuros en tiempo real.

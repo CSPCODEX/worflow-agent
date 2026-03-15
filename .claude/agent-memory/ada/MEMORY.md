@@ -53,6 +53,23 @@
 - Ejemplo: `ALL_AGENTS: AgentId[]` declarado inline en `parseFeatureStatus` y `parseBugStatus` → constante de módulo.
 - No extraer entre archivos del mismo módulo si la restricción de portabilidad lo justifica.
 
+### N+1 queries en repositories — SQLite IN clause para multiples IDs
+- Patron: funcion que hace una query SQLite por elemento dentro de `.map()` → N round-trips
+- Fix: una sola query con `IN (${placeholders})` + spread + `Map` para agrupar en memoria
+- Patron de codificacion:
+  ```ts
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = db.query<Row, string[]>(`SELECT * FROM tabla WHERE id IN (${placeholders})`).all(...ids);
+  const byId = new Map<string, Row[]>();
+  for (const r of rows) { const b = byId.get(r.id); if (b) b.push(r); else byId.set(r.id, [r]); }
+  ```
+- Nota: `db.query()` re-compila el SQL cada vez. Si el numero de IDs es fijo usar `db.prepare()`.
+- Aplicado en: `historyRepository.queryAgentTrends` — 5 queries → 1
+
+### Imports muertos en handlers.ts — verificar antes de asumir
+- Los imports del modulo monitor en handlers.ts pueden crecer con cada feature — siempre grep para detectar los que no se usan en ese archivo
+- `closeHistoryDb` estaba importado en handlers.ts pero solo se usa en desktop/index.ts
+
 ## Deuda técnica identificada
 - `listAgents` sin caché — diferir a v1.1 con métricas reales
 - `child_process` todavía importado en `acpManager.ts` y `client.ts` — fuera de scope de Ada
