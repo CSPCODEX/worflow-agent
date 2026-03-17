@@ -12,6 +12,9 @@ import type {
   GetAgentTimelineParams,
   GetAgentTimelineResult,
   AgentTimelinePoint,
+  AgentBehaviorPointIPC,
+  GetAgentBehaviorTimelineParams,
+  GetAgentBehaviorTimelineResult,
 } from '../../types/ipc';
 
 // NOTA: el import de types/ipc.ts es el UNICO acoplamiento con el host.
@@ -410,12 +413,39 @@ function renderAgentCard(s: AgentSummaryIPC, trend?: AgentTrendIPC): string {
         <span class="monitor-agent-card-value">${s.totalFeatures > 0 ? s.completedHandoffs : '--'}</span>
       </div>
       ${trendBlock}
+      ${renderBehaviorSummary(s)}
+    </div>
+  `;
+}
+
+function renderBehaviorSummary(s: AgentSummaryIPC): string {
+  const fmt = (v: number | null): string => {
+    if (v === null) return '--';
+    return `${Math.round(v * 100)}%`;
+  };
+  return `
+    <div class="monitor-agent-card-separator"></div>
+    <div class="monitor-agent-card-row">
+      <span class="monitor-agent-card-label">Checklist adherencia</span>
+      <span class="monitor-agent-card-value">${fmt(s.avgChecklistRate)}</span>
+    </div>
+    <div class="monitor-agent-card-row">
+      <span class="monitor-agent-card-label">Structure score</span>
+      <span class="monitor-agent-card-value">${fmt(s.avgStructureScore)}</span>
+    </div>
+    <div class="monitor-agent-card-row">
+      <span class="monitor-agent-card-label">Alucinacion rate</span>
+      <span class="monitor-agent-card-value ${s.avgHallucinationRate !== null && s.avgHallucinationRate > 0.2 ? 'rework-high' : ''}">${fmt(s.avgHallucinationRate)}</span>
+    </div>
+    <div class="monitor-agent-card-row">
+      <span class="monitor-agent-card-label">Memoria leida</span>
+      <span class="monitor-agent-card-value">${fmt(s.memoryReadRate)}</span>
     </div>
   `;
 }
 
 // ──────────────────────────────────────────────
-// Escape HTML (seguridad — datos del filesystem)
+// Escape HTML (seguridad -- datos del filesystem)
 // ──────────────────────────────────────────────
 
 function escapeHtml(s: string): string {
@@ -486,6 +516,7 @@ export function renderMonitor(
   onGetHistory: (params: GetHistoryParams) => Promise<GetHistoryResult>,
   onGetAgentTrends: () => Promise<GetAgentTrendsResult>,
   onGetAgentTimeline: (params: GetAgentTimelineParams) => Promise<GetAgentTimelineResult>,
+  onGetAgentBehaviorTimeline: (params: GetAgentBehaviorTimelineParams) => Promise<GetAgentBehaviorTimelineResult>,
 ): MonitorViewHandle {
   // Estado local de la vista
   let currentSnapshot = initialSnapshot;
@@ -506,6 +537,11 @@ export function renderMonitor(
   // Cache y estado expandido de graficas
   const chartsCache = new Map<string, AgentTimelinePoint[]>();
   let chartsInitialized = false;
+
+  // Cache de behavior timelines por agente
+  const behaviorCache = new Map<string, AgentBehaviorPointIPC[]>();
+  // Agentes expandidos en el acordeon (permite multiples abiertos)
+  const expandedAgents = new Set<string>();
 
   // ── Render inicial del esqueleto HTML ──
   container.innerHTML = `
@@ -577,6 +613,12 @@ export function renderMonitor(
         <div class="monitor-agents-grid" id="mon-agents-grid">
           <p class="monitor-empty-state">Cargando datos de agentes...</p>
         </div>
+        <div class="monitor-behavior-combined-section" id="mon-behavior-combined-section">
+          <div class="monitor-behavior-label">Comportamiento por feature</div>
+          <div id="mon-behavior-combined-content">
+            <p class="monitor-chart-loading">Cargando...</p>
+          </div>
+        </div>
         <div class="monitor-agent-charts-section" id="mon-agent-charts-section"></div>
       </div>
 
@@ -637,6 +679,7 @@ export function renderMonitor(
   const bugsBodyEl = container.querySelector<HTMLElement>('#mon-bugs-body')!;
   const agentsGridEl = container.querySelector<HTMLElement>('#mon-agents-grid')!;
   const agentChartsSectionEl = container.querySelector<HTMLElement>('#mon-agent-charts-section')!;
+  const behaviorCombinedSectionEl = container.querySelector<HTMLElement>('#mon-behavior-combined-section')!;
   const errorsListEl = container.querySelector<HTMLElement>('#mon-errors-list')!;
   const historyBodyEl = container.querySelector<HTMLElement>('#mon-history-body')!;
   const historyPaginationEl = container.querySelector<HTMLElement>('#mon-history-pagination')!;
@@ -727,11 +770,120 @@ export function renderMonitor(
             .map((s) => renderAgentCard(s, trendsMap.get(s.agentId)))
             .join('');
         }
+        // Cargar behavior timelines para todos los agentes (on-demand con cache)
+        loadBehaviorTimelines(currentSnapshot.agentSummaries.map(s => s.agentId));
       })
       .catch((err) => {
         console.error('[monitor-view] loadAgentTrends error:', err);
       });
   }
+
+  // ── Tabla de comportamiento por feature ──
+  function renderBehaviorTable(points: AgentBehaviorPointIPC[]): string {
+    if (points.length === 0) {
+      return '<p class="monitor-chart-empty">Sin datos de comportamiento.</p>';
+    }
+    const fmt = (v: number | null): string => {
+      if (v === null) return '--';
+      return `${Math.round(v * 100)}%`;
+    };
+    const rows = points.map(p => `
+      <tr>
+        <td style="font-size:10px;color:#888">${escapeHtml(p.itemSlug)}</td>
+        <td>${fmt(p.checklistRate)}</td>
+        <td>${fmt(p.structureScore)}</td>
+        <td class="${p.hallucinationRate !== null && p.hallucinationRate > 0.2 ? 'rework-high' : ''}">${fmt(p.hallucinationRate)}</td>
+        <td>${p.memoryRead === 1 ? '<span class="monitor-rework-no">si</span>' : p.memoryRead === 0 ? '<span class="monitor-rework-yes">no</span>' : '--'}</td>
+      </tr>
+    `).join('');
+    return `
+      <table class="monitor-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Checklist</th>
+            <th>Estructura</th>
+            <th>Alucinacion</th>
+            <th>Memoria</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
+  }
+
+  const AGENT_ORDER = ['leo', 'cloe', 'max', 'ada', 'cipher'];
+
+  function renderBehaviorAccordion(): string {
+    const fmt = (v: number | null): string =>
+      v === null ? '--' : `${Math.round(v * 100)}%`;
+
+    const items = AGENT_ORDER
+      .filter(id => behaviorCache.has(id))
+      .map(agentId => {
+        const points = behaviorCache.get(agentId)!;
+        const summary = currentSnapshot.agentSummaries.find(s => s.agentId === agentId);
+        const isExpanded = expandedAgents.has(agentId);
+        const name = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+
+        const chips = summary ? [
+          `<span class="mon-behavior-chip">Checklist: ${fmt(summary.avgChecklistRate)}</span>`,
+          `<span class="mon-behavior-chip ${summary.avgHallucinationRate !== null && summary.avgHallucinationRate > 0.2 ? 'mon-behavior-chip-warn' : ''}">Alucinacion: ${fmt(summary.avgHallucinationRate)}</span>`,
+          `<span class="mon-behavior-chip">Estructura: ${fmt(summary.avgStructureScore)}</span>`,
+          `<span class="mon-behavior-chip">Memoria: ${fmt(summary.memoryReadRate)}</span>`,
+        ].join('') : '';
+
+        return `<div class="mon-behavior-accordion-item">
+          <div class="mon-behavior-accordion-header" data-agent="${escapeHtml(agentId)}">
+            <span class="mon-behavior-accordion-arrow">${isExpanded ? '&#9660;' : '&#9654;'}</span>
+            <span class="mon-behavior-accordion-name">${escapeHtml(name)}</span>
+            <span class="mon-behavior-accordion-chips">${chips}</span>
+          </div>
+          <div class="mon-behavior-accordion-content" ${isExpanded ? '' : 'style="display:none"'}>
+            ${renderBehaviorTable(points)}
+          </div>
+        </div>`;
+      });
+
+    return items.length > 0
+      ? items.join('')
+      : '<p class="monitor-chart-empty">Sin datos de comportamiento.</p>';
+  }
+
+  function updateBehaviorSection(_agentId: string) {
+    const el = container.querySelector<HTMLElement>('#mon-behavior-combined-content');
+    if (el) el.innerHTML = renderBehaviorAccordion();
+  }
+
+  function loadBehaviorTimelines(agentIds: string[]) {
+    for (const agentId of agentIds) {
+      if (behaviorCache.has(agentId)) continue;
+      onGetAgentBehaviorTimeline({ agentId })
+        .then((result) => {
+          behaviorCache.set(agentId, result.points);
+          // Auto-expandir el primer agente con datos
+          if (expandedAgents.size === 0 && result.points.length > 0) {
+            expandedAgents.add(agentId);
+          }
+          updateBehaviorSection(agentId);
+        })
+        .catch((err) => console.error(`[monitor-view] loadBehaviorTimelines ${agentId} error:`, err));
+    }
+  }
+
+  // Event delegation para el acordeon — se registra una sola vez
+  behaviorCombinedSectionEl.addEventListener('click', (e) => {
+    const header = (e.target as Element).closest<HTMLElement>('.mon-behavior-accordion-header');
+    if (!header) return;
+    const agentId = header.dataset.agent;
+    if (!agentId) return;
+    if (expandedAgents.has(agentId)) {
+      expandedAgents.delete(agentId);
+    } else {
+      expandedAgents.add(agentId);
+    }
+    updateBehaviorSection(agentId);
+  });
 
   // ── Renderizar seccion de graficas (una fila por agente) ──
   function renderChartsSectionRows(agentIds: string[]) {
@@ -750,6 +902,9 @@ export function renderMonitor(
         if (el) el.innerHTML = renderCombinedChart(chartsCache.get(id)!);
       } else {
         fetchAndRenderChart(id);
+      }
+      if (behaviorCache.has(id)) {
+        updateBehaviorSection(id);
       }
     }
   }
