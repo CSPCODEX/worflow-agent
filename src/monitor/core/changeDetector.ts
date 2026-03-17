@@ -8,6 +8,7 @@ import type {
   PipelineSnapshot,
   AgentId,
   HistoryEvent,
+  AgentBehaviorEntry,
 } from './types';
 
 export interface DetectedChanges {
@@ -22,6 +23,7 @@ export interface DetectedChanges {
     gapsDeclarados: number | null;
     recordedAt: string;
   }>;
+  newBehavior: AgentBehaviorEntry[];
 }
 
 /** Devuelve true si el objeto de metricas contiene al menos un campo no-nulo. */
@@ -36,6 +38,7 @@ export function detectChanges(
   const now = new Date().toISOString();
   const events: Omit<HistoryEvent, 'id'>[] = [];
   const newMetrics: DetectedChanges['newMetrics'] = [];
+  const newBehavior: AgentBehaviorEntry[] = [];
 
   // --- Features ---
   const prevFeatureMap = new Map(
@@ -157,5 +160,40 @@ export function detectChanges(
     }
   }
 
-  return { events, newMetrics };
+  // Para features con behaviorMetrics nuevos
+  for (const curr_f of curr.features) {
+    const prev_f = prevFeatureMap.get(curr_f.slug) ?? null;
+    for (const [agentIdStr, bm] of Object.entries(curr_f.behaviorMetrics ?? {})) {
+      const agentId = agentIdStr as AgentId;
+      const prevBm = prev_f?.behaviorMetrics?.[agentId];
+      // "tiene datos" si al menos un campo no es null
+      const hasData = bm!.checklistRate !== null
+        || bm!.structureScore !== null
+        || bm!.hallucinationRefsTotal !== null
+        || bm!.memoryRead !== null;
+      const hadData = prevBm !== undefined && (
+        prevBm.checklistRate !== null
+        || prevBm.structureScore !== null
+        || prevBm.hallucinationRefsTotal !== null
+        || prevBm.memoryRead !== null
+      );
+      if (hasData && !hadData) {
+        newBehavior.push({
+          agentId,
+          itemType: 'feature',
+          itemSlug: curr_f.slug,
+          checklistTotal: bm!.checklistTotal,
+          checklistChecked: bm!.checklistChecked,
+          structureScoreNum: bm!.structureScoreNum,
+          structureScoreDen: bm!.structureScoreDen,
+          refsTotal: bm!.hallucinationRefsTotal,
+          refsValid: bm!.hallucinationRefsValid,
+          memoryRead: bm!.memoryRead,
+          recordedAt: now,
+        });
+      }
+    }
+  }
+
+  return { events, newMetrics, newBehavior };
 }

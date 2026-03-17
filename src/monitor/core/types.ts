@@ -56,6 +56,7 @@ export interface FeatureRecord {
   openedAt: string;           // Parseado de "Fecha apertura: ..."
   handoffs: HandoffStatus[];  // Estado de cada handoff del pipeline
   metrics: AgentMetrics[];    // Metricas por agente (las que estan rellenas)
+  behaviorMetrics: Partial<Record<AgentId, AgentBehaviorMetrics>>;  // Metricas de comportamiento por agente
   filePath: string;           // Ruta absoluta al status.md (NO viaja por IPC al renderer)
 }
 
@@ -81,6 +82,11 @@ export interface AgentSummary {
   avgConfidence: number;         // alta=3, media=2, baja=1 -> promedio numerico
   totalGapsDeclared: number;
   completedHandoffs: number;     // Handoffs completados donde este agente es el "from"
+  // Metricas de comportamiento calculadas externamente
+  avgChecklistRate: number | null;
+  avgStructureScore: number | null;
+  avgHallucinationRate: number | null;
+  memoryReadRate: number | null;
 }
 
 // Snapshot completo del estado del pipeline en un momento dado
@@ -106,6 +112,42 @@ export interface MonitorConfig {
   docsDir: string;               // Ruta absoluta a la carpeta docs/ del repo
   pollIntervalMs?: number;       // Default: 30000 (30 segundos)
   historyDbPath?: string;        // Ruta al archivo SQLite de historial. Si no se provee, historial deshabilitado.
+  repoRoot?: string;             // Ruta raiz del repo para verificar file refs en behavior metrics
+}
+
+// Metricas de comportamiento de un agente en una feature especifica
+// Calculadas externamente -- no auto-reportadas
+export interface AgentBehaviorMetrics {
+  agentId: AgentId;
+  // Checklist adherence
+  checklistTotal: number | null;       // items totales en ### Checklist X
+  checklistChecked: number | null;     // items marcados [x]
+  checklistRate: number | null;        // checklistChecked / checklistTotal (0.0-1.0), null si total=0
+  // Structure score
+  structureScoreNum: number | null;    // secciones obligatorias encontradas
+  structureScoreDen: number | null;    // secciones obligatorias esperadas
+  structureScore: number | null;       // num/den (0.0-1.0)
+  // Hallucination
+  hallucinationRefsTotal: number | null;
+  hallucinationRefsValid: number | null;
+  hallucinationRate: number | null;    // 1 - (valid/total), null si total=0 o repoRoot ausente
+  // Memory read
+  memoryRead: boolean | null;          // null = handoff incompleto
+}
+
+// Entrada a persistir en agent_behavior_history
+export interface AgentBehaviorEntry {
+  agentId: AgentId;
+  itemType: 'feature' | 'bug';
+  itemSlug: string;
+  checklistTotal: number | null;
+  checklistChecked: number | null;
+  structureScoreNum: number | null;
+  structureScoreDen: number | null;
+  refsTotal: number | null;
+  refsValid: number | null;
+  memoryRead: boolean | null;
+  recordedAt: string;
 }
 
 // Callback que el poller llama cada vez que tiene un nuevo snapshot

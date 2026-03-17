@@ -43,6 +43,9 @@
 - escapeHtml en etiquetas SVG eje X (monitor-view.ts:220) — slugs del filesystem correctamente escapados.
 - s.agentId sin escapeHtml en data-agent, data-agent-toggle, id= — filesystem local controlado, produccion sin docs/. Aceptado.
 
+### metricas-comportamiento-agentes-tab v1.0 (2026-03-17)
+- [BAJA -> ACEPTADA] Path traversal limitado en behaviorParser.ts:74: regex /[a-zA-Z0-9/_.-]+/ permite '..' en path extraido de status.md. existsSync(join(repoRoot, ref)) puede consultar rutas fuera del repo. Solo filtra existencia de archivo, no contenido. Requiere acceso de escritura a docs/. En produccion docs/ no existe. Fix: const resolved = path.resolve(repoRoot, ref); guard !resolved.startsWith(path.resolve(repoRoot) + path.sep).
+
 ## Patron recurrente detectado — validacion asimetrica de params IPC
 
 En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHost?.trim()` (linea 225) pero `enhancerModel` no usa `?.` en la validacion de longitud (linea 231). Este patron de validacion asimetrica es un vector recurrente: al añadir nuevos campos opcionales a un handler IPC, los campos que no son el "campo principal" tienden a omitirse de la defensa con optional chaining. Verificar sistematicamente que TODOS los campos de params usan `?.` o tienen un guard explicito de null/undefined antes de acceder a propiedades.
@@ -54,6 +57,10 @@ En renderizadores que usan template literals para innerHTML, es facil olvidar es
 ## Patron recurrente — IN clause dinamica en SQL
 
 Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es: `ids.map(() => '?').join(', ')` para generar los placeholders, nunca interpolar los valores directamente. Verificado en historyRepository.ts:156-159 (queryAgentTrends). El riesgo es bajo cuando los ids provienen de datos internos (no del renderer), pero el patron debe aplicarse igualmente.
+
+## Patron recurrente — path traversal en parsers de contenido textual
+
+Cuando un parser extrae paths de texto libre (regex sobre markdown/txt) y luego los usa en operaciones de filesystem, el regex debe prohibir explicitamente '..'. Patron inseguro: /[a-zA-Z0-9/_.-]+/ (permite '..' porque '.' esta en la clase). Patron seguro: verificar confinamiento post-join: `const r = path.resolve(root, ref); if (!r.startsWith(path.resolve(root) + path.sep)) return;`. Alternativa: `if (ref.includes('..')) continue;` antes del join. Aplica a cualquier parser que extraiga nombres de archivo de contenido no confiable.
 
 ## Riesgos aceptados
 
@@ -73,6 +80,7 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 - itemSlug no sanitizado a ASCII en IPC del historial — slug del repo es siempre ASCII por convencion; produccion sin docs/
 - h.from / h.to y s.agentId sin escapeHtml en template literals — valores enum hardcoded de PIPELINE_PAIRS/PIPELINE_ORDER, nunca input del usuario
 - s.agentId sin escapeHtml en data-agent, data-agent-toggle, id="mon-charts-..." (monitor-view.ts:294,321,324) — nombre de directorio del repo, nunca input externo; produccion sin docs/
+- behaviorParser.ts:74 existsSync sin confinamiento al repo — solo filtra existencia de archivo, no contenido; requiere acceso previo a docs/; produccion sin docs/
 
 ## Superficies de ataque del proyecto
 
@@ -85,7 +93,8 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 7. **agentDir en IPC messages**: REMEDIADO en remove-agentdir-ipc. Patron: nunca incluir paths del filesystem en payloads IPC que el renderer no consuma.
 8. **API key en IPC plaintext**: viaja del renderer al main antes de encriptarse. Aceptado en threat model desktop local.
 9. **handleListAgents**: `r.path` (ruta del filesystem) correctamente excluido del mapper — solo se expone id, name, description, hasWorkspace, status, createdAt, provider. Verificar en futuras features que nuevos campos de DB no filtren paths al renderer.
-10. **getHistory/getAgentTrends/getAgentTimeline**: handlers IPC de consulta con whitelist VALID_AGENTS como constante de modulo. Patron de referencia para futuros handlers de consulta con filtros por agentId.
+10. **getHistory/getAgentTrends/getAgentTimeline/getAgentBehaviorTimeline**: handlers IPC de consulta con whitelist VALID_AGENTS como constante de modulo. Patron de referencia para futuros handlers de consulta con filtros por agentId.
+11. **Parsers de contenido textual -> filesystem**: regex que extrae paths de markdown/texto libre debe prohibir '..' o verificar confinamiento post-join. Patron nuevo detectado en behaviorParser.ts.
 
 ## Quirks de Electrobun relevantes para auditoria
 
@@ -109,3 +118,4 @@ Cuando se construye un IN clause con N elementos dinamicos, el patron seguro es:
 | 2026-03-15 | monitor-historial-metricas | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 3 riesgos aceptados (todos enum-bounded o produccion sin docs/). |
 | 2026-03-15 | graficas-evolucion-metricas-agentes | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo aceptado (agentId en atributos data-*, filesystem local). |
 | 2026-03-15 | sync-docs-git-state | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo informativo aceptado (path traversal via slug requiere acceso previo al repo). |
+| 2026-03-17 | metricas-comportamiento-agentes-tab | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja (path traversal en verifyFileRefs). 4 riesgos aceptados. |

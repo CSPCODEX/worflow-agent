@@ -76,6 +76,39 @@ function applyHistoryMigrations(db: Database): void {
         CREATE INDEX IF NOT EXISTS idx_amh_item ON agent_metrics_history(item_type, item_slug);
       `,
     },
+    {
+      version: 2,
+      up: `
+        CREATE TABLE IF NOT EXISTS agent_behavior_history (
+          id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+          agent_id            TEXT NOT NULL,
+          item_type           TEXT NOT NULL,
+          item_slug           TEXT NOT NULL,
+          checklist_total     INTEGER,
+          checklist_checked   INTEGER,
+          structure_score_num INTEGER,
+          structure_score_den INTEGER,
+          refs_total          INTEGER,
+          refs_valid          INTEGER,
+          memory_read         INTEGER,
+          recorded_at         TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_abh_agent ON agent_behavior_history(agent_id);
+        CREATE INDEX IF NOT EXISTS idx_abh_item  ON agent_behavior_history(item_type, item_slug);
+      `,
+    },
+    {
+      version: 3,
+      up: `
+        DELETE FROM agent_behavior_history
+        WHERE id NOT IN (
+          SELECT MIN(id) FROM agent_behavior_history
+          GROUP BY agent_id, item_type, item_slug
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_abh_unique
+          ON agent_behavior_history(agent_id, item_type, item_slug);
+      `,
+    },
   ];
 
   for (const m of migrations) {

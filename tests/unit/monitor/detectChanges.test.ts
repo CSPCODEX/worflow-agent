@@ -16,6 +16,7 @@ function makeSnapshot(
       openedAt: '2026-01-01',
       handoffs: [],
       metrics: [],
+      behaviorMetrics: {},
       filePath: '/fake/path',
       ...f,
     })),

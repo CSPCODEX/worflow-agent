@@ -1,10 +1,10 @@
 # Memoria de Ada — Optimizadora
 
 ## Metricas del proyecto
-- Main process bundle: 11 MB (límite: 10 MB — ADVERTENCIA tras monitor feature, revisar en proxima iteracion)
-- Renderer bundle: 58 KB (límite: 2 MB) — OK (creció con monitor feature CSS+JS)
+- Main process bundle: 11 MB (límite: 10 MB — ADVERTENCIA persistente, no resuelto en metricas-comportamiento-agentes-tab)
+- Renderer bundle: 63 KB (límite: 2 MB) — OK (crecio con metricas-comportamiento-agentes-tab)
 - Bun output naming: entrypoint `app.ts` → output `app.js` (nombre = filename sin ext)
-- Medicion: bun-test-ipc-handlers (2026-03-15)
+- Medicion: metricas-comportamiento-agentes-tab (2026-03-17)
 
 ## Patrones de optimización que funcionaron
 
@@ -83,6 +83,24 @@
 - El tipo derivado `type X = typeof CONST[number]` evita duplicar el union type manualmente.
 - Para usar en `.includes()` de un `string` comun: `(CONST as readonly string[]).includes(value)`.
 - Aplicado en: `VALID_AGENTS` en `handlers.ts` — unificando `getHistory` y `getAgentTimeline`.
+
+## Patron: helper avgNullable para promedios nullable
+
+- Cuando 3+ bloques de codigo calculan el mismo patron (filter no-null + reduce/length + round), extraer a helper.
+- Firma: `function avgNullable(values: (number | null)[]): number | null`
+- Solo para numeros. Booleanos usan logica diferente (filter true / length total).
+- Aplicado en: `aggregator.ts:computeAgentSummaries` — 3 bloques de 5 lineas → 3 llamadas de 1 linea.
+
+## Patron: regex extractHandoffSection — variantes de formato
+
+- Formatos de header Handoff en el repo (verificado 2026-03-17):
+  - `## Handoff Leo -> Cloe` (ASCII)
+  - `## Handoff Leo → Cloe` (Unicode)
+  - `## Handoff de Leo -> Cloe` (con "de")
+  - `## Handoff de Leo → Cloe`
+  - `## Handoff de Leo a Cloe` (separador "a" en docs mas antiguos)
+- Regex que cubre todos: `## Handoff (?:de )?${agentName}[^\n]*?(?:->|\u2192|\ba\b)[\s\S]*?(?=\n##|$)`
+- El separador `\ba\b` (word boundary) evita falsos positivos con palabras que contengan "a".
 
 ## Patron: CSS selectors duplicados — colapsar antes de entregar a Cipher
 

@@ -156,6 +156,11 @@
 - Chars no-ASCII en comentarios JSDoc estan bien (no viajan por ningun canal); en strings de runtime (console.log/warn) usar ASCII puro por compatibilidad con terminales Windows
 - `process.cwd()` como repo root: el script debe ejecutarse desde la raiz via `bun run <script>`
 
+## Tests con campos nuevos en tipos existentes
+- Cuando se añade un campo requerido a un tipo usado en tests, buscar TODAS las construcciones del tipo en tests/ con grep antes de compilar
+- Patron tipico: `makeSnapshot` helper en tests construye objetos parciales con `Partial<T>` -- pero el spread final genera error si el campo es requerido en el tipo base
+- Fix: añadir el campo con valor default en el objeto base del helper (no en el Partial)
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
@@ -168,3 +173,4 @@
 - bug/013-boton-actualizar-no-funciona: COMPLETO (0 archivos creados, 5 modificados) — listo para QA Max
 - bug/014-bundle-failed-desktop-app: COMPLETO (0 archivos creados, 2 modificados) — listo para QA Max
 - sync-docs-git-state: COMPLETO (1 archivos creados, 3 modificados) — listo para QA Max
+- metricas-comportamiento-agentes-tab: COMPLETO (2 archivos creados, 14 modificados) — listo para QA Max

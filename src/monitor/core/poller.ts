@@ -9,6 +9,7 @@ const DEFAULT_POLL_MS = 30_000;
 export class PipelinePoller {
   private readonly docsDir: string;
   private readonly intervalMs: number;
+  private readonly repoRoot: string;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private cachedSnapshot: PipelineSnapshot | null = null;
   private callbacks: SnapshotCallback[] = [];
@@ -16,6 +17,7 @@ export class PipelinePoller {
   constructor(config: MonitorConfig) {
     this.docsDir = config.docsDir;
     this.intervalMs = config.pollIntervalMs ?? DEFAULT_POLL_MS;
+    this.repoRoot = config.repoRoot ?? '';
 
     if (config.historyDbPath) {
       try {
@@ -86,14 +88,14 @@ export class PipelinePoller {
 
   private scan(): void {
     try {
-      const snapshot = buildSnapshot(this.docsDir);
+      const snapshot = buildSnapshot(this.docsDir, this.repoRoot);
 
       // NUEVO: detectar y persistir cambios ANTES de actualizar cachedSnapshot
       const histDb = getHistoryDb();
       if (histDb) {
         try {
           const changes = detectChanges(this.cachedSnapshot, snapshot);
-          if (changes.events.length > 0 || changes.newMetrics.length > 0) {
+          if (changes.events.length > 0 || changes.newMetrics.length > 0 || changes.newBehavior.length > 0) {
             persistChanges(histDb, changes);
           }
         } catch (e: any) {

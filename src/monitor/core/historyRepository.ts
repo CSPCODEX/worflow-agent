@@ -173,6 +173,7 @@ export function loadLastKnownStates(db: Database): Pick<import('./types').Pipeli
         openedAt: '',
         handoffs,
         metrics,
+        behaviorMetrics: {},
         filePath: '',
       });
     } else if (stateRow.item_type === 'bug') {
@@ -238,6 +239,16 @@ export function persistChanges(db: Database, changes: DetectedChanges): void {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
+  const insertBehavior = db.prepare(`
+    INSERT OR IGNORE INTO agent_behavior_history
+      (agent_id, item_type, item_slug,
+       checklist_total, checklist_checked,
+       structure_score_num, structure_score_den,
+       refs_total, refs_valid, memory_read,
+       recorded_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
   // Transaccion para atomicidad: todos los eventos y metricas se insertan juntos o ninguno
   const insertAll = db.transaction(() => {
     for (const e of changes.events) {
@@ -262,6 +273,16 @@ export function persistChanges(db: Database, changes: DetectedChanges): void {
         m.confianza,
         m.gapsDeclarados,
         m.recordedAt
+      );
+    }
+    for (const b of changes.newBehavior) {
+      insertBehavior.run(
+        b.agentId, b.itemType, b.itemSlug,
+        b.checklistTotal, b.checklistChecked,
+        b.structureScoreNum, b.structureScoreDen,
+        b.refsTotal, b.refsValid,
+        b.memoryRead !== null ? (b.memoryRead ? 1 : 0) : null,
+        b.recordedAt
       );
     }
   });

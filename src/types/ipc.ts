@@ -160,7 +160,37 @@ export interface DeleteAgentResult {
 
 // --- Monitor types ---
 
-// FeatureRecord e BugRecord "seguros para IPC" — sin filePath (ruta interna)
+// FeatureRecord e BugRecord "seguros para IPC" -- sin filePath (ruta interna)
+export interface AgentBehaviorMetricsIPC {
+  agentId: string;
+  checklistTotal: number | null;
+  checklistChecked: number | null;
+  checklistRate: number | null;
+  structureScore: number | null;
+  hallucinationRefsTotal: number | null;
+  hallucinationRefsValid: number | null;
+  hallucinationRate: number | null;
+  memoryRead: boolean | null;
+}
+
+export interface AgentBehaviorPointIPC {
+  itemSlug: string;
+  itemType: 'feature' | 'bug';
+  checklistRate: number | null;
+  structureScore: number | null;
+  hallucinationRate: number | null;
+  memoryRead: number | null;   // 0 o 1 para eje Y numerico
+  recordedAt: string;
+}
+
+export interface GetAgentBehaviorTimelineParams {
+  agentId: string;
+}
+
+export interface GetAgentBehaviorTimelineResult {
+  points: AgentBehaviorPointIPC[];
+}
+
 export interface FeatureRecordIPC {
   slug: string;
   title: string;
@@ -169,6 +199,7 @@ export interface FeatureRecordIPC {
   openedAt: string;
   handoffs: HandoffStatusIPC[];
   metrics: AgentMetricsIPC[];
+  behaviorMetrics: Record<string, AgentBehaviorMetricsIPC>;
 }
 
 export interface BugRecordIPC {
@@ -208,6 +239,11 @@ export interface AgentSummaryIPC {
   avgConfidence: number;
   totalGapsDeclared: number;
   completedHandoffs: number;
+  // Metricas de comportamiento calculadas externamente
+  avgChecklistRate: number | null;
+  avgStructureScore: number | null;
+  avgHallucinationRate: number | null;
+  memoryReadRate: number | null;
 }
 
 export interface PipelineSnapshotIPC {
@@ -331,6 +367,7 @@ export type AppRPC = {
       getHistory: { params: GetHistoryParams; response: GetHistoryResult };
       getAgentTrends: { params: undefined; response: GetAgentTrendsResult };
       getAgentTimeline: { params: GetAgentTimelineParams; response: GetAgentTimelineResult };
+      getAgentBehaviorTimeline: { params: GetAgentBehaviorTimelineParams; response: GetAgentBehaviorTimelineResult };
     };
     messages: {};
   }>;

@@ -1,7 +1,7 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
-import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult } from '../types/ipc';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -17,7 +17,7 @@ import {
   handleLoadSettings,
   handleSaveSettings,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline } from '../monitor/index';
 import type { PipelineSnapshot } from '../monitor/index';
 
 // Agentes validos del pipeline — usados para whitelisting en handlers IPC.
@@ -39,11 +39,14 @@ function findDocsDir(): string {
   return path.join(process.cwd(), 'docs');
 }
 const docsDir = findDocsDir();
+const repoRoot = path.dirname(docsDir);
 console.log('[monitor] docsDir:', docsDir);
+console.log('[monitor] repoRoot:', repoRoot);
 const poller = new PipelinePoller({
   docsDir,
   pollIntervalMs: 30_000,
   historyDbPath: join(USER_DATA_DIR, 'monitor-history.db'),
+  repoRoot,
 });
 // NOTA: poller.start() se llama dentro de createRpc(), despues de registrar onSnapshot,
 // para garantizar que el primer scan ya tenga el callback registrado y el push llegue al renderer.
@@ -58,6 +61,22 @@ function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
       ...f,
       handoffs: f.handoffs,
       metrics: f.metrics,
+      behaviorMetrics: Object.fromEntries(
+        Object.entries(f.behaviorMetrics ?? {}).map(([agentId, bm]) => [
+          agentId,
+          {
+            agentId: bm!.agentId,
+            checklistTotal: bm!.checklistTotal,
+            checklistChecked: bm!.checklistChecked,
+            checklistRate: bm!.checklistRate,
+            structureScore: bm!.structureScore,
+            hallucinationRefsTotal: bm!.hallucinationRefsTotal,
+            hallucinationRefsValid: bm!.hallucinationRefsValid,
+            hallucinationRate: bm!.hallucinationRate,
+            memoryRead: bm!.memoryRead,
+          },
+        ])
+      ),
     })),
     bugs: snapshot.bugs.map(({ filePath: _fp, ...b }) => ({
       ...b,
@@ -270,6 +289,19 @@ export function createRpc() {
             return { points };
           } catch (e: any) {
             console.error('[handlers] getAgentTimeline error:', e.message);
+            return { points: [] };
+          }
+        },
+
+        getAgentBehaviorTimeline: async (params: GetAgentBehaviorTimelineParams): Promise<GetAgentBehaviorTimelineResult> => {
+          const db = getHistoryDb();
+          if (!db) return { points: [] };
+          if (!VALID_AGENTS.includes(params?.agentId as any)) return { points: [] };
+          try {
+            const points = queryAgentBehaviorTimeline(db, params.agentId);
+            return { points };
+          } catch (e: any) {
+            console.error('[handlers] getAgentBehaviorTimeline error:', e.message);
             return { points: [] };
           }
         },
