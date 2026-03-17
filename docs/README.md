@@ -35,3 +35,4 @@ docs/
 | [monitor-historial-metricas](./features/monitor-historial-metricas/) | En implementacion | Cloe |
 | [graficas-evolucion-metricas-agentes](./features/graficas-evolucion-metricas-agentes/) | APROBADO | Cipher |
 | [bun-test-ipc-handlers](./features/bun-test-ipc-handlers/) | Listo para implementacion | Cloe |
+| [metricas-comportamiento-agentes-tab](./features/metricas-comportamiento-agentes-tab/) | En planificacion | Leo |
