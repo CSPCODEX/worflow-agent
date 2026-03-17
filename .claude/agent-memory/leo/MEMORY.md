@@ -22,6 +22,7 @@
 - Canales nuevos monitor v1: `getPipelineSnapshot` (request) + `pipelineSnapshotUpdated` (push message)
 - Canales nuevos monitor v2 (historial): `getHistory` (request) + `getAgentTrends` (request)
 - Canal nuevo monitor v3 (graficas): `getAgentTimeline` (request) — { agentId } -> serie temporal por agente
+- Canal nuevo monitor v4 (comportamiento): `getAgentBehaviorTimeline` (request) — { agentId } -> serie de comportamiento
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -173,6 +174,23 @@
 - `git branch --merged main` puede fallar si `main` no existe localmente — fallback a `origin/main`
 - `git fetch` puede fallar sin internet — siempre try/catch en fetch, continuar con datos locales
 
+### Metricas de comportamiento — extension del monitor (metricas-comportamiento-agentes-tab)
+- Fuente de datos: parseo de status.md + verificacion de filesystem — NO auto-reportado por el agente
+- 4 metricas por agente por feature: checklistRate, structureScore, hallucinationRate, memoryRead
+- `behaviorParser.ts` es funcion pura en `src/monitor/core/` — unica dependencia externa: `node:fs`, `node:path`
+- `repoRoot = path.dirname(docsDir)` — calculado en handlers.ts top-level, pasado a PipelinePoller config
+- `MonitorConfig` añade campo `repoRoot?: string` — opcional, sin repoRoot la verificacion de refs retorna null
+- Migration v2 en historyDb.ts: tabla `agent_behavior_history` con campos raw (num/den, not rates)
+- `DetectedChanges` añade campo `newBehavior: AgentBehaviorEntry[]` — mismo patron que `newMetrics`
+- `BugRecord` NO recibe `behaviorMetrics` en v1 — bugs tienen flujo sin checklist formal de Leo
+- `FeatureRecord.behaviorMetrics` es `Partial<Record<AgentId, AgentBehaviorMetrics>>` (campo obligatorio)
+- `FeatureRecordIPC.behaviorMetrics` es `Record<string, AgentBehaviorMetricsIPC>` (objeto plano, serializable)
+- Tabla en UI por agente (columnas: Feature, Checklist, Estructura, Alucinacion, Memoria) — no SVG
+- `getAgentBehaviorTimeline` es query SQLite sincrona — NO fire-and-forget, igual que `getAgentTimeline`
+- `behaviorCache: Map<agentId, AgentBehaviorPointIPC[]>` en closure de renderMonitor — mismo patron que chartsCache
+- Gap critico: separador en "## Handoff X → Y" puede ser → (U+2192) o -> ASCII — verificar con grep antes de implementar
+- `loadLastKnownStates()` en historyRepository.ts debe inicializar `behaviorMetrics: {}` en FeatureRecord sintetico
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -188,6 +206,7 @@
 ### [ENTREGADO] Plan de graficas-evolucion-metricas-agentes — Estado: APROBADO (Cipher)
 ### [ENTREGADO] Plan de bun-test-ipc-handlers — Estado: listo para Cloe
 ### [ENTREGADO] Plan de sync-docs-git-state — Estado: listo para Cloe
+### [ENTREGADO] Plan de metricas-comportamiento-agentes-tab — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -208,13 +227,15 @@
 - Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
 - Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
 - Modulos autocontenidos (monitor): cero imports hacia fuera de su carpeta, API publica via index.ts, integracion via inyeccion en el host
-- Handlers de consulta SQLite (getHistory, getAgentTrends, getAgentTimeline): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
+- Handlers de consulta SQLite (getHistory, getAgentTrends, getAgentTimeline, getAgentBehaviorTimeline): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
 - Extensiones de modulo autocontenido: nuevos archivos van en src/monitor/core/, nuevos exports van en src/monitor/index.ts
 - Event delegation en contenedores re-renderizables: un listener en el padre, no por elemento hijo
 - Graficas en UI: SVG inline como string — sin canvas ni librerias, funciona en cualquier webview
 - Tests de handlers: NUNCA importar `handlers.ts` en tests — usar `handlerLogic.ts` con DI. `handlers.ts` crashea fuera de Electrobun por `defineElectrobunRPC`
 - Tests de DB del monitor: usar `testHistoryDb.ts` (DB :memory: con schema de historyDb.ts) — analogo a testDb.ts para la DB principal
 - Scripts CLI en `scripts/`: standalone, solo built-ins de Node.js, spawnSync aceptable (no son handlers IPC)
+- Metricas verificables en monitor: funcion pura `behaviorParser.ts` con `existsSync` para verificar file refs, no auto-reportadas
+- CSS nuevas clases en monitor: prefijo `.monitor-behavior-` para no colisionar con `.monitor-agent-` ni con `style.css`
 
 ## Contexto acumulado del proyecto
 
@@ -231,9 +252,11 @@
 - Gap conocido: `LMStudioClient` constructor — campo exacto para el host puede ser `baseUrl` u otro — verificar en node_modules
 - La linea "Estado final:" y "Estado:" coexisten en status.md — parsear ambas variantes
 - status.md de features: "Handoff X -> Y" completado si tiene >120 chars de contenido real (no solo placeholder "> Agente: completa...")
+- Separador en headers "## Handoff X → Y": puede ser → (Unicode) o -> (ASCII) — regex debe cubrir ambas variantes
 
 ## Pendientes y proximos pasos
 
+- Cloe implementa metricas-comportamiento-agentes-tab segun docs/features/metricas-comportamiento-agentes-tab/status.md
 - Cloe implementa sync-docs-git-state segun docs/features/sync-docs-git-state/status.md
 - Cloe implementa bun-test-ipc-handlers segun docs/features/bun-test-ipc-handlers/status.md
 - graficas-evolucion-metricas-agentes ya esta APROBADA — merge pendiente
