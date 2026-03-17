@@ -1,7 +1,8 @@
 import type {
   FeatureRecord, BugRecord, AgentMetrics, HandoffStatus,
-  FeatureState, BugState, AgentId,
+  FeatureState, BugState, AgentId, AgentBehaviorMetrics,
 } from './types';
+import { parseBehaviorMetrics } from './behaviorParser';
 
 // Mapa de texto en status.md -> FeatureState enum
 const FEATURE_STATE_MAP: Record<string, FeatureState> = {
@@ -112,7 +113,8 @@ function parseHandoffs(content: string): HandoffStatus[] {
 export function parseFeatureStatus(
   content: string,
   slug: string,
-  filePath: string
+  filePath: string,
+  repoRoot: string = ''
 ): FeatureRecord {
   const titleMatch = content.match(/^#\s+(.+)$/m);
   const title = titleMatch?.[1]?.replace(/^Feature\s*[--]\s*/i, '').trim() ?? slug;
@@ -134,7 +136,19 @@ export function parseFeatureStatus(
     .map((id) => parseAgentMetrics(content, id))
     .filter((m): m is AgentMetrics => m !== null);
 
-  return { slug, title, state, branch, openedAt, handoffs, metrics, filePath };
+  const behaviorMetrics: Partial<Record<AgentId, AgentBehaviorMetrics>> = {};
+  const repoRootSafe = repoRoot || '';
+  for (const agentId of ALL_AGENTS) {
+    const bm = parseBehaviorMetrics(content, agentId, repoRootSafe || undefined);
+    // Solo guardar si hay algun dato no-null (al menos un campo verificable)
+    const hasAny = bm.checklistTotal !== null
+      || bm.structureScore !== null
+      || bm.hallucinationRefsTotal !== null
+      || bm.memoryRead !== null;
+    if (hasAny) behaviorMetrics[agentId] = bm;
+  }
+
+  return { slug, title, state, branch, openedAt, handoffs, metrics, behaviorMetrics, filePath };
 }
 
 export function parseBugStatus(

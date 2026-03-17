@@ -1,9 +1,17 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import type { PipelineSnapshot, AgentSummary, AgentId, FeatureRecord, BugRecord, AgentMetrics } from './types';
+import type { PipelineSnapshot, AgentSummary, AgentId, FeatureRecord, BugRecord, AgentMetrics, AgentBehaviorMetrics } from './types';
 import { parseFeatureStatus, parseBugStatus } from './statusParser';
 
 const PIPELINE_ORDER: AgentId[] = ['leo', 'cloe', 'max', 'ada', 'cipher'];
+
+// Promedia un array de numeros nullable. Retorna null si no hay valores no-null.
+// Redondea a 2 decimales para coincidir con la precision del resto del modulo.
+function avgNullable(values: (number | null)[]): number | null {
+  const nums = values.filter((v): v is number => v !== null);
+  if (nums.length === 0) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100;
+}
 
 function computeAgentSummaries(
   features: FeatureRecord[],
@@ -33,6 +41,10 @@ function computeAgentSummaries(
         avgConfidence: 0,
         totalGapsDeclared: 0,
         completedHandoffs: 0,
+        avgChecklistRate: null,
+        avgStructureScore: null,
+        avgHallucinationRate: null,
+        memoryReadRate: null,
       };
     }
 
@@ -61,6 +73,25 @@ function computeAgentSummaries(
       .filter((h) => h.from === agentId && h.completed)
       .length;
 
+    // Metricas de comportamiento (solo desde features, no bugs -- v1)
+    const behaviorEntries: AgentBehaviorMetrics[] = [];
+    for (const f of features) {
+      const bm = f.behaviorMetrics[agentId];
+      if (bm) behaviorEntries.push(bm);
+    }
+
+    const avgChecklistRate    = avgNullable(behaviorEntries.map(b => b.checklistRate));
+    const avgStructureScore   = avgNullable(behaviorEntries.map(b => b.structureScore));
+    const avgHallucinationRate = avgNullable(behaviorEntries.map(b => b.hallucinationRate));
+
+    // memoryReadRate
+    const memoryReads = behaviorEntries
+      .map(b => b.memoryRead)
+      .filter((v): v is boolean => v !== null);
+    const memoryReadRate = memoryReads.length > 0
+      ? Math.round((memoryReads.filter(v => v).length / memoryReads.length) * 100) / 100
+      : null;
+
     return {
       agentId,
       totalFeatures: total,
@@ -70,11 +101,15 @@ function computeAgentSummaries(
       avgConfidence: Math.round(avgConfidence * 100) / 100,
       totalGapsDeclared,
       completedHandoffs,
+      avgChecklistRate,
+      avgStructureScore,
+      avgHallucinationRate,
+      memoryReadRate,
     };
   });
 }
 
-export function buildSnapshot(docsDir: string): PipelineSnapshot {
+export function buildSnapshot(docsDir: string, repoRoot: string = ''): PipelineSnapshot {
   const parseErrors: string[] = [];
   const features: FeatureRecord[] = [];
   const bugs: BugRecord[] = [];
@@ -96,7 +131,7 @@ export function buildSnapshot(docsDir: string): PipelineSnapshot {
       if (!existsSync(filePath)) continue;
       try {
         const content = readFileSync(filePath, 'utf-8');
-        features.push(parseFeatureStatus(content, slug, filePath));
+        features.push(parseFeatureStatus(content, slug, filePath, repoRoot));
       } catch (e: any) {
         parseErrors.push(`${filePath}: ${e.message}`);
       }

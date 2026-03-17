@@ -6,6 +6,7 @@ export { buildSnapshot } from './core/aggregator';
 export { getHistoryDb, closeHistoryDb } from './core/historyDb';
 export { queryHistory, queryAgentTrends } from './core/historyRepository';
 export { queryAgentTimeline } from './core/timelineRepository';
+export { queryAgentBehaviorTimeline } from './core/behaviorTimelineRepository';
 export type {
   PipelineSnapshot,
   FeatureRecord,
