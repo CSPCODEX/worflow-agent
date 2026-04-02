@@ -93,9 +93,12 @@ function hasAnyRework(handoffs: HandoffStatusIPC[]): boolean {
 // ──────────────────────────────────────────────
 
 function renderFeaturesTable(features: FeatureRecordIPC[], filterState: string): string {
+  const sorted = [...features].sort((a, b) =>
+    new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime()
+  );
   const filtered = filterState === 'all'
-    ? features
-    : features.filter((f) => f.state === filterState);
+    ? sorted
+    : sorted.filter((f) => f.state === filterState);
 
   if (filtered.length === 0) {
     return `<tr><td colspan="6" class="monitor-table-empty">Sin features que mostrar.</td></tr>`;

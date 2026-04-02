@@ -168,6 +168,9 @@ export function buildSnapshot(docsDir: string, repoRoot: string = ''): PipelineS
 
   const agentSummaries = computeAgentSummaries(features, bugs);
 
+  features.sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
+  bugs.sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
+
   return {
     features,
     bugs,
