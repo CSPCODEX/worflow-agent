@@ -1568,30 +1568,38 @@ Confianza en las optimizaciones: alta
 - Evidencia: handlers.ts:322 retorna queryComplianceScores sin sanitizacion. handlers.ts:347 en getRejectionPatterns aplica map con sanitizeForIpc en todos los campos de texto libre.
 - Remediacion: Aplicar sanitizeForIpc a featureSlug, branch y baseRef en el retorno de getComplianceScores, siguiendo el patron de getRejectionPatterns. El campo recordedAt es ISO 8601 (siempre ASCII).
 
+**Estado: MITIGADO** — Fix aplicado en handlers.ts:321-331. getComplianceScores ahora sanitiza featureSlug, branch y baseRef con sanitizeForIpc() antes de retornarlos. Symmetry lograda con getRejectionPatterns.
+
 ### Riesgos aceptados por Cipher
-- ComplianceScoreIPC sin sanitizeForIpc (branch, featureSlug): corrupcion visual BUG #001 solo si rama en status.md tiene non-ASCII. En practica las ramas siguen convencion slug (feature/slug), siempre ASCII. No bloqueante.
 - compliance-check.ts baseRef y branch sin validacion de formato: van a spawnSync como elementos de array (sin shell), sin riesgo de command injection. Peor caso: git diff falla con exit 1 y mensaje de error. Aceptado para CLI de developer.
 - verifyFileRefs en behaviorParser.ts sin confinamiento al repo (pre-existente desde metricas-comportamiento-agentes-tab): existsSync puede consultar rutas fuera del repo si el regex extrae '..'. Solo verifica existencia, no contenido. Produccion sin docs/. Aceptado.
 - buildRejectionAggregates sin paginacion (advertencia de Ada): no es vector de seguridad, es gap de performance aceptable para el volumen esperado.
 
 Confianza en la auditoria: alta
 
-**Decision:** APROBADO_CON_RIESGOS
+**Decision:** APROBADO (riesgo bajo mitigado post-auditoria)
 
 ## Metricas de Cipher
 - archivos_leidos: 12
 - vulnerabilidades_criticas: 0
 - vulnerabilidades_altas: 0
 - vulnerabilidades_medias: 0
-- vulnerabilidades_bajas: 1
-- riesgos_aceptados: 4
+- vulnerabilidades_bajas: 1 (mitigada post-auditoria)
+- riesgos_aceptados: 3
 - items_checklist_verificados: 10/10
 - rework: no
 - iteraciones: 1
 - confianza: alta
 - gaps_declarados: 0
-- decision: APROBADO_CON_RIESGOS
+- decision: APROBADO
 
 ---
+
+## Nota post-auditoria
+
+La vulnerabilidad baja identificada por Cipher (getComplianceScores sin sanitizeForIpc) fue mitigada
+el 2026-04-02. El handler ahora aplica sanitizeForIpc() a featureSlug, branch y baseRef, igualando
+el patron de getRejectionPatterns. El riesgo aceptable de corrupcion visual por non-ASCII en ramas
+queda cerrado.
 
 Estado final: LISTO PARA MERGE

@@ -319,7 +319,16 @@ export function createRpc() {
           const db = getHistoryDb();
           if (!db) return { scores: [], totalCount: 0 };
           try {
-            return queryComplianceScores(db, { ...params, limit, offset });
+            const raw = queryComplianceScores(db, { ...params, limit, offset });
+            return {
+              totalCount: raw.totalCount,
+              scores: raw.scores.map((s) => ({
+                ...s,
+                featureSlug: sanitizeForIpc(s.featureSlug),
+                branch: sanitizeForIpc(s.branch),
+                baseRef: sanitizeForIpc(s.baseRef),
+              })),
+            };
           } catch (e: any) {
             console.error('[handlers] getComplianceScores error:', e.message);
             return { scores: [], totalCount: 0 };
