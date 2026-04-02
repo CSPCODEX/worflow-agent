@@ -15,8 +15,10 @@ import type {
   FeatureState,
   BugState,
   AgentMetrics,
+  RejectionRecord,
 } from './types';
 import type { DetectedChanges } from './changeDetector';
+import { insertRejectionRecord } from './complianceRepository';
 
 // Fila raw de pipeline_events (mapeada directamente desde SQLite)
 interface EventRow {
@@ -174,6 +176,8 @@ export function loadLastKnownStates(db: Database): Pick<import('./types').Pipeli
         handoffs,
         metrics,
         behaviorMetrics: {},
+        leoContract: null,
+        rejectionRecords: [],
         filePath: '',
       });
     } else if (stateRow.item_type === 'bug') {
@@ -284,6 +288,9 @@ export function persistChanges(db: Database, changes: DetectedChanges): void {
         b.memoryRead !== null ? (b.memoryRead ? 1 : 0) : null,
         b.recordedAt
       );
+    }
+    for (const rr of changes.newRejections) {
+      insertRejectionRecord(db, rr);
     }
   });
 

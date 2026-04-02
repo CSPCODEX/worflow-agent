@@ -23,6 +23,7 @@
 - Canales nuevos monitor v2 (historial): `getHistory` (request) + `getAgentTrends` (request)
 - Canal nuevo monitor v3 (graficas): `getAgentTimeline` (request) — { agentId } -> serie temporal por agente
 - Canal nuevo monitor v4 (comportamiento): `getAgentBehaviorTimeline` (request) — { agentId } -> serie de comportamiento
+- Canales nuevos compliance: `getComplianceScores` + `getRejectionPatterns`
 - Todos tipados en `src/types/ipc.ts`
 
 ### ACPManager como clase singleton
@@ -191,6 +192,22 @@
 - Gap critico: separador en "## Handoff X → Y" puede ser → (U+2192) o -> ASCII — verificar con grep antes de implementar
 - `loadLastKnownStates()` en historyRepository.ts debe inicializar `behaviorMetrics: {}` en FeatureRecord sintetico
 
+### Compliance tracking — Opcion A (diff vs plan) + Opcion C (causa raiz) (compliance-tracking-diff-rework)
+- Opcion A: Leo escribe bloque "### Leo Contract" con YAML fenced en su handoff — contrato de archivos a crear/modificar/no tocar
+- Opcion C: Max escribe bloque "### Rejection Record" con YAML fenced cuando rechaza un handoff
+- `complianceParser.ts`: funcion pura sin dependencias externas — parsea YAML simple manualmente, no usa librerias YAML
+- YAML del contrato es intencionalmente simple (listas bajo claves fijas) — parsear con regex/split, nunca JSON.parse
+- Migration v4 en historyDb.ts: tablas `compliance_scores` y `rejection_records`
+- `rejection_records` tiene UNIQUE INDEX en (feature_slug, agent_at_fault, instruction_violated) — INSERT OR IGNORE previene duplicados
+- `complianceRepository.ts`: inserciones y queries; `buildRejectionAggregates()` calcula mostFrequentViolation
+- `DetectedChanges` añade campo `newRejections: RejectionRecord[]` — mismo patron que `newBehavior`
+- Script `scripts/compliance-check.ts` PUEDE importar desde `src/monitor/core/complianceParser.ts` — excepcion justificada porque es funcion pura sin runtime deps de Electrobun
+- Compliance score formula: `penalized = max(0, (filesOk/filesSpec) - filesViol * 0.1)`
+- UI: tab "Compliance" (5to tab del monitor), lazy load al hacer click — no cargar al montar
+- CSS nuevas clases: prefijo `.monitor-compliance-` para no colisionar con clases existentes
+- `getComplianceScores` y `getRejectionPatterns` son queries SQLite sincronas — NO fire-and-forget
+- El bloque "### Leo Contract" en el handoff del propio status.md sirve doble funcion: documental + medible
+
 ## Especificaciones entregadas
 
 ### [ENTREGADO] Plan de migracion a Electrobun — Estado: pendiente implementacion por Cloe
@@ -207,6 +224,7 @@
 ### [ENTREGADO] Plan de bun-test-ipc-handlers — Estado: listo para Cloe
 ### [ENTREGADO] Plan de sync-docs-git-state — Estado: listo para Cloe
 ### [ENTREGADO] Plan de metricas-comportamiento-agentes-tab — Estado: listo para Cloe
+### [ENTREGADO] Plan de compliance-tracking-diff-rework — Estado: listo para Cloe
 
 ## Patrones y convenciones definidas
 
@@ -227,15 +245,18 @@
 - Vistas renderer: exportan `{ cleanup(): void }` — se llama en `teardownCurrentView()` antes de montar la siguiente vista
 - Settings handlers: no son fire-and-forget — son sync; no se necesita notificacion push al renderer
 - Modulos autocontenidos (monitor): cero imports hacia fuera de su carpeta, API publica via index.ts, integracion via inyeccion en el host
-- Handlers de consulta SQLite (getHistory, getAgentTrends, getAgentTimeline, getAgentBehaviorTimeline): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
+- Handlers de consulta SQLite (getHistory, getAgentTrends, getAgentTimeline, getAgentBehaviorTimeline, getComplianceScores, getRejectionPatterns): sync, no fire-and-forget — SQLite bun:sqlite es I/O sincrono
 - Extensiones de modulo autocontenido: nuevos archivos van en src/monitor/core/, nuevos exports van en src/monitor/index.ts
 - Event delegation en contenedores re-renderizables: un listener en el padre, no por elemento hijo
 - Graficas en UI: SVG inline como string — sin canvas ni librerias, funciona en cualquier webview
 - Tests de handlers: NUNCA importar `handlers.ts` en tests — usar `handlerLogic.ts` con DI. `handlers.ts` crashea fuera de Electrobun por `defineElectrobunRPC`
 - Tests de DB del monitor: usar `testHistoryDb.ts` (DB :memory: con schema de historyDb.ts) — analogo a testDb.ts para la DB principal
 - Scripts CLI en `scripts/`: standalone, solo built-ins de Node.js, spawnSync aceptable (no son handlers IPC)
+- Scripts CLI PUEDEN importar funciones puras de `src/monitor/core/` si no tienen deps de runtime Electrobun — exception justificada
 - Metricas verificables en monitor: funcion pura `behaviorParser.ts` con `existsSync` para verificar file refs, no auto-reportadas
-- CSS nuevas clases en monitor: prefijo `.monitor-behavior-` para no colisionar con `.monitor-agent-` ni con `style.css`
+- CSS nuevas clases en monitor: prefijo `.monitor-behavior-` para comportamiento, `.monitor-compliance-` para compliance — no colisionar con `.monitor-agent-` ni con `style.css`
+- Tabs del monitor con lazy load para datos pesados — compliance data se carga solo al hacer click en el tab
+- El contrato "### Leo Contract" en el propio handoff del status.md sirve como contrato medible + documentacion para Cloe
 
 ## Contexto acumulado del proyecto
 
@@ -253,9 +274,11 @@
 - La linea "Estado final:" y "Estado:" coexisten en status.md — parsear ambas variantes
 - status.md de features: "Handoff X -> Y" completado si tiene >120 chars de contenido real (no solo placeholder "> Agente: completa...")
 - Separador en headers "## Handoff X → Y": puede ser → (Unicode) o -> (ASCII) — regex debe cubrir ambas variantes
+- historyDb.ts schema version: v1 (pipeline_events, agent_metrics_history), v2 (agent_behavior_history), v3 (unique index behavior), v4 (compliance_scores, rejection_records)
 
 ## Pendientes y proximos pasos
 
+- Cloe implementa compliance-tracking-diff-rework segun docs/features/compliance-tracking-diff-rework/status.md
 - Cloe implementa metricas-comportamiento-agentes-tab segun docs/features/metricas-comportamiento-agentes-tab/status.md
 - Cloe implementa sync-docs-git-state segun docs/features/sync-docs-git-state/status.md
 - Cloe implementa bun-test-ipc-handlers segun docs/features/bun-test-ipc-handlers/status.md

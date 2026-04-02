@@ -161,6 +161,16 @@
 - Patron tipico: `makeSnapshot` helper en tests construye objetos parciales con `Partial<T>` -- pero el spread final genera error si el campo es requerido en el tipo base
 - Fix: añadir el campo con valor default en el objeto base del helper (no en el Partial)
 
+## snapshotToIPC: exclusion de campos no-IPC
+- Campos del core que no deben viajar por IPC: excluirlos con destructuring en el map: `({ filePath: _fp, leoContract: _lc, rejectionRecords: _rr, ...f })`
+- Patron establecido: campos con potencial no-ASCII o datos grandes se excluyen en snapshotToIPC, no en el tipo FeatureRecord
+
+## Parser YAML manual para bloques fenced en status.md
+- Patron: regex `/###\s+NombreBloque\s*\n```yaml\s*\n([\s\S]*?)```/i` para extraer bloque
+- Listas bajo claves: buscar `^key:\s*$` luego iterar lineas `- item` hasta nueva clave o fin
+- Multiples bloques del mismo tipo: usar `blockRegex.exec()` en bucle while con `gi` flags
+- No usar JSON.parse para YAML simple -- parsear con regex manual
+
 ## Estado actual de la implementacion
 - electrobun-migration: COMPLETO (11 archivos creados, 2 modificados)
 - prompt-enhancement: COMPLETO (4 archivos creados, 7 modificados) — pendiente verificacion Max
@@ -174,3 +184,4 @@
 - bug/014-bundle-failed-desktop-app: COMPLETO (0 archivos creados, 2 modificados) — listo para QA Max
 - sync-docs-git-state: COMPLETO (1 archivos creados, 3 modificados) — listo para QA Max
 - metricas-comportamiento-agentes-tab: COMPLETO (2 archivos creados, 14 modificados) — listo para QA Max
+- compliance-tracking-diff-rework: COMPLETO (3 archivos creados, 13 modificados) — listo para QA Max

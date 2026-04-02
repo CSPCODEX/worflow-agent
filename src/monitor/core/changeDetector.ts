@@ -9,6 +9,7 @@ import type {
   AgentId,
   HistoryEvent,
   AgentBehaviorEntry,
+  RejectionRecord,
 } from './types';
 
 export interface DetectedChanges {
@@ -24,6 +25,7 @@ export interface DetectedChanges {
     recordedAt: string;
   }>;
   newBehavior: AgentBehaviorEntry[];
+  newRejections: RejectionRecord[];
 }
 
 /** Devuelve true si el objeto de metricas contiene al menos un campo no-nulo. */
@@ -39,6 +41,7 @@ export function detectChanges(
   const events: Omit<HistoryEvent, 'id'>[] = [];
   const newMetrics: DetectedChanges['newMetrics'] = [];
   const newBehavior: AgentBehaviorEntry[] = [];
+  const newRejections: RejectionRecord[] = [];
 
   // --- Features ---
   const prevFeatureMap = new Map(
@@ -160,6 +163,22 @@ export function detectChanges(
     }
   }
 
+  // Para features: detectar rejection records nuevos
+  for (const curr_f of curr.features) {
+    const prev_f = prevFeatureMap.get(curr_f.slug) ?? null;
+    const prevRejections = new Set(
+      (prev_f?.rejectionRecords ?? []).map(r =>
+        `${r.agentAtFault}::${r.instructionViolated}`
+      )
+    );
+    for (const rr of curr_f.rejectionRecords ?? []) {
+      const key = `${rr.agentAtFault}::${rr.instructionViolated}`;
+      if (!prevRejections.has(key)) {
+        newRejections.push(rr);
+      }
+    }
+  }
+
   // Para features con behaviorMetrics nuevos
   for (const curr_f of curr.features) {
     const prev_f = prevFeatureMap.get(curr_f.slug) ?? null;
@@ -195,5 +214,5 @@ export function detectChanges(
     }
   }
 
-  return { events, newMetrics, newBehavior };
+  return { events, newMetrics, newBehavior, newRejections };
 }

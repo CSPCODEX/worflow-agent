@@ -46,9 +46,20 @@
 ### metricas-comportamiento-agentes-tab v1.0 (2026-03-17)
 - [BAJA -> ACEPTADA] Path traversal limitado en behaviorParser.ts:74: regex /[a-zA-Z0-9/_.-]+/ permite '..' en path extraido de status.md. existsSync(join(repoRoot, ref)) puede consultar rutas fuera del repo. Solo filtra existencia de archivo, no contenido. Requiere acceso de escritura a docs/. En produccion docs/ no existe. Fix: const resolved = path.resolve(repoRoot, ref); guard !resolved.startsWith(path.resolve(repoRoot) + path.sep).
 
+### compliance-tracking-diff-rework v1.0 (2026-03-17)
+- [BAJA -> ACEPTADA] ComplianceScoreIPC sin sanitizeForIpc: getComplianceScores retorna branch, featureSlug, baseRef sin sanitizar (handlers.ts:322). getRejectionPatterns si aplica sanitizeForIpc (handlers.ts:347-357). Asimetria del patron BUG #001. Impacto: corrupcion visual si rama tiene non-ASCII. En practica ramas siempre ASCII por convencion. No bloqueante.
+- YAML parsing safety: extractYamlList usa RegExp con key hardcoded (caller control), no con input del usuario. Sin riesgo de ReDoS.
+- spawnSync en compliance-check.ts: usa array de args (sin shell), sin command injection. baseRef y branch sin validacion de formato — aceptado para CLI de developer.
+- escapeHtml completo en tab Compliance: todos los campos de texto libre (featureSlug, branch, agentAtFault, instructionViolated, instructionSource, agentId, mostFrequentViolation) con escapeHtml en monitor-view.ts. Correcto.
+- INSERT OR IGNORE correctness: unique index es (feature_slug, agent_at_fault, instruction_violated) — sin recorded_at. Semanticamente correcto: mismo rechazo no se duplica aunque el poller re-parsee.
+
 ## Patron recurrente detectado — validacion asimetrica de params IPC
 
 En handleSaveSettings, `lmstudioHost` usa optional chaining `params?.lmstudioHost?.trim()` (linea 225) pero `enhancerModel` no usa `?.` en la validacion de longitud (linea 231). Este patron de validacion asimetrica es un vector recurrente: al añadir nuevos campos opcionales a un handler IPC, los campos que no son el "campo principal" tienden a omitirse de la defensa con optional chaining. Verificar sistematicamente que TODOS los campos de params usan `?.` o tienen un guard explicito de null/undefined antes de acceder a propiedades.
+
+## Patron recurrente — sanitizeForIpc asimetrico entre handlers del mismo modulo
+
+Cuando un handler aplica sanitizeForIpc() a campos de texto libre y otro handler del mismo modulo no lo hace, es el patron de "sanitizacion asimetrica entre handlers". Detectado en compliance-tracking-diff-rework: getRejectionPatterns sanitiza, getComplianceScores no. Al añadir un nuevo handler IPC de consulta, verificar que TODOS los campos de texto libre del resultado pasan por sanitizeForIpc() si pueden contener non-ASCII. Los campos numericos (score, filesOk, filesSpec, filesViol) y ISO 8601 (recordedAt) son siempre ASCII — no requieren sanitizacion.
 
 ## Patron recurrente — escapeHtml incompleto en atributos HTML
 
@@ -81,6 +92,7 @@ Cuando un parser extrae paths de texto libre (regex sobre markdown/txt) y luego 
 - h.from / h.to y s.agentId sin escapeHtml en template literals — valores enum hardcoded de PIPELINE_PAIRS/PIPELINE_ORDER, nunca input del usuario
 - s.agentId sin escapeHtml en data-agent, data-agent-toggle, id="mon-charts-..." (monitor-view.ts:294,321,324) — nombre de directorio del repo, nunca input externo; produccion sin docs/
 - behaviorParser.ts:74 existsSync sin confinamiento al repo — solo filtra existencia de archivo, no contenido; requiere acceso previo a docs/; produccion sin docs/
+- ComplianceScoreIPC branch/featureSlug sin sanitizeForIpc en getComplianceScores (handlers.ts:322) — ramas siempre ASCII por convencion; impacto solo corrupcion visual BUG #001
 
 ## Superficies de ataque del proyecto
 
@@ -93,8 +105,9 @@ Cuando un parser extrae paths de texto libre (regex sobre markdown/txt) y luego 
 7. **agentDir en IPC messages**: REMEDIADO en remove-agentdir-ipc. Patron: nunca incluir paths del filesystem en payloads IPC que el renderer no consuma.
 8. **API key en IPC plaintext**: viaja del renderer al main antes de encriptarse. Aceptado en threat model desktop local.
 9. **handleListAgents**: `r.path` (ruta del filesystem) correctamente excluido del mapper — solo se expone id, name, description, hasWorkspace, status, createdAt, provider. Verificar en futuras features que nuevos campos de DB no filtren paths al renderer.
-10. **getHistory/getAgentTrends/getAgentTimeline/getAgentBehaviorTimeline**: handlers IPC de consulta con whitelist VALID_AGENTS como constante de modulo. Patron de referencia para futuros handlers de consulta con filtros por agentId.
-11. **Parsers de contenido textual -> filesystem**: regex que extrae paths de markdown/texto libre debe prohibir '..' o verificar confinamiento post-join. Patron nuevo detectado en behaviorParser.ts.
+10. **getHistory/getAgentTrends/getAgentTimeline/getAgentBehaviorTimeline/getComplianceScores/getRejectionPatterns**: handlers IPC de consulta con whitelist VALID_AGENTS y regex /^[a-z0-9-]+$/ para featureSlug. Patron de referencia para futuros handlers de consulta.
+11. **Parsers de contenido textual -> filesystem**: regex que extrae paths de markdown/texto libre debe prohibir '..' o verificar confinamiento post-join. Patron detectado en behaviorParser.ts.
+12. **spawnSync en scripts CLI**: usar siempre array de args (no string), sin shell:true. Elimina command injection incluso si los args contienen caracteres especiales.
 
 ## Quirks de Electrobun relevantes para auditoria
 
@@ -119,3 +132,4 @@ Cuando un parser extrae paths de texto libre (regex sobre markdown/txt) y luego 
 | 2026-03-15 | graficas-evolucion-metricas-agentes | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo aceptado (agentId en atributos data-*, filesystem local). |
 | 2026-03-15 | sync-docs-git-state | 1.0 | APROBADO — 0 criticas, 0 altas, 0 medias, 0 bajas. 1 riesgo informativo aceptado (path traversal via slug requiere acceso previo al repo). |
 | 2026-03-17 | metricas-comportamiento-agentes-tab | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja (path traversal en verifyFileRefs). 4 riesgos aceptados. |
+| 2026-03-17 | compliance-tracking-diff-rework | 1.0 | APROBADO_CON_RIESGOS — 0 criticas, 0 altas, 0 medias, 1 baja (ComplianceScoreIPC sin sanitizeForIpc). 4 riesgos aceptados. |

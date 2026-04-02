@@ -1,5 +1,5 @@
 import { Electroview } from 'electrobun/view';
-import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult } from '../types/ipc';
+import type { AppRPC, AgentInfo, PipelineSnapshotIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
 import { renderAgentList } from './components/agent-list';
 import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
@@ -104,6 +104,10 @@ document.addEventListener('DOMContentLoaded', () => {
         (rpc as any).request.getAgentTimeline(params),
       (params: GetAgentBehaviorTimelineParams): Promise<GetAgentBehaviorTimelineResult> =>
         (rpc as any).request.getAgentBehaviorTimeline(params),
+      (params: GetComplianceScoresParams): Promise<GetComplianceScoresResult> =>
+        (rpc as any).request.getComplianceScores(params),
+      (params: GetRejectionPatternsParams): Promise<GetRejectionPatternsResult> =>
+        (rpc as any).request.getRejectionPatterns(params),
     );
     // Pedir snapshot al arrancar la vista
     rpc.request.getPipelineSnapshot()

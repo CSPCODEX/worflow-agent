@@ -324,6 +324,70 @@ export interface GetAgentTimelineResult {
   points: AgentTimelinePoint[];
 }
 
+// ── Compliance IPC ──
+
+export interface ComplianceScoreIPC {
+  id: number;
+  featureSlug: string;
+  score: number;
+  filesSpec: number;
+  filesOk: number;
+  filesViol: number;
+  branch: string;
+  baseRef: string;
+  recordedAt: string;
+}
+
+export interface GetComplianceScoresParams {
+  featureSlug?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetComplianceScoresResult {
+  scores: ComplianceScoreIPC[];
+  totalCount: number;
+}
+
+export interface RejectionRecordIPC {
+  id: number;
+  featureSlug: string;
+  agentAtFault: string;
+  instructionViolated: string;
+  instructionSource: 'CLAUDE.md' | 'agent_system_prompt' | 'handoff_anterior';
+  failureType: 'patron_conocido' | 'instruccion_ambigua' | 'instruccion_ausente';
+  recordedAt: string;
+}
+
+export interface RejectionPatternAggregate {
+  agentId: string;
+  totalRejections: number;
+  byFailureType: {
+    patron_conocido: number;
+    instruccion_ambigua: number;
+    instruccion_ausente: number;
+  };
+  bySource: {
+    'CLAUDE.md': number;
+    agent_system_prompt: number;
+    handoff_anterior: number;
+  };
+  mostFrequentViolation: string | null;
+}
+
+export interface GetRejectionPatternsParams {
+  agentId?: string;
+  featureSlug?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface GetRejectionPatternsResult {
+  records: RejectionRecordIPC[];
+  totalCount: number;
+  aggregates: RejectionPatternAggregate[];
+}
+
 // --- Settings types ---
 
 export interface AppSettings {
@@ -368,6 +432,8 @@ export type AppRPC = {
       getAgentTrends: { params: undefined; response: GetAgentTrendsResult };
       getAgentTimeline: { params: GetAgentTimelineParams; response: GetAgentTimelineResult };
       getAgentBehaviorTimeline: { params: GetAgentBehaviorTimelineParams; response: GetAgentBehaviorTimelineResult };
+      getComplianceScores: { params: GetComplianceScoresParams; response: GetComplianceScoresResult };
+      getRejectionPatterns: { params: GetRejectionPatternsParams; response: GetRejectionPatternsResult };
     };
     messages: {};
   }>;

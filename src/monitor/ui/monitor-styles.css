@@ -528,3 +528,65 @@
 .mon-behavior-accordion-content {
   padding: 4px 0 12px 22px;
 }
+
+/* ── Compliance tab ── */
+.monitor-compliance-bar-container {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  background: #3a3a3a;
+  border-radius: 4px;
+  overflow: hidden;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.monitor-compliance-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.monitor-compliance-viol {
+  color: #f44336;
+  font-weight: bold;
+}
+
+.monitor-compliance-agent {
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.monitor-compliance-agg-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.monitor-compliance-agg-card {
+  background: #1e1e1e;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 12px 16px;
+  min-width: 180px;
+}
+
+.monitor-compliance-agg-agent {
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: capitalize;
+  margin-bottom: 4px;
+}
+
+.monitor-compliance-agg-total {
+  font-size: 12px;
+  color: #666;
+}
+
+.monitor-compliance-agg-top {
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+  font-style: italic;
+}

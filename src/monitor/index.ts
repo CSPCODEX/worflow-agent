@@ -7,6 +7,12 @@ export { getHistoryDb, closeHistoryDb } from './core/historyDb';
 export { queryHistory, queryAgentTrends } from './core/historyRepository';
 export { queryAgentTimeline } from './core/timelineRepository';
 export { queryAgentBehaviorTimeline } from './core/behaviorTimelineRepository';
+export { queryComplianceScores, queryRejectionPatterns } from './core/complianceRepository';
+export type {
+  LeoContract,
+  RejectionRecord,
+  ComplianceScoreEntry,
+} from './core/types';
 export type {
   PipelineSnapshot,
   FeatureRecord,

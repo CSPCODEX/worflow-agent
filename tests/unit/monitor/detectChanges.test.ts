@@ -17,6 +17,8 @@ function makeSnapshot(
       handoffs: [],
       metrics: [],
       behaviorMetrics: {},
+      leoContract: null,
+      rejectionRecords: [],
       filePath: '/fake/path',
       ...f,
     })),

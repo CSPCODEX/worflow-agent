@@ -109,6 +109,37 @@ function applyHistoryMigrations(db: Database): void {
           ON agent_behavior_history(agent_id, item_type, item_slug);
       `,
     },
+    {
+      version: 4,
+      up: `
+        CREATE TABLE IF NOT EXISTS compliance_scores (
+          id           INTEGER PRIMARY KEY AUTOINCREMENT,
+          feature_slug TEXT NOT NULL,
+          score        REAL NOT NULL,
+          files_spec   INTEGER NOT NULL,
+          files_ok     INTEGER NOT NULL,
+          files_viol   INTEGER NOT NULL,
+          branch       TEXT NOT NULL,
+          base_ref     TEXT NOT NULL,
+          recorded_at  TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_cs_feature ON compliance_scores(feature_slug);
+
+        CREATE TABLE IF NOT EXISTS rejection_records (
+          id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+          feature_slug         TEXT NOT NULL,
+          agent_at_fault       TEXT NOT NULL,
+          instruction_violated TEXT NOT NULL,
+          instruction_source   TEXT NOT NULL,
+          failure_type         TEXT NOT NULL,
+          recorded_at          TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_rr_agent   ON rejection_records(agent_at_fault);
+        CREATE INDEX IF NOT EXISTS idx_rr_feature ON rejection_records(feature_slug);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_rr_unique
+          ON rejection_records(feature_slug, agent_at_fault, instruction_violated);
+      `,
+    },
   ];
 
   for (const m of migrations) {

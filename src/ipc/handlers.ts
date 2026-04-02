@@ -1,7 +1,7 @@
 import { defineElectrobunRPC } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
-import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult } from '../types/ipc';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -17,7 +17,7 @@ import {
   handleLoadSettings,
   handleSaveSettings,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../monitor/index';
 import type { PipelineSnapshot } from '../monitor/index';
 
 // Agentes validos del pipeline — usados para whitelisting en handlers IPC.
@@ -57,7 +57,7 @@ function sanitizeForIpc(s: string): string {
 
 function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
   return {
-    features: snapshot.features.map(({ filePath: _fp, ...f }) => ({
+    features: snapshot.features.map(({ filePath: _fp, leoContract: _lc, rejectionRecords: _rr, ...f }) => ({
       ...f,
       handoffs: f.handoffs,
       metrics: f.metrics,
@@ -303,6 +303,62 @@ export function createRpc() {
           } catch (e: any) {
             console.error('[handlers] getAgentBehaviorTimeline error:', e.message);
             return { points: [] };
+          }
+        },
+
+        getComplianceScores: async (params: GetComplianceScoresParams): Promise<GetComplianceScoresResult> => {
+          // Validar params
+          if (params.featureSlug && !/^[a-z0-9-]+$/.test(params.featureSlug)) {
+            return { scores: [], totalCount: 0 };
+          }
+          const limit = typeof params.limit === 'number' && params.limit > 0 && params.limit <= 500
+            ? params.limit : 100;
+          const offset = typeof params.offset === 'number' && params.offset >= 0
+            ? params.offset : 0;
+
+          const db = getHistoryDb();
+          if (!db) return { scores: [], totalCount: 0 };
+          try {
+            return queryComplianceScores(db, { ...params, limit, offset });
+          } catch (e: any) {
+            console.error('[handlers] getComplianceScores error:', e.message);
+            return { scores: [], totalCount: 0 };
+          }
+        },
+
+        getRejectionPatterns: async (params: GetRejectionPatternsParams): Promise<GetRejectionPatternsResult> => {
+          if (params.featureSlug && !/^[a-z0-9-]+$/.test(params.featureSlug)) {
+            return { records: [], totalCount: 0, aggregates: [] };
+          }
+          if (params.agentId && !(VALID_AGENTS as readonly string[]).includes(params.agentId)) {
+            return { records: [], totalCount: 0, aggregates: [] };
+          }
+          const limit = typeof params.limit === 'number' && params.limit > 0 && params.limit <= 500
+            ? params.limit : 100;
+          const offset = typeof params.offset === 'number' && params.offset >= 0
+            ? params.offset : 0;
+
+          const db = getHistoryDb();
+          if (!db) return { records: [], totalCount: 0, aggregates: [] };
+          try {
+            const raw = queryRejectionPatterns(db, { ...params, limit, offset });
+            return {
+              totalCount: raw.totalCount,
+              records: raw.records.map((r) => ({
+                ...r,
+                agentAtFault: sanitizeForIpc(r.agentAtFault),
+                instructionViolated: sanitizeForIpc(r.instructionViolated),
+              })),
+              aggregates: raw.aggregates.map((a) => ({
+                ...a,
+                mostFrequentViolation: a.mostFrequentViolation !== null
+                  ? sanitizeForIpc(a.mostFrequentViolation)
+                  : null,
+              })),
+            };
+          } catch (e: any) {
+            console.error('[handlers] getRejectionPatterns error:', e.message);
+            return { records: [], totalCount: 0, aggregates: [] };
           }
         },
       },

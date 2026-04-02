@@ -57,6 +57,8 @@ export interface FeatureRecord {
   handoffs: HandoffStatus[];  // Estado de cada handoff del pipeline
   metrics: AgentMetrics[];    // Metricas por agente (las que estan rellenas)
   behaviorMetrics: Partial<Record<AgentId, AgentBehaviorMetrics>>;  // Metricas de comportamiento por agente
+  leoContract: LeoContract | null;        // Contrato de Leo (null si no hay bloque en el status.md)
+  rejectionRecords: RejectionRecord[];    // Registros de rechazo de Max ([] si no hay)
   filePath: string;           // Ruta absoluta al status.md (NO viaja por IPC al renderer)
 }
 
@@ -212,4 +214,35 @@ export interface HistoryQuery {
   eventType?: PipelineEventType;
   limit?: number;   // Default: 100
   offset?: number;  // Default: 0
+}
+
+// ── Compliance Tracking (Opcion A + Opcion C) ──
+
+// Contrato que Leo define en su handoff
+export interface LeoContract {
+  create: string[];    // archivos que Cloe debe crear
+  modify: string[];    // archivos que Cloe debe modificar
+  no_touch: string[]; // archivos que Cloe NO debe tocar
+}
+
+// Registro de causa raiz de un rechazo de Max
+export interface RejectionRecord {
+  featureSlug: string;
+  agentAtFault: AgentId;
+  instructionViolated: string;
+  instructionSource: 'CLAUDE.md' | 'agent_system_prompt' | 'handoff_anterior';
+  failureType: 'patron_conocido' | 'instruccion_ambigua' | 'instruccion_ausente';
+  recordedAt: string;  // ISO 8601
+}
+
+// Entrada de compliance score para persistencia
+export interface ComplianceScoreEntry {
+  featureSlug: string;
+  score: number;       // 0.0-1.0, ya penalizado por violaciones
+  filesSpec: number;   // total archivos en create + modify
+  filesOk: number;     // archivos cumplidos
+  filesViol: number;   // archivos no_touch que aparecen en diff
+  branch: string;
+  baseRef: string;     // rama base del diff (ej: "main")
+  recordedAt: string;  // ISO 8601
 }

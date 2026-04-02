@@ -15,6 +15,13 @@ import type {
   AgentBehaviorPointIPC,
   GetAgentBehaviorTimelineParams,
   GetAgentBehaviorTimelineResult,
+  ComplianceScoreIPC,
+  RejectionRecordIPC,
+  RejectionPatternAggregate,
+  GetComplianceScoresResult,
+  GetRejectionPatternsResult,
+  GetComplianceScoresParams,
+  GetRejectionPatternsParams,
 } from '../../types/ipc';
 
 // NOTA: el import de types/ipc.ts es el UNICO acoplamiento con el host.
@@ -476,6 +483,79 @@ function buildFilterOptions(states: string[], current: string): string {
 }
 
 // ──────────────────────────────────────────────
+// Render del tab Compliance
+// ──────────────────────────────────────────────
+
+function renderComplianceScoresTable(scores: ComplianceScoreIPC[]): string {
+  if (scores.length === 0) return '<p class="monitor-empty-state">Sin compliance scores.</p>';
+  const rows = scores.map(s => {
+    const pct = Math.round(s.score * 100);
+    const color = pct >= 90 ? '#4caf50' : pct >= 70 ? '#ff9800' : '#f44336';
+    const bar = `<div class="monitor-compliance-bar" style="width:${pct}%;background:${color}"></div>`;
+    return `<tr>
+      <td title="${escapeHtml(s.featureSlug)}">${escapeHtml(s.featureSlug)}</td>
+      <td><div class="monitor-compliance-bar-container">${bar}</div>${pct}%</td>
+      <td>${s.filesOk}/${s.filesSpec}</td>
+      <td>${s.filesViol > 0 ? `<span class="monitor-compliance-viol">${s.filesViol}</span>` : '0'}</td>
+      <td><code style="font-size:11px">${escapeHtml(s.branch)}</code></td>
+      <td style="font-size:11px;color:#777">${formatTimestamp(s.recordedAt)}</td>
+    </tr>`;
+  }).join('');
+  return `
+    <h3 class="monitor-section-title">Compliance Scores</h3>
+    <table class="monitor-table">
+      <thead><tr>
+        <th>Feature</th><th>Score</th><th>OK/Total</th><th>Violaciones</th><th>Rama</th><th>Fecha</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderRejectionTable(records: RejectionRecordIPC[]): string {
+  if (records.length === 0) return '<p class="monitor-empty-state">Sin rejection records.</p>';
+  const FAILURE_LABELS: Record<string, string> = {
+    patron_conocido: 'patron conocido',
+    instruccion_ambigua: 'ambigua',
+    instruccion_ausente: 'ausente',
+  };
+  const rows = records.map(r => `<tr>
+    <td title="${escapeHtml(r.featureSlug)}">${escapeHtml(r.featureSlug)}</td>
+    <td><span class="monitor-compliance-agent">${escapeHtml(r.agentAtFault)}</span></td>
+    <td title="${escapeHtml(r.instructionViolated)}" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+      ${escapeHtml(r.instructionViolated)}
+    </td>
+    <td><code style="font-size:11px">${escapeHtml(r.instructionSource)}</code></td>
+    <td>${escapeHtml(FAILURE_LABELS[r.failureType] ?? r.failureType)}</td>
+  </tr>`).join('');
+  return `
+    <h3 class="monitor-section-title">Rejection Records</h3>
+    <table class="monitor-table">
+      <thead><tr>
+        <th>Feature</th><th>Agente</th><th>Instruccion violada</th><th>Fuente</th><th>Tipo fallo</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderRejectionAggregates(aggregates: RejectionPatternAggregate[]): string {
+  if (aggregates.length === 0) return '';
+  const cards = aggregates.map(a => `
+    <div class="monitor-compliance-agg-card">
+      <div class="monitor-compliance-agg-agent">${escapeHtml(a.agentId)}</div>
+      <div class="monitor-compliance-agg-total">${a.totalRejections} rechazo${a.totalRejections !== 1 ? 's' : ''}</div>
+      ${a.mostFrequentViolation
+        ? `<div class="monitor-compliance-agg-top" title="${escapeHtml(a.mostFrequentViolation)}">
+            Patron frecuente: "${escapeHtml(a.mostFrequentViolation.slice(0, 40))}${a.mostFrequentViolation.length > 40 ? '...' : ''}"
+           </div>`
+        : ''}
+    </div>
+  `).join('');
+  return `
+    <h3 class="monitor-section-title">Patrones por Agente</h3>
+    <div class="monitor-compliance-agg-grid">${cards}</div>`;
+}
+
+// ──────────────────────────────────────────────
 // Render de la tabla del historial
 // ──────────────────────────────────────────────
 
@@ -517,10 +597,12 @@ export function renderMonitor(
   onGetAgentTrends: () => Promise<GetAgentTrendsResult>,
   onGetAgentTimeline: (params: GetAgentTimelineParams) => Promise<GetAgentTimelineResult>,
   onGetAgentBehaviorTimeline: (params: GetAgentBehaviorTimelineParams) => Promise<GetAgentBehaviorTimelineResult>,
+  onGetComplianceScores: (params: GetComplianceScoresParams) => Promise<GetComplianceScoresResult>,
+  onGetRejectionPatterns: (params: GetRejectionPatternsParams) => Promise<GetRejectionPatternsResult>,
 ): MonitorViewHandle {
   // Estado local de la vista
   let currentSnapshot = initialSnapshot;
-  let activeTab: 'pipeline' | 'agents' | 'errors' | 'history' = 'pipeline';
+  let activeTab: 'pipeline' | 'agents' | 'errors' | 'history' | 'compliance' = 'pipeline';
   let featureFilter = 'all';
   let bugFilter = 'all';
 
@@ -543,6 +625,10 @@ export function renderMonitor(
   // Agentes expandidos en el acordeon (permite multiples abiertos)
   const expandedAgents = new Set<string>();
 
+  // Estado del tab Compliance (lazy load)
+  let complianceData: GetComplianceScoresResult | null = null;
+  let rejectionData: GetRejectionPatternsResult | null = null;
+
   // ── Render inicial del esqueleto HTML ──
   container.innerHTML = `
     <div class="monitor-view">
@@ -559,6 +645,7 @@ export function renderMonitor(
         <button class="monitor-tab" data-tab="agents" id="mon-tab-agents">Agentes</button>
         <button class="monitor-tab" data-tab="errors" id="mon-tab-errors">Errores</button>
         <button class="monitor-tab" data-tab="history" id="mon-tab-history">Historial</button>
+        <button class="monitor-tab" data-tab="compliance" id="mon-tab-compliance">Compliance</button>
       </div>
 
       <!-- Panel: Pipeline -->
@@ -666,6 +753,13 @@ export function renderMonitor(
         </table>
         <div class="monitor-history-pagination" id="mon-history-pagination"></div>
       </div>
+
+      <!-- Panel: Compliance -->
+      <div class="monitor-panel" id="mon-panel-compliance">
+        <div id="monitor-compliance-content">
+          <p class="monitor-empty-state">Selecciona el tab para cargar.</p>
+        </div>
+      </div>
     </div>
   `;
 
@@ -687,7 +781,7 @@ export function renderMonitor(
   const historyAgentFilterEl = container.querySelector<HTMLSelectElement>('#mon-history-agent-filter')!;
 
   // ── Activar/desactivar tabs ──
-  function activateTab(tab: 'pipeline' | 'agents' | 'errors' | 'history') {
+  function activateTab(tab: 'pipeline' | 'agents' | 'errors' | 'history' | 'compliance') {
     activeTab = tab;
     tabButtons.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset['tab'] === tab);
@@ -704,6 +798,10 @@ export function renderMonitor(
     // Al activar Agentes: cargar trends
     if (tab === 'agents') {
       loadAgentTrends();
+    }
+    // Al activar Compliance: cargar datos lazy
+    if (tab === 'compliance' && !complianceData) {
+      loadComplianceData();
     }
   }
 
@@ -757,6 +855,53 @@ export function renderMonitor(
       ?.addEventListener('click', () => loadHistory(historyOffset - HISTORY_PAGE_SIZE));
     historyPaginationEl.querySelector<HTMLButtonElement>('#mon-hist-next')
       ?.addEventListener('click', () => loadHistory(historyOffset + HISTORY_PAGE_SIZE));
+  }
+
+  // ── Cargar y renderizar datos de Compliance (on-demand) ──
+  function loadComplianceData() {
+    const el = container.querySelector<HTMLElement>('#monitor-compliance-content');
+    if (el) el.innerHTML = '<p class="monitor-empty-state">Cargando datos de compliance...</p>';
+
+    Promise.all([
+      onGetComplianceScores({ limit: 100 }),
+      onGetRejectionPatterns({ limit: 100 }),
+    ])
+      .then(([scores, rejections]) => {
+        complianceData = scores;
+        rejectionData = rejections;
+        renderComplianceTab();
+      })
+      .catch((err) => {
+        console.error('[monitor-view] loadComplianceData error:', err);
+        const elErr = container.querySelector<HTMLElement>('#monitor-compliance-content');
+        if (elErr) elErr.innerHTML = '<p class="monitor-empty-state">Error al cargar datos de compliance.</p>';
+      });
+  }
+
+  function renderComplianceTab(): void {
+    const el = container.querySelector<HTMLElement>('#monitor-compliance-content');
+    if (!el) return;
+
+    if (!complianceData || !rejectionData) {
+      el.innerHTML = '<p class="monitor-empty-state">Cargando datos de compliance...</p>';
+      return;
+    }
+
+    if (complianceData.scores.length === 0 && rejectionData.records.length === 0) {
+      el.innerHTML = `
+        <p class="monitor-empty-state">
+          Sin datos de compliance aun.<br>
+          Para calcular compliance scores, ejecuta:<br>
+          <code>bun run compliance-check &lt;feature-slug&gt;</code>
+        </p>`;
+      return;
+    }
+
+    el.innerHTML = `
+      ${renderComplianceScoresTable(complianceData.scores)}
+      ${renderRejectionTable(rejectionData.records)}
+      ${renderRejectionAggregates(rejectionData.aggregates)}
+    `;
   }
 
   // ── Cargar tendencias de agentes (on-demand) ──
@@ -986,7 +1131,7 @@ export function renderMonitor(
 
   tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
-      const tab = btn.dataset['tab'] as 'pipeline' | 'agents' | 'errors' | 'history';
+      const tab = btn.dataset['tab'] as 'pipeline' | 'agents' | 'errors' | 'history' | 'compliance';
       if (tab) activateTab(tab);
     });
   });

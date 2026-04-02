@@ -3,6 +3,7 @@ import type {
   FeatureState, BugState, AgentId, AgentBehaviorMetrics,
 } from './types';
 import { parseBehaviorMetrics } from './behaviorParser';
+import { parseLeoContract, parseRejectionRecords } from './complianceParser';
 
 // Mapa de texto en status.md -> FeatureState enum
 const FEATURE_STATE_MAP: Record<string, FeatureState> = {
@@ -148,7 +149,15 @@ export function parseFeatureStatus(
     if (hasAny) behaviorMetrics[agentId] = bm;
   }
 
-  return { slug, title, state, branch, openedAt, handoffs, metrics, behaviorMetrics, filePath };
+  const leoContract = parseLeoContract(content);
+
+  const rejectionRecords = parseRejectionRecords(
+    content,
+    slug,
+    new Date().toISOString()
+  );
+
+  return { slug, title, state, branch, openedAt, handoffs, metrics, behaviorMetrics, leoContract, rejectionRecords, filePath };
 }
 
 export function parseBugStatus(
