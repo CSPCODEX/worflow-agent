@@ -123,7 +123,7 @@ export const agentRepository = {
     const db = getDatabase();
     const row = db.query<AgentRow, [string]>(
       'SELECT * FROM agents WHERE name = ?'
-    ).get([name]);
+    ).get(name);
     return row ? rowToRecord(row) : null;
   },
 
@@ -132,7 +132,7 @@ export const agentRepository = {
     const db = getDatabase();
     const row = db.query<AgentRow, [string]>(
       'SELECT * FROM agents WHERE id = ?'
-    ).get([id]);
+    ).get(id);
     return row ? rowToRecord(row) : null;
   },
 
@@ -142,15 +142,17 @@ export const agentRepository = {
    */
   findAll(): AgentRecord[] {
     const db = getDatabase();
-    const rows = db.query<AgentRow, []>('SELECT * FROM agents ORDER BY created_at ASC').all([]);
+    const rows = db.query<AgentRow, []>('SELECT * FROM agents ORDER BY created_at ASC').all();
 
     const records: AgentRecord[] = [];
 
     for (const row of rows) {
-      const exists = existsSync(row.path);
-      if (!exists && row.status !== 'broken') {
-        db.run('UPDATE agents SET status = ? WHERE id = ?', ['broken', row.id]);
-        row.status = 'broken';
+      if (!row.is_default) {
+        const exists = existsSync(row.path);
+        if (!exists && row.status !== 'broken') {
+          db.run('UPDATE agents SET status = ? WHERE id = ?', ['broken', row.id]);
+          row.status = 'broken';
+        }
       }
       records.push(rowToRecord(row));
     }
@@ -167,7 +169,7 @@ export const agentRepository = {
   /** Delete an agent row. Also cascades to conversations + messages. Throws if is_default=1. */
   delete(id: string): void {
     const db = getDatabase();
-    const row = db.query<{ is_default: number }, [string]>('SELECT is_default FROM agents WHERE id = ?').get([id]);
+    const row = db.query<{ is_default: number }, [string]>('SELECT is_default FROM agents WHERE id = ?').get(id);
     if (row && row.is_default === 1) {
       throw new Error('No se puede borrar un agente por defecto');
     }
@@ -186,7 +188,7 @@ export const agentRepository = {
   /** Update agent fields (name, description, system_prompt). Throws if is_default=1 and those fields are modified. */
   updateAgent(id: string, params: { name?: string; description?: string; systemPrompt?: string }): AgentRecord {
     const db = getDatabase();
-    const row = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get([id]);
+    const row = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get(id);
     if (!row) throw new Error('Agente no encontrado');
 
     if (row.is_default === 1 && (params.name || params.description || params.systemPrompt)) {
@@ -214,7 +216,7 @@ export const agentRepository = {
     values.push(id);
     db.run(`UPDATE agents SET ${sets.join(', ')} WHERE id = ?`, values);
 
-    const updated = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get([id]);
+    const updated = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get(id);
     return rowToRecord(updated!);
   },
 };
