@@ -60,8 +60,10 @@ function findDocsDir(): string {
 }
 const docsDir = findDocsDir();
 const repoRoot = path.dirname(docsDir);
-console.log('[monitor] docsDir:', docsDir);
-console.log('[monitor] repoRoot:', repoRoot);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('[monitor] docsDir:', docsDir);
+  console.log('[monitor] repoRoot:', repoRoot);
+}
 const poller = new PipelinePoller({
   docsDir,
   pollIntervalMs: 30_000,
@@ -267,9 +269,13 @@ export function createRpc() {
         // --- Utilities ---
         openExternal: async (params: { url: string }) => {
           try {
+            const parsed = new URL(params.url);
+            if (!['https:', 'http:'].includes(parsed.protocol)) {
+              return { success: false };
+            }
             Utils.openExternal(params.url);
             return { success: true };
-          } catch (e: any) {
+          } catch {
             return { success: false };
           }
         },

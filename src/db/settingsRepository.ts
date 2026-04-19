@@ -34,7 +34,7 @@ export const settingsRepository = {
       lmstudioHost: map.get('lmstudio_host') ?? 'ws://127.0.0.1:1234',
       enhancerModel: map.get('enhancer_model') ?? '',
       defaultProvider: map.get('default_provider') ?? 'lmstudio',
-      defaultProviderConfig: JSON.stringify(JSON.parse(map.get('default_provider_config') ?? '{}')),
+      defaultProviderConfig: map.get('default_provider_config') ?? '{}',
     };
   },
 };

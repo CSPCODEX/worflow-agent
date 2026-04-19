@@ -60,10 +60,10 @@ export const pipelineTemplateRepository = {
     const rows = db.query<PipelineTemplateRow, []>('SELECT * FROM pipeline_templates ORDER BY created_at ASC').all([]);
 
     return rows.map((row) => {
-      const steps = JSON.parse(row.steps || '[]');
+      const record = rowToRecord(row);
       return {
-        ...rowToRecord(row),
-        stepCount: Array.isArray(steps) ? steps.length : 0,
+        ...record,
+        stepCount: record.steps.length,
       };
     });
   },

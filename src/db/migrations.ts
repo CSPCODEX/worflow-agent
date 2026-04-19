@@ -128,4 +128,11 @@ export const migrations: Migration[] = [
     version: 6,
     up: `ALTER TABLE pipeline_templates ADD COLUMN recommended_model TEXT;`,
   },
+  {
+    version: 7,
+    up: `
+      CREATE INDEX IF NOT EXISTS idx_runs_status ON pipeline_runs(status);
+      CREATE INDEX IF NOT EXISTS idx_step_runs_step_id ON pipeline_step_runs(step_id);
+    `,
+  },
 ];
