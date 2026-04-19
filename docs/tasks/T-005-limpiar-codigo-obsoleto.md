@@ -1,6 +1,6 @@
 # T-005 — Limpiar código obsoleto y mover monitor
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 0.4
 **Agente responsable:** Cloe
 **Depende de:** T-004
@@ -33,19 +33,19 @@ Handlers a registrar como skeleton:
 
 ## Criterios de aceptación
 
-- [ ] `bun run desktop` arranca sin errores tras mover el monitor
-- [ ] No hay imports rotos de `src/monitor/` en ningún archivo
-- [ ] La funcionalidad existente (crear agente, chat, settings) sigue funcionando
-- [ ] El sidebar muestra una sección "Pipelines" (aunque sea un placeholder)
-- [ ] Los 13 handlers de pipelines están registrados en `handlers.ts` (aunque devuelvan `not implemented`)
+- [x] `bun run desktop` arranca sin errores tras mover el monitor
+- [x] No hay imports rotos de `src/monitor/` en ningún archivo
+- [x] La funcionalidad existente (crear agente, chat, settings) sigue funcionando
+- [x] El sidebar muestra una sección "Pipelines" (aunque sea un placeholder)
+- [x] Los 13 handlers de pipelines están registrados en `handlers.ts` (aunque devuelvan `not implemented`)
 
 ## Subtareas
 
-- [ ] Crear `src/dev-tools/` y mover `src/monitor/` a `src/dev-tools/monitor/`
-- [ ] Buscar y actualizar todos los imports de `src/monitor/` en el codebase
-- [ ] Actualizar `src/renderer/app.ts` con el esqueleto de navegación de pipelines
-- [ ] Registrar handlers de pipelines como skeletons en `src/ipc/handlers.ts`
-- [ ] Verificar que `bun run desktop` arranca sin errores
+- [x] Crear `src/dev-tools/` y mover `src/monitor/` a `src/dev-tools/monitor/`
+- [x] Buscar y actualizar todos los imports de `src/monitor/` en el codebase
+- [x] Actualizar `src/renderer/app.ts` con el esqueleto de navegación de pipelines
+- [x] Registrar handlers de pipelines como skeletons en `src/ipc/handlers.ts`
+- [x] Verificar que `bun run desktop` arranca sin errores
 
 ## Notas
 

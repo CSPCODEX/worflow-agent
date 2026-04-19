@@ -1,6 +1,6 @@
 # T-004 — PipelineRunner — motor de ejecución
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 0.3
 **Agente responsable:** Cloe
 **Depende de:** T-002, T-003
@@ -41,22 +41,22 @@ function resolveInputTemplate(
 
 ## Criterios de aceptación
 
-- [ ] Un pipeline de 3 pasos se ejecuta de punta a punta sin errores
-- [ ] El output del paso 1 aparece como `{{output_paso_1}}` correctamente resuelto en el paso 2
-- [ ] Si el paso 2 falla, el pipeline queda con status `paused` y los pasos 1 y 3 con sus estados correctos
-- [ ] `resume(runId, fromStepIndex)` retoma desde el paso indicado reconstruyendo `previousOutputs` desde DB
-- [ ] `stop(runId)` detiene la ejecución limpiamente (cierra la sesión ACP activa)
-- [ ] Los timeouts por paso (120s por defecto) cortan la ejecución con error descriptivo
-- [ ] El output de cada paso se persiste en DB antes de pasar al siguiente
+- [x] Un pipeline de 3 pasos se ejecuta de punta a punta sin errores
+- [x] El output del paso 1 aparece como `{{output_paso_1}}` correctamente resuelto en el paso 2
+- [x] Si el paso 2 falla, el pipeline queda con status `paused` y los pasos 1 y 3 con sus estados correctos
+- [x] `resume(runId, fromStepIndex)` retoma desde el paso indicado reconstruyendo `previousOutputs` desde DB
+- [x] `stop(runId)` detiene la ejecución limpiamente (cierra la sesión ACP activa)
+- [x] Los timeouts por paso (120s por defecto) cortan la ejecución con error descriptivo
+- [x] El output de cada paso se persiste en DB antes de pasar al siguiente
 
 ## Subtareas
 
-- [ ] Crear `src/ipc/pipelineRunner.ts` con clase `PipelineRunner`
-- [ ] Implementar `resolveInputTemplate()` con soporte para variables de usuario y outputs previos
-- [ ] Implementar `execute()` con el loop secuencial de pasos
-- [ ] Implementar `resume()` reconstruyendo estado desde DB
-- [ ] Implementar `stop()` con limpieza de sesión ACP
-- [ ] Añadir timeout por paso con `AbortSignal.timeout()`
+- [x] Crear `src/ipc/pipelineRunner.ts` con clase `PipelineRunner`
+- [x] Implementar `resolveInputTemplate()` con soporte para variables de usuario y outputs previos
+- [x] Implementar `execute()` con el loop secuencial de pasos
+- [x] Implementar `resume()` reconstruyendo estado desde DB
+- [x] Implementar `stop()` con limpieza de sesión ACP
+- [x] Añadir timeout por paso con Promise.race + setTimeout
 - [ ] Exponer callbacks: `onStepStart`, `onStepChunk`, `onStepComplete`, `onStepError`, `onPipelineComplete`, `onPipelineError`
 - [ ] Instanciar y exportar el runner desde `src/ipc/handlers.ts`
 

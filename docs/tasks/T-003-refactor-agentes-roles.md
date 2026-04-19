@@ -1,6 +1,6 @@
 # T-003 — Refactor agentes como roles reutilizables
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 0.2
 **Agente responsable:** Cloe
 **Depende de:** T-001
@@ -37,18 +37,18 @@ Al ejecutar un pipeline, el PipelineRunner construye la config del agente en mem
 
 ## Criterios de aceptación
 
-- [ ] La tabla `agents` tiene columna `is_default` (INTEGER, default 0)
-- [ ] `agentRepository` expone `isDefault` en el tipo `Agent`
-- [ ] No se puede borrar un agente con `is_default = 1` (error claro)
-- [ ] `settingsRepository` tiene métodos para leer/escribir `default_provider`
-- [ ] Un agente puede estar asignado a 2+ pipelines distintos sin conflicto en DB (FK permite repetición)
+- [x] La tabla `agents` tiene columna `is_default` (INTEGER, default 0)
+- [x] `agentRepository` expone `isDefault` en el tipo `Agent`
+- [x] No se puede borrar un agente con `is_default = 1` (error claro)
+- [x] `settingsRepository` tiene métodos para leer/escribir `default_provider`
+- [x] Un agente puede estar asignado a 2+ pipelines distintos sin conflicto en DB (FK permite repetición)
 
 ## Subtareas
 
-- [ ] Añadir `ALTER TABLE agents ADD COLUMN is_default` en la migración v4/v5
-- [ ] Actualizar tipo `Agent` en `agentRepository.ts` para incluir `isDefault`
-- [ ] Añadir guard en `deleteAgent` para rechazar agentes por defecto
-- [ ] Añadir `default_provider` y `default_provider_config` en `settingsRepository.ts`
+- [x] Añadir `ALTER TABLE agents ADD COLUMN is_default` en la migración v5
+- [x] Actualizar tipo `Agent` en `agentRepository.ts` para incluir `isDefault`
+- [x] Añadir guard en `deleteAgent` para rechazar agentes por defecto
+- [x] Añadir `default_provider` y `default_provider_config` en `settingsRepository.ts`
 - [ ] Documentar en `handlerLogic.ts` cómo el PipelineRunner debe leer el provider
 
 ## Notas
