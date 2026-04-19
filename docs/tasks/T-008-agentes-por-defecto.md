@@ -1,6 +1,6 @@
 # T-008 — Agentes por defecto pre-instalados
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 1
 **Agente responsable:** Cloe
 **Depende de:** T-003
