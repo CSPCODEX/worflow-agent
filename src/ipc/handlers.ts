@@ -2,6 +2,7 @@ import { defineElectrobunRPC, Utils } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
 import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
+import { encryptApiKey } from '../utils/crypto';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -271,6 +272,11 @@ export function createRpc() {
           } catch (e: any) {
             return { success: false };
           }
+        },
+
+        encryptApiKey: async (params: { plaintext: string }): Promise<{ encrypted: string }> => {
+          if (!params?.plaintext) return { encrypted: '' };
+          return { encrypted: encryptApiKey(params.plaintext) };
         },
 
         getPipelineSnapshot: async () => {

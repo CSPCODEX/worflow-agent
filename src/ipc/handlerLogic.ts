@@ -1,5 +1,6 @@
 import { mkdirSync } from 'fs';
 import { validateAgentName } from '../cli/validations';
+import { encryptApiKey, decryptIfNeeded } from '../utils/crypto';
 import type {
   AgentConfig,
   GenerateAgentResult,
@@ -55,7 +56,6 @@ import { pipelineTemplateRepository } from '../db/pipelineTemplateRepository';
 import { pipelineRunner } from './pipelineRunner';
 import { getDatabase } from '../db/database';
 
-const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
 const VALID_ROLES = ['user', 'assistant', 'system'] as const;
 
 // --- Dependency injection interfaces ---
@@ -98,7 +98,7 @@ export async function handleGenerateAgent(
   const nameError = validateAgentName(config.name);
   if (nameError) return { success: false, error: nameError };
 
-  if (config.provider && !VALID_PROVIDERS.includes(config.provider as ProviderId)) {
+  if (config.provider && !(['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'] as const).includes(config.provider as ProviderId)) {
     return { success: false, error: `Proveedor invalido: "${config.provider}".` };
   }
 
@@ -271,7 +271,15 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
   try {
     const all = settingsRepository.getAll();
     return {
-      settings: { ...all, dataDir: USER_DATA_DIR },
+      settings: {
+        lmstudioHost: all.lmstudioHost,
+        enhancerModel: all.enhancerModel,
+        defaultProvider: all.defaultProvider,
+        defaultProviderConfig: typeof all.defaultProviderConfig === 'string'
+          ? all.defaultProviderConfig
+          : JSON.stringify(all.defaultProviderConfig),
+        dataDir: USER_DATA_DIR,
+      },
     };
   } catch {
     // DB no disponible -- retornar defaults
@@ -280,6 +288,8 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
         lmstudioHost: 'ws://127.0.0.1:1234',
         enhancerModel: '',
         dataDir: USER_DATA_DIR,
+        defaultProvider: 'lmstudio',
+        defaultProviderConfig: '{}',
       },
     };
   }
@@ -301,6 +311,31 @@ export async function handleSaveSettings(
   try {
     settingsRepository.set('lmstudio_host', params.lmstudioHost.trim());
     settingsRepository.set('enhancer_model', (params.enhancerModel ?? '').trim());
+
+    if (params.defaultProvider) {
+      settingsRepository.set('default_provider', params.defaultProvider.trim());
+    }
+
+    if (params.defaultProviderConfig !== undefined) {
+      // Normalize API key: decrypt if encrypted (to get plaintext), then encrypt for storage.
+      // This migrates legacy keys (without enc: prefix) to the encrypted format.
+      let configStr = params.defaultProviderConfig;
+      try {
+        const config = JSON.parse(configStr);
+        if (config.apiKey) {
+          // Normalize: decrypt if needed to get plaintext, then encrypt for storage
+          const plaintext = config.apiKey.startsWith('enc:')
+            ? decryptIfNeeded(config.apiKey)
+            : config.apiKey;
+          config.apiKey = encryptApiKey(plaintext);
+        }
+        configStr = JSON.stringify(config);
+      } catch {
+        // Not JSON or parse failed — store as-is
+      }
+      settingsRepository.set('default_provider_config', configStr);
+    }
+
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
@@ -581,21 +616,65 @@ export async function handleDetectLocalProviders(): Promise<{ providers: Array<{
 export async function handleValidateProviderConnection(params: { providerId: string; apiKey?: string }): Promise<{ success: boolean; error?: string }> {
   if (!params?.providerId) return { success: false, error: 'providerId es requerido' };
 
-  const hosts: Record<string, string> = {
+  // Local providers
+  const localHosts: Record<string, string> = {
     lmstudio: 'http://127.0.0.1:1234',
     ollama: 'http://127.0.0.1:11434',
   };
 
-  const host = hosts[params.providerId];
-  if (!host) return { success: false, error: 'Provider no soportado para validacion' };
+  const localHost = localHosts[params.providerId];
+  if (localHost) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(localHost + '/api/tags', { signal: controller.signal });
+      clearTimeout(timeoutId);
+      return { success: res.ok };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Cloud providers — validate via API
+  const { providerId, apiKey } = params;
+
+  if (!apiKey) return { success: false, error: 'API key requerida para proveedores cloud' };
+
+  // VULNERABILITY FIX: decrypt if encrypted before using in API requests
+  const apiKeyForRequest = apiKey.startsWith('enc:') ? decryptIfNeeded(apiKey) : apiKey;
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    const res = await fetch(host + '/api/tags', { signal: controller.signal });
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    let res: Response;
+
+    if (providerId === 'openai') {
+      res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKeyForRequest}` },
+        signal: controller.signal,
+      });
+    } else if (providerId === 'anthropic') {
+      // HEAD request to /v1/messages — returns 200 if key is valid
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'HEAD',
+        headers: {
+          'x-api-key': apiKeyForRequest,
+          'anthropic-version': '2023-06-01',
+        },
+        signal: controller.signal,
+      });
+    } else if (providerId === 'gemini') {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKeyForRequest}`, {
+        signal: controller.signal,
+      });
+    } else {
+      return { success: false, error: 'Provider no soportado para validacion' };
+    }
+
     clearTimeout(timeoutId);
-    return { success: res.ok };
+    return { success: res.ok, error: res.ok ? undefined : `HTTP ${res.status}` };
   } catch (e: any) {
+    if (e.name === 'AbortError') return { success: false, error: 'Timeout — el servidor no respondio' };
     return { success: false, error: e.message };
   }
 }

@@ -445,6 +445,8 @@ export interface AppSettings {
   lmstudioHost: string;
   enhancerModel: string;
   dataDir: string;          // readonly, valor de USER_DATA_DIR
+  defaultProvider: string;
+  defaultProviderConfig: string;
 }
 
 export interface LoadSettingsResult {
@@ -454,6 +456,8 @@ export interface LoadSettingsResult {
 export interface SaveSettingsParams {
   lmstudioHost: string;
   enhancerModel: string;
+  defaultProvider?: string;
+  defaultProviderConfig?: string;
 }
 
 export interface SaveSettingsResult {
@@ -510,6 +514,7 @@ export type AppRPC = {
       setOnboardingCompleted: { params: { completed: boolean }; response: { success: boolean } };
       // Utilities
       openExternal: { params: { url: string }; response: { success: boolean } };
+      encryptApiKey: { params: { plaintext: string }; response: { encrypted: string } };
     };
     messages: {};
   }>;

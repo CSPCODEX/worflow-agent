@@ -24,7 +24,7 @@ export const settingsRepository = {
     );
   },
 
-  getAll(): { lmstudioHost: string; enhancerModel: string; defaultProvider: string; defaultProviderConfig: Record<string, string> } {
+  getAll(): { lmstudioHost: string; enhancerModel: string; defaultProvider: string; defaultProviderConfig: string } {
     const db = getDatabase();
     const rows = db.query<{ key: string; value: string }, [string, string, string, string]>(
       'SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?)'
@@ -34,7 +34,7 @@ export const settingsRepository = {
       lmstudioHost: map.get('lmstudio_host') ?? 'ws://127.0.0.1:1234',
       enhancerModel: map.get('enhancer_model') ?? '',
       defaultProvider: map.get('default_provider') ?? 'lmstudio',
-      defaultProviderConfig: JSON.parse(map.get('default_provider_config') ?? '{}'),
+      defaultProviderConfig: JSON.stringify(JSON.parse(map.get('default_provider_config') ?? '{}')),
     };
   },
 };

@@ -31,7 +31,7 @@ Objetivo: tener un MVP funcional donde un usuario pueda crear un pipeline, ejecu
 | [T-010](./T-010-ui-pipeline-ejecucion.md) | UI — Vista de ejecución en tiempo real | DONE | Cloe | T-009, T-004 |
 | [T-011](./T-011-ui-gestion-agentes.md) | UI — Gestión de agentes (roles) | DONE | Cloe | T-006, T-008 |
 | [T-012](./T-012-onboarding-providers.md) | Onboarding y detección de providers locales | IN_PROGRESS | Cloe | T-011, T-007 |
-| [T-013](./T-013-settings-simplificado.md) | Settings simplificado | TODO | Cloe | T-006 |
+| [T-013](./T-013-settings-simplificado.md) | Settings simplificado | DONE | Cloe | T-006 |
 
 ---
 
