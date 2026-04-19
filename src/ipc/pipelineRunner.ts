@@ -241,6 +241,7 @@ export class PipelineRunner {
     const sessionId = sessionResult.sessionId;
     this.activeSessions.set(runId, sessionId);
 
+    const savedCallback = acpManager.getMessageCallback();
     const chunkHandler = (type: 'chunk' | 'end' | 'error', _sessionId: string, data?: string) => {
       if (type === 'chunk' && data) {
         onChunk(data);
@@ -258,6 +259,8 @@ export class PipelineRunner {
       return sessionId;
     } catch {
       return null;
+    } finally {
+      acpManager.setMessageCallback(savedCallback);
     }
   }
 
