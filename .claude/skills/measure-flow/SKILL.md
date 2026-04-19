@@ -1,19 +1,28 @@
+---
+name: measure-flow
+description: Lee el status.md de una feature o bug y genera un reporte de eficiencia del flujo de agentes — rework, iteraciones, cuellos de botella y gaps.
+argument-hint: "[nombre-feature-o-bug]"
+---
+
 # Skill: measure-flow
 
 Lee el status.md de una feature y genera un reporte de eficiencia del flujo de agentes.
 
 ## Uso
 
-Invocar con el nombre de la feature:
+Invocar con el nombre de la feature o bug:
 ```
 /measure-flow electrobun-migration
+/measure-flow 007-delete-agent-ui-broken
 ```
 
 ## Procedimiento
 
 ### 1. Leer el status.md
 
-Leer `docs/features/<nombre-feature>/status.md` completo.
+Intentar leer en este orden:
+1. `docs/features/<nombre>/status.md`
+2. `docs/bugs/<nombre>/status.md`
 
 ### 2. Extraer metricas por agente
 
@@ -51,7 +60,7 @@ Para cada agente que completo su fase, extraer del bloque "Metricas de X":
 Formato del reporte:
 
 ```
-## Reporte de flujo — <nombre-feature>
+## Reporte de flujo — <nombre>
 Fecha: <hoy>
 Fases completadas: X/5
 
@@ -79,6 +88,6 @@ Fases completadas: X/5
 
 ### 5. Guardar el reporte
 
-Escribir el reporte en `docs/features/<nombre-feature>/flow-report.md`.
+Escribir el reporte en `docs/features/<nombre>/flow-report.md` o `docs/bugs/<nombre>/flow-report.md` segun corresponda.
 
 Si el reporte revela problemas sistematicos (rework en 2+ features, contexto excesivo recurrente), proponer cambios al sistema de agentes.

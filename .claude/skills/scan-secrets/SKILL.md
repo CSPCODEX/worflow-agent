@@ -1,3 +1,8 @@
+---
+name: scan-secrets
+description: Escanea el codebase buscando secrets expuestos, credenciales hardcodeadas y configuraciones inseguras antes de un commit o release. Usar antes de cada release.
+---
+
 # Skill: scan-secrets
 
 Escanea el codebase completo buscando secrets expuestos, credenciales hardcodeadas y configuraciones inseguras antes de un commit o release.
@@ -27,7 +32,7 @@ Busca en todos los archivos `.ts`, `.js`, `.json`, `.tpl`, `.md`:
 ### 4. Revisar logs
 
 - Buscar `console.log` y `console.error` que impriman variables de entorno o configuracion sensible
-- Especialmente en `src/generators/agentGenerator.ts` y `src/client.ts`
+- Especialmente en `src/generators/agentGenerator.ts` y `src/ipc/acpManager.ts`
 
 ### 5. Revisar templates de agentes generados
 
@@ -52,4 +57,4 @@ Si no hay hallazgos: confirmar "scan-secrets: sin hallazgos — codigo limpio".
 
 ## Despues del scan
 
-Actualizar `cipher-memory.md` con la fecha del scan y el resultado.
+Actualizar `.claude/agent-memory/cipher/MEMORY.md` con la fecha del scan y el resultado.

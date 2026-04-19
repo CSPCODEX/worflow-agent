@@ -1,3 +1,10 @@
+---
+name: create-pr
+description: Crea una Pull Request en GitHub. Solo Max puede invocar esta skill, y solo cuando el usuario lo pida explícitamente.
+disable-model-invocation: true
+argument-hint: "[titulo personalizado]"
+---
+
 # Skill: create-pr
 
 Crea una Pull Request en GitHub. **Solo Max puede invocar esta skill, y solo cuando el usuario lo pida explicitamente.**

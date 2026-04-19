@@ -21,7 +21,8 @@
       "Bash(find:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git switch:*)"
+      "Bash(git switch:*)",
+      "WebSearch"
     ]
   }
 }

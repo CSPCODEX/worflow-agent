@@ -1,3 +1,8 @@
+---
+name: bundle-check
+description: Analiza y audita el bundle de Electrobun — tamaño de artefactos, dependencias innecesarias y tree-shaking. Usar tras optimizaciones o antes de un release.
+---
+
 # Skill: bundle-check
 
 Procedimiento para analizar y auditar el bundle de Electrobun. Ejecutar despues de cada ronda de optimizacion o antes de un release para verificar que el tamaño esta bajo control.
@@ -100,4 +105,4 @@ Imagenes, fonts o assets grandes deben:
 - [que se optimizo]
 ```
 
-Actualizar `ada-memory.md` con las metricas y los hallazgos.
+Actualizar `.claude/agent-memory/ada/MEMORY.md` con las metricas y los hallazgos.

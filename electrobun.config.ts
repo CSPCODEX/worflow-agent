@@ -26,6 +26,10 @@ export default {
     },
     buildFolder: 'build',
     artifactFolder: 'artifacts',
+    linux: {
+      bundleCEF: true,
+      defaultRenderer: 'cef',
+    },
   },
   runtime: {
     exitOnLastWindowClosed: true,

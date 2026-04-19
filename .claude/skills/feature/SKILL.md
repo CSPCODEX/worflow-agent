@@ -1,3 +1,9 @@
+---
+name: feature
+description: Abre una nueva feature — crea rama git, docs/features/<slug>/status.md, y encadena el flujo Leo→Cloe→Max→Ada→Cipher
+argument-hint: "[descripcion de la feature]"
+---
+
 # Skill: feature
 
 Abre una nueva feature, crea la rama y el status.md inicial, y encadena el flujo Leo → Cloe → Max → Ada → Cipher.

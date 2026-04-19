@@ -1,3 +1,8 @@
+---
+name: electrobun-ipc
+description: Guía paso a paso para crear un canal RPC tipado entre main process y webview en Electrobun. Usar cuando Cloe necesita nueva comunicación IPC entre capas.
+---
+
 # Skill: electrobun-ipc
 
 Procedimiento para crear un canal RPC tipado entre el main process y el webview en Electrobun. Seguir este flujo cada vez que se necesita una nueva comunicacion entre capas.
@@ -28,11 +33,11 @@ Todos los parametros y retornos deben ser tipos serializables a JSON (no funcion
 
 ### 2. Registrar el handler en el main process
 
-En `src/main.ts`, registrar el handler RPC usando la API de Electrobun:
+En `src/ipc/handlers.ts`, registrar el handler RPC usando la API de Electrobun:
 
 ```typescript
-import type { GenerateAgentParams, GenerateAgentResult } from './types/ipc';
-import { generateAgent } from './generators/agentGenerator';
+import type { GenerateAgentParams, GenerateAgentResult } from '../types/ipc';
+import { generateAgent } from '../generators/agentGenerator';
 
 // Registrar antes de crear la ventana
 electrobun.handle('generateAgent', async (params: GenerateAgentParams): Promise<GenerateAgentResult> => {
@@ -52,10 +57,10 @@ Reglas del handler:
 
 ### 3. Invocar desde el renderer
 
-En `src/renderer/script.ts`:
+En el archivo de vista correspondiente en `src/renderer/views/`:
 
 ```typescript
-import type { GenerateAgentParams, GenerateAgentResult } from '../types/ipc';
+import type { GenerateAgentParams, GenerateAgentResult } from '../../types/ipc';
 
 async function onSubmitForm(params: GenerateAgentParams) {
   const result: GenerateAgentResult = await electrobun.invoke('generateAgent', params);
@@ -79,4 +84,4 @@ Checklist antes de dar por finalizado:
 
 ### 5. Actualizar memoria
 
-Registrar en `cloe-memory.md` el nuevo canal IPC creado con su firma de tipos.
+Registrar en `.claude/agent-memory/cloe/MEMORY.md` el nuevo canal IPC creado con su firma de tipos.
