@@ -36,6 +36,7 @@ export function renderAgentList(container: HTMLElement, onSelect: SelectCallback
         item.className = isBroken ? 'agent-item broken' : 'agent-item';
         item.dataset.agentName = agent.name;
         item.innerHTML = `
+          <span class="status-dot ${isBroken ? 'status-unavailable' : 'status-available'}"></span>
           <div class="agent-item-name">${escapeHtml(agent.name)}</div>
           <div class="agent-item-desc">${escapeHtml(agent.description || '')}</div>
           ${agent.isDefault ? '<span class="agent-default-badge">Por defecto</span>' : ''}

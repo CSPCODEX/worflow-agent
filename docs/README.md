@@ -27,6 +27,9 @@ docs/
 ├── bugs/
 │   └── <id>-<slug>/
 │       └── status.md         # Creado por /bug skill, gestionado por Max y Cloe
+├── features/
+│   └── <slug>/
+│       └── status.md         # Creado por /feature skill, gestionado por Leo, Cloe, Max, Ada, Cipher
 ├── AGENTS.md                 # Como funciona el equipo de agentes
 └── README.md                 # Este archivo
 ```
@@ -49,3 +52,9 @@ docs/
 | [012-cipher-falta-columna-handoffs](./bugs/012-cipher-falta-columna-handoffs/) | — |
 | [013-boton-actualizar-no-funciona](./bugs/013-boton-actualizar-no-funciona/) | — |
 | [014-bundle-failed-desktop-app](./bugs/014-bundle-failed-desktop-app/) | — |
+
+## Features activas
+
+| Feature | Estado |
+|---|---|
+| [demo-agents-en-pipelines-ejemplo](./features/demo-agents-en-pipelines-ejemplo/) | EN PLANIFICACION |
