@@ -18,6 +18,28 @@ import type {
   SaveSettingsParams,
   SaveSettingsResult,
 } from '../types/ipc';
+import type {
+  CreatePipelineParams,
+  CreatePipelineResult,
+  ListPipelinesResult,
+  GetPipelineParams,
+  GetPipelineResult,
+  UpdatePipelineParams,
+  UpdatePipelineResult,
+  DeletePipelineParams,
+  DeletePipelineResult,
+  ExecutePipelineParams,
+  ExecutePipelineResult,
+  GetPipelineRunParams,
+  GetPipelineRunResult,
+  ListPipelineRunsParams,
+  ListPipelineRunsResult,
+  RetryPipelineRunParams,
+  RetryPipelineRunResult,
+  ListPipelineTemplatesResult,
+  GetPipelineTemplateParams,
+  GetPipelineTemplateResult,
+} from '../types/pipeline';
 import { settingsRepository } from '../db/settingsRepository';
 import { USER_DATA_DIR } from '../db/userDataDir';
 import type { agentRepository as AgentRepo } from '../db/agentRepository';
@@ -25,6 +47,11 @@ import type { acpManager as AcpMgr } from './acpManager';
 import type { scaffoldAgent as ScaffoldFn, installAgentDeps as InstallFn } from '../generators/agentGenerator';
 import { agentRepository } from '../db/agentRepository';
 import { messageRepository } from '../db/conversationRepository';
+import { pipelineRepository } from '../db/pipelineRepository';
+import { pipelineRunRepository } from '../db/pipelineRunRepository';
+import { pipelineTemplateRepository } from '../db/pipelineTemplateRepository';
+import { pipelineRunner } from './pipelineRunner';
+import { getDatabase } from '../db/database';
 
 const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
 const VALID_ROLES = ['user', 'assistant', 'system'] as const;
@@ -236,6 +263,272 @@ export async function handleSaveSettings(
     settingsRepository.set('lmstudio_host', params.lmstudioHost.trim());
     settingsRepository.set('enhancer_model', (params.enhancerModel ?? '').trim());
     return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// --- Pipeline CRUD ---
+
+export async function handleCreatePipeline(params: CreatePipelineParams): Promise<CreatePipelineResult> {
+  if (!params?.name?.trim()) return { success: false, error: 'name es requerido' };
+  if (!params?.steps?.length) return { success: false, error: 'Al menos un paso es requerido' };
+
+  try {
+    const db = getDatabase();
+    const result = pipelineRepository.createPipeline(db, {
+      name: params.name.trim(),
+      description: params.description?.trim() ?? '',
+      templateId: params.templateId ?? null,
+      steps: params.steps.map((s) => ({
+        name: s.name,
+        agentId: s.agentId,
+        inputTemplate: s.inputTemplate,
+      })),
+    });
+    return { success: true, pipelineId: result.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleListPipelines(): Promise<ListPipelinesResult> {
+  const db = getDatabase();
+  const pipelines = pipelineRepository.listPipelines(db);
+  return {
+    pipelines: pipelines.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      stepCount: p.stepCount,
+      lastRunAt: p.lastRun ?? null,
+      lastRunStatus: null,
+      createdAt: p.createdAt,
+    })),
+  };
+}
+
+export async function handleGetPipeline(params: GetPipelineParams): Promise<GetPipelineResult> {
+  if (!params?.pipelineId?.trim()) return { pipeline: null };
+  const db = getDatabase();
+  const pipeline = pipelineRepository.getPipeline(db, params.pipelineId.trim());
+  if (!pipeline) return { pipeline: null };
+
+  return {
+    pipeline: {
+      id: pipeline.id,
+      name: pipeline.name,
+      description: pipeline.description,
+      steps: pipeline.steps.map((s) => {
+        const agent = agentRepository.findById(s.agentId);
+        return {
+          id: s.id,
+          order: s.stepOrder,
+          name: s.name,
+          agentId: s.agentId,
+          agentName: agent?.name ?? 'Unknown',
+          inputTemplate: s.inputTemplate,
+        };
+      }),
+    },
+  };
+}
+
+export async function handleUpdatePipeline(params: UpdatePipelineParams): Promise<UpdatePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+  try {
+    const db = getDatabase();
+    pipelineRepository.updatePipeline(db, params.pipelineId.trim(), {
+      name: params.name?.trim(),
+      description: params.description?.trim(),
+      steps: params.steps?.map((s) => ({
+        name: s.name,
+        agentId: s.agentId,
+        inputTemplate: s.inputTemplate,
+      })),
+    });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleDeletePipeline(params: DeletePipelineParams): Promise<DeletePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+  try {
+    const db = getDatabase();
+    pipelineRepository.deletePipeline(db, params.pipelineId.trim());
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// --- Pipeline Execution ---
+
+export async function handleExecutePipeline(params: ExecutePipelineParams): Promise<ExecutePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+
+  try {
+    const db = getDatabase();
+    const pipeline = pipelineRepository.getPipeline(db, params.pipelineId.trim());
+    if (!pipeline) return { success: false, error: 'Pipeline no encontrado' };
+
+    const run = pipelineRunRepository.createRun(db, params.pipelineId.trim(), params.variables ?? {});
+
+    // Fire-and-forget: launch runner async, return runId immediately
+    pipelineRunner.execute({
+      pipelineId: params.pipelineId.trim(),
+      variables: params.variables ?? {},
+      runId: run.id,
+    }).catch((e) => console.error('[pipelineRunner] execute error:', e));
+
+    return { success: true, runId: run.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleGetPipelineRun(params: GetPipelineRunParams): Promise<GetPipelineRunResult> {
+  if (!params?.runId?.trim()) return { run: null };
+  const db = getDatabase();
+  const run = pipelineRunRepository.getRun(db, params.runId.trim());
+  if (!run) return { run: null };
+
+  const pipeline = pipelineRepository.getPipeline(db, run.pipelineId);
+
+  return {
+    run: {
+      id: run.id,
+      pipelineId: run.pipelineId,
+      pipelineName: pipeline?.name ?? 'Unknown',
+      status: run.status,
+      variables: run.variables,
+      steps: run.stepRuns.map((sr) => ({
+        stepName: sr.agentName,
+        agentName: sr.agentName,
+        status: sr.status,
+        output: sr.output,
+        startedAt: sr.startedAt,
+        completedAt: sr.completedAt,
+      })),
+      startedAt: run.startedAt ?? run.createdAt,
+      completedAt: run.completedAt,
+      error: run.error,
+    },
+  };
+}
+
+export async function handleListPipelineRuns(params: ListPipelineRunsParams): Promise<ListPipelineRunsResult> {
+  if (!params?.pipelineId?.trim()) return { runs: [], totalCount: 0 };
+  const db = getDatabase();
+  const runs = pipelineRunRepository.listRuns(db, params.pipelineId.trim(), params.limit ?? 20, params.offset ?? 0);
+  return {
+    runs: runs.map((r) => ({
+      id: r.id,
+      status: r.status,
+      variables: r.variables,
+      startedAt: r.startedAt ?? r.createdAt,
+      completedAt: r.completedAt,
+    })),
+    totalCount: runs.length,
+  };
+}
+
+export async function handleRetryPipelineRun(params: RetryPipelineRunParams): Promise<RetryPipelineRunResult> {
+  if (!params?.runId?.trim()) return { success: false, error: 'runId es requerido' };
+  try {
+    const db = getDatabase();
+    const run = pipelineRunRepository.getRun(db, params.runId.trim());
+    if (!run) return { success: false, error: 'Run no encontrado' };
+
+    pipelineRunner.resume({ runId: params.runId.trim(), fromStepIndex: 0 }).catch((e) =>
+      console.error('[pipelineRunner] resume error:', e)
+    );
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// --- Templates ---
+
+export async function handleListPipelineTemplates(): Promise<ListPipelineTemplatesResult> {
+  const db = getDatabase();
+  const templates = pipelineTemplateRepository.listTemplates(db);
+  return {
+    templates: templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      category: t.category,
+      stepCount: t.stepCount,
+      isBuiltin: t.isBuiltin,
+    })),
+  };
+}
+
+export async function handleGetPipelineTemplate(params: GetPipelineTemplateParams): Promise<GetPipelineTemplateResult> {
+  if (!params?.templateId?.trim()) return { template: null };
+  const db = getDatabase();
+  const template = pipelineTemplateRepository.getTemplate(db, params.templateId.trim());
+  if (!template) return { template: null };
+
+  return {
+    template: {
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      variables: template.variables as any,
+      steps: template.steps as any,
+      isBuiltin: template.isBuiltin,
+    },
+  };
+}
+
+// --- Provider Detection ---
+
+export async function handleDetectLocalProviders(): Promise<{ providers: Array<{ id: string; label: string; available: boolean; host: string }> }> {
+  const providers = [
+    { id: 'lmstudio', label: 'LM Studio', host: 'http://127.0.0.1:1234' },
+    { id: 'ollama', label: 'Ollama', host: 'http://127.0.0.1:11434' },
+  ];
+
+  const results = await Promise.all(
+    providers.map(async (p) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(p.host + '/api/tags', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return { ...p, available: res.ok };
+      } catch {
+        return { ...p, available: false };
+      }
+    })
+  );
+
+  return { providers: results };
+}
+
+export async function handleValidateProviderConnection(params: { providerId: string; apiKey?: string }): Promise<{ success: boolean; error?: string }> {
+  if (!params?.providerId) return { success: false, error: 'providerId es requerido' };
+
+  const hosts: Record<string, string> = {
+    lmstudio: 'http://127.0.0.1:1234',
+    ollama: 'http://127.0.0.1:11434',
+  };
+
+  const host = hosts[params.providerId];
+  if (!host) return { success: false, error: 'Provider no soportado para validacion' };
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(host + '/api/tags', { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return { success: res.ok };
   } catch (e: any) {
     return { success: false, error: e.message };
   }

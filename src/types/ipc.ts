@@ -1,5 +1,32 @@
 import type { RPCSchema } from 'electrobun/bun';
 import type { AgentConfig } from '../cli/prompts';
+import type {
+  CreatePipelineParams,
+  CreatePipelineResult,
+  ListPipelinesResult,
+  GetPipelineParams,
+  GetPipelineResult,
+  UpdatePipelineParams,
+  UpdatePipelineResult,
+  DeletePipelineParams,
+  DeletePipelineResult,
+  ExecutePipelineParams,
+  ExecutePipelineResult,
+  GetPipelineRunParams,
+  GetPipelineRunResult,
+  ListPipelineRunsParams,
+  ListPipelineRunsResult,
+  RetryPipelineRunParams,
+  RetryPipelineRunResult,
+  ListPipelineTemplatesResult,
+  GetPipelineTemplateParams,
+  GetPipelineTemplateResult,
+  DetectLocalProvidersResult,
+  ValidateConnectionParams,
+  ValidateConnectionResult,
+  PipelineRunStepUpdated,
+  PipelineRunCompleted,
+} from './pipeline';
 
 export type { AgentConfig } from '../cli/prompts';
 
@@ -434,6 +461,23 @@ export type AppRPC = {
       getAgentBehaviorTimeline: { params: GetAgentBehaviorTimelineParams; response: GetAgentBehaviorTimelineResult };
       getComplianceScores: { params: GetComplianceScoresParams; response: GetComplianceScoresResult };
       getRejectionPatterns: { params: GetRejectionPatternsParams; response: GetRejectionPatternsResult };
+      // Pipeline CRUD
+      createPipeline: { params: CreatePipelineParams; response: CreatePipelineResult };
+      listPipelines: { params: undefined; response: ListPipelinesResult };
+      getPipeline: { params: GetPipelineParams; response: GetPipelineResult };
+      updatePipeline: { params: UpdatePipelineParams; response: UpdatePipelineResult };
+      deletePipeline: { params: DeletePipelineParams; response: DeletePipelineResult };
+      // Pipeline Execution
+      executePipeline: { params: ExecutePipelineParams; response: ExecutePipelineResult };
+      getPipelineRun: { params: GetPipelineRunParams; response: GetPipelineRunResult };
+      listPipelineRuns: { params: ListPipelineRunsParams; response: ListPipelineRunsResult };
+      retryPipelineRun: { params: RetryPipelineRunParams; response: RetryPipelineRunResult };
+      // Templates
+      listPipelineTemplates: { params: undefined; response: ListPipelineTemplatesResult };
+      getPipelineTemplate: { params: GetPipelineTemplateParams; response: GetPipelineTemplateResult };
+      // Provider Detection
+      detectLocalProviders: { params: undefined; response: DetectLocalProvidersResult };
+      validateProviderConnection: { params: ValidateConnectionParams; response: ValidateConnectionResult };
     };
     messages: {};
   }>;
@@ -446,6 +490,8 @@ export type AppRPC = {
       agentInstallDone: AgentInstallDone;
       agentEnhanceDone: AgentEnhanceDone;
       pipelineSnapshotUpdated: PipelineSnapshotIPC;
+      pipelineRunStepUpdated: PipelineRunStepUpdated;
+      pipelineRunCompleted: PipelineRunCompleted;
     };
   }>;
 };
