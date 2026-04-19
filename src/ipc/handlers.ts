@@ -1,4 +1,4 @@
-import { defineElectrobunRPC } from 'electrobun/bun';
+import { defineElectrobunRPC, Utils } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
 import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
@@ -11,6 +11,8 @@ import { enhancePrompt } from '../enhancer/promptEnhancer';
 import {
   handleGenerateAgent,
   handleListAgents,
+  handleGetAgent,
+  handleUpdateAgent,
   handleCreateSession,
   handleSaveMessage,
   handleDeleteAgent,
@@ -30,6 +32,8 @@ import {
   handleGetPipelineTemplate,
   handleDetectLocalProviders,
   handleValidateProviderConnection,
+  handleGetOnboardingCompleted,
+  handleSetOnboardingCompleted,
 } from './handlerLogic';
 import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../dev-tools/monitor/index';
 import type { PipelineSnapshot } from '../dev-tools/monitor/index';
@@ -162,6 +166,10 @@ export function createRpc() {
 
         listAgents: async () => handleListAgents(),
 
+        getAgent: async (params) => handleGetAgent(params),
+
+        updateAgent: async (params) => handleUpdateAgent(params),
+
         createSession: async (params) =>
           handleCreateSession(params, { agentRepository, acpManager }),
 
@@ -250,6 +258,20 @@ export function createRpc() {
         // --- Provider Detection ---
         detectLocalProviders: async () => handleDetectLocalProviders(),
         validateProviderConnection: async (params) => handleValidateProviderConnection(params),
+
+        // --- Onboarding ---
+        getOnboardingCompleted: async () => handleGetOnboardingCompleted(),
+        setOnboardingCompleted: async (params) => handleSetOnboardingCompleted(params.completed),
+
+        // --- Utilities ---
+        openExternal: async (params: { url: string }) => {
+          try {
+            Utils.openExternal(params.url);
+            return { success: true };
+          } catch (e: any) {
+            return { success: false };
+          }
+        },
 
         getPipelineSnapshot: async () => {
           const snapshot = poller.getSnapshot();

@@ -62,6 +62,28 @@ export interface AgentInfo {
   id: string;
   createdAt: string;
   provider: ProviderId;
+  isDefault: boolean;
+}
+
+export interface GetAgentParams {
+  agentId: string;
+}
+
+export interface GetAgentResult {
+  agent: AgentInfo | null;
+  error?: string;
+}
+
+export interface UpdateAgentParams {
+  agentId: string;
+  name?: string;
+  description?: string;
+  systemPrompt?: string;
+}
+
+export interface UpdateAgentResult {
+  success: boolean;
+  error?: string;
 }
 
 export interface ListAgentsResult {
@@ -444,6 +466,8 @@ export type AppRPC = {
     requests: {
       generateAgent: { params: AgentConfig; response: GenerateAgentResult };
       listAgents: { params: undefined; response: ListAgentsResult };
+      getAgent: { params: GetAgentParams; response: GetAgentResult };
+      updateAgent: { params: UpdateAgentParams; response: UpdateAgentResult };
       listProviders: { params: undefined; response: ListProvidersResult };
       createSession: { params: CreateSessionParams; response: CreateSessionResult };
       sendMessage: { params: SendMessageParams; response: SendMessageResult };
@@ -481,6 +505,11 @@ export type AppRPC = {
       // Provider Detection
       detectLocalProviders: { params: undefined; response: DetectLocalProvidersResult };
       validateProviderConnection: { params: ValidateConnectionParams; response: ValidateConnectionResult };
+      // Onboarding
+      getOnboardingCompleted: { params: undefined; response: { completed: boolean } };
+      setOnboardingCompleted: { params: { completed: boolean }; response: { success: boolean } };
+      // Utilities
+      openExternal: { params: { url: string }; response: { success: boolean } };
     };
     messages: {};
   }>;

@@ -157,8 +157,45 @@ export async function handleListAgents(): Promise<ListAgentsResult> {
     status: r.status,
     createdAt: r.createdAt,
     provider: (r.provider ?? 'lmstudio') as ProviderId,
+    isDefault: r.isDefault,
   }));
   return { agents };
+}
+
+export async function handleGetAgent(params: { agentId: string }): Promise<{ agent: AgentInfo | null; error?: string }> {
+  if (!params?.agentId?.trim()) return { agent: null, error: 'agentId es requerido' };
+  const record = agentRepository.findById(params.agentId.trim());
+  if (!record) return { agent: null, error: 'Agente no encontrado' };
+  return {
+    agent: {
+      id: record.id,
+      name: record.name,
+      description: record.description,
+      hasWorkspace: record.hasWorkspace,
+      status: record.status,
+      createdAt: record.createdAt,
+      provider: record.provider as ProviderId,
+      isDefault: record.isDefault,
+    },
+  };
+}
+
+export async function handleUpdateAgent(params: { agentId: string; name?: string; description?: string; systemPrompt?: string }): Promise<{ success: boolean; error?: string }> {
+  if (!params?.agentId?.trim()) return { success: false, error: 'agentId es requerido' };
+  if (params.name !== undefined) {
+    const nameError = validateAgentName(params.name);
+    if (nameError) return { success: false, error: nameError };
+  }
+  try {
+    agentRepository.updateAgent(params.agentId.trim(), {
+      name: params.name,
+      description: params.description,
+      systemPrompt: params.systemPrompt,
+    });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
 }
 
 export async function handleCreateSession(
@@ -498,6 +535,22 @@ export async function handleGetPipelineTemplate(params: GetPipelineTemplateParam
       isBuiltin: template.isBuiltin,
     },
   };
+}
+
+// --- Onboarding ---
+
+export async function handleGetOnboardingCompleted(): Promise<{ completed: boolean }> {
+  const value = settingsRepository.get('onboarding_completed');
+  return { completed: value === 'true' };
+}
+
+export async function handleSetOnboardingCompleted(completed: boolean): Promise<{ success: boolean }> {
+  try {
+    settingsRepository.set('onboarding_completed', completed ? 'true' : 'false');
+    return { success: true };
+  } catch (e: any) {
+    return { success: false };
+  }
 }
 
 // --- Provider Detection ---

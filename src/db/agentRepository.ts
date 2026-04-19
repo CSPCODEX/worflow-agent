@@ -182,4 +182,39 @@ export const agentRepository = {
       [systemPrompt, enhanceStatus, id]
     );
   },
+
+  /** Update agent fields (name, description, system_prompt). Throws if is_default=1 and those fields are modified. */
+  updateAgent(id: string, params: { name?: string; description?: string; systemPrompt?: string }): AgentRecord {
+    const db = getDatabase();
+    const row = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get([id]);
+    if (!row) throw new Error('Agente no encontrado');
+
+    if (row.is_default === 1 && (params.name || params.description || params.systemPrompt)) {
+      throw new Error('No se puede modificar un agente por defecto');
+    }
+
+    const sets: string[] = [];
+    const values: (string | number)[] = [];
+
+    if (params.name !== undefined) {
+      sets.push('name = ?');
+      values.push(params.name);
+    }
+    if (params.description !== undefined) {
+      sets.push('description = ?');
+      values.push(params.description);
+    }
+    if (params.systemPrompt !== undefined) {
+      sets.push('system_prompt = ?');
+      values.push(params.systemPrompt);
+    }
+
+    if (sets.length === 0) return rowToRecord(row);
+
+    values.push(id);
+    db.run(`UPDATE agents SET ${sets.join(', ')} WHERE id = ?`, values);
+
+    const updated = db.query<AgentRow, [string]>('SELECT * FROM agents WHERE id = ?').get([id]);
+    return rowToRecord(updated!);
+  },
 };

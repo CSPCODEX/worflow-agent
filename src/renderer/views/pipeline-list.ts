@@ -51,7 +51,11 @@ function showConfirm(title: string, message: string): Promise<boolean> {
   });
 }
 
-export function renderPipelineList(container: HTMLElement) {
+export interface PipelineListCallbacks {
+  onTryExample?: () => void;
+}
+
+export function renderPipelineList(container: HTMLElement, callbacks?: PipelineListCallbacks) {
   const rpc = (window as any).appRpc;
   let pipelines: PipelineListItem[] = [];
 
@@ -59,6 +63,7 @@ export function renderPipelineList(container: HTMLElement) {
     <div class="pipeline-list-view">
       <div class="pipeline-list-header">
         <h2>Pipelines</h2>
+        ${callbacks?.onTryExample ? '<button id="pl-try-example" class="btn-secondary">Probar con un ejemplo</button>' : ''}
         <button id="pl-new" class="btn-primary">+ Nuevo Pipeline</button>
       </div>
       <div id="pl-content">
@@ -72,6 +77,11 @@ export function renderPipelineList(container: HTMLElement) {
 
   const contentEl = container.querySelector<HTMLDivElement>('#pl-content')!;
   const newBtn = container.querySelector<HTMLButtonElement>('#pl-new')!;
+  const tryExampleBtn = container.querySelector<HTMLButtonElement>('#pl-try-example')!;
+
+  tryExampleBtn?.addEventListener('click', () => {
+    callbacks?.onTryExample?.();
+  });
 
   function renderPipelineItems() {
     if (pipelines.length === 0) {

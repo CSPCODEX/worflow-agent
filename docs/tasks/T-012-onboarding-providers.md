@@ -1,6 +1,6 @@
 # T-012 — Onboarding y detección de providers locales
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 1
 **Agente responsable:** Cloe
 **Depende de:** T-011, T-007
@@ -39,22 +39,22 @@ Header o sidebar: punto verde/rojo que indica si hay un modelo local disponible:
 
 ## Criterios de aceptación
 
-- [ ] El onboarding aparece al abrir la app por primera vez (settings `onboarding_completed` = false)
-- [ ] El onboarding no vuelve a aparecer tras completarse (`onboarding_completed = true`)
-- [ ] La detección de LM Studio y Ollama funciona correctamente (verde/rojo según disponibilidad)
-- [ ] Si ningún provider local está disponible, se muestran los links de descarga
-- [ ] El botón "Ejecutar tu primer pipeline" lleva directamente al flujo de ejecución del Content Creator
-- [ ] El indicador de estado del provider en la UI principal se actualiza automáticamente
-- [ ] "Probar con un ejemplo" funciona desde la pantalla principal sin pasar por onboarding
+- [x] El onboarding aparece al abrir la app por primera vez (settings `onboarding_completed` = false)
+- [x] El onboarding no vuelve a aparecer tras completarse (`onboarding_completed = true`)
+- [x] La detección de LM Studio y Ollama funciona correctamente (verde/rojo según disponibilidad)
+- [x] Si ningún provider local está disponible, se muestran los links de descarga
+- [x] El botón "Ejecutar tu primer pipeline" lleva directamente al flujo de ejecución del Content Creator
+- [x] El indicador de estado del provider en la UI principal se actualiza automáticamente
+- [x] "Probar con un ejemplo" funciona desde la pantalla principal sin pasar por onboarding
 
 ## Subtareas
 
-- [ ] Crear `src/renderer/views/onboarding.ts` con los 3 pasos
-- [ ] Añadir check de `onboarding_completed` en `src/renderer/app.ts` al arrancar
-- [ ] Añadir key `onboarding_completed` en `settingsRepository.ts`
-- [ ] Implementar indicador de estado del provider en el layout principal
-- [ ] Añadir polling de 30s para `detectLocalProviders` en background
-- [ ] Crear botón "Probar con un ejemplo" en la vista principal (pipeline-list o pantalla de inicio)
+- [x] Crear `src/renderer/views/onboarding.ts` con los 3 pasos
+- [x] Añadir check de `onboarding_completed` en `src/renderer/app.ts` al arrancar
+- [x] Añadir key `onboarding_completed` en `settingsRepository.ts` (ya existe via set/get)
+- [x] Implementar indicador de estado del provider en el layout principal
+- [x] Añadir polling de 30s para `detectLocalProviders` en background
+- [x] Crear botón "Probar con un ejemplo" en la vista principal (pipeline-list o pantalla de inicio)
 
 ## Notas
 
