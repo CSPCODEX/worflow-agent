@@ -99,7 +99,6 @@ export interface ListPipelinesResult {
     description: string;
     stepCount: number;
     lastRunAt: string | null;
-    lastRunStatus: string | null;
     createdAt: string;
   }>;
 }

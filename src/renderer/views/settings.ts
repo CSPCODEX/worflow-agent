@@ -373,8 +373,6 @@ export function renderSettings(container: HTMLElement): { cleanup(): void } {
       }
 
       const result = await rpc.request.saveSettings({
-        lmstudioHost: 'ws://127.0.0.1:1234', // legacy field, still required by handler
-        enhancerModel: '', // legacy field
         defaultProvider: providerId,
         defaultProviderConfig: JSON.stringify(defaultProviderConfig),
       });

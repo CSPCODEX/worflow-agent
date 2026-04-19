@@ -442,8 +442,6 @@ export interface GetRejectionPatternsResult {
 // --- Settings types ---
 
 export interface AppSettings {
-  lmstudioHost: string;
-  enhancerModel: string;
   dataDir: string;          // readonly, valor de USER_DATA_DIR
   defaultProvider: string;
   defaultProviderConfig: string;
@@ -454,8 +452,6 @@ export interface LoadSettingsResult {
 }
 
 export interface SaveSettingsParams {
-  lmstudioHost: string;
-  enhancerModel: string;
   defaultProvider?: string;
   defaultProviderConfig?: string;
 }
