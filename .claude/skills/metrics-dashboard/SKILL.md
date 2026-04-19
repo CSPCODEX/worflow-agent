@@ -1,6 +1,13 @@
+---
+name: metrics-dashboard
+description: Genera un dashboard agregado de métricas del pipeline de agentes leyendo los status.md de features y bugs. Útil para detectar cuellos de botella y patrones de rework.
+---
+
 # Skill: metrics-dashboard
 
 Genera un dashboard agregado de metricas del pipeline de agentes leyendo todos los status.md de features y bugs completados.
+
+> **Nota:** La carpeta `docs/features/` puede no existir si todas las features han sido mergeadas y archivadas. En ese caso, el dashboard solo incluira bugs de `docs/bugs/`.
 
 ## Uso
 
@@ -8,53 +15,19 @@ Genera un dashboard agregado de metricas del pipeline de agentes leyendo todos l
 /metrics-dashboard
 ```
 
-Flags disponibles:
-```
-# Dashboard global (todas las features y bugs)
-bun run scripts/metrics.ts
-
-# Ver metricas de una feature o bug especifico
-bun run scripts/metrics.ts --feature <slug>
-
-# Comparar dos intervenciones por slug
-bun run scripts/metrics.ts --compare <slug1> <slug2>
-
-# Listar todas las intervenciones registradas en la DB
-bun run scripts/metrics.ts --history
-
-# Filtrar por rango de fechas
-bun run scripts/metrics.ts --desde 2026-01-01 --hasta 2026-03-31
-```
-
 ## Procedimiento
 
 ### 1. Descubrir todos los status.md
 
 ```bash
-# Features
+# Features (si existe la carpeta)
 find docs/features -name "status.md" 2>/dev/null
 
 # Bugs
 find docs/bugs -name "status.md" 2>/dev/null
 ```
 
-O ejecutar el script agregado:
-```bash
-bun run scripts/metrics.ts
-```
-
-### 2. Si el script esta disponible
-
-Ejecutar `bun run scripts/metrics.ts` y mostrar su output directamente.
-
-Para una feature especifica: `bun run scripts/metrics.ts --feature <slug>`
-Para comparar dos features: `bun run scripts/metrics.ts --compare <slug1> <slug2>`
-
-### 3. Si el script no esta disponible (fallback manual)
-
-Leer cada status.md y extraer los bloques "Metricas de X". Calcular manualmente los indicadores de la seccion siguiente.
-
-### 4. Calcular indicadores agregados
+### 2. Calcular indicadores agregados
 
 **Tasa de rework por agente:**
 - (features con rework: si en agente X) / (total features con ese agente) * 100
@@ -80,7 +53,7 @@ Leer cada status.md y extraer los bloques "Metricas de X". Calcular manualmente 
 **Velocidad del pipeline:**
 - Promedio de iteraciones por agente (> 1 indica cuellos de botella)
 
-### 5. Generar reporte
+### 3. Generar reporte
 
 ```
 ## Dashboard de metricas — <fecha>
@@ -105,38 +78,19 @@ Features analizadas: N | Bugs analizados: N
 | Ada    | N        | N          | X%   |
 | Cipher | N        | N          | X%   |
 
-### Contexto por agente (archivos promedio leidos)
-| Agente | Min | Promedio | Max | Estado     |
-|--------|-----|----------|-----|------------|
-| Leo    | N   | N        | N   | EFICIENTE / ACEPTABLE / EXCESIVO |
-| ...    |     |          |     |            |
-
-### Gaps declarados por agente
-| Agente | Total gaps declarados | Promedio por sesion |
-|--------|-----------------------|---------------------|
-| Leo    | N                     | X                   |
-| ...    |                       |                     |
-Nota: gaps_declarados bajos pueden indicar que los agentes ocultan incertidumbre.
-
 ### Patrones de fallo recurrentes
-(extraidos de las secciones "No verificado" y "Riesgos aceptados" de los status.md)
 1. [patron mas comun]
 2. [segundo patron]
-
-### Cuellos de botella
-(agentes con iteraciones > 1 en mas de una feature)
-- [agente]: [descripcion del patron]
 
 ### Recomendaciones
 1. [cambio concreto al flujo o prompt del agente con mayor tasa de rework]
 2. [cambio para el agente con mas gaps no declarados]
 ```
 
-### 6. Guardar el reporte
+### 4. Guardar el reporte
 
 Escribir en `docs/metrics/dashboard-<fecha-hoy>.md`.
 
-Crear la carpeta si no existe:
 ```bash
 mkdir -p docs/metrics
 ```

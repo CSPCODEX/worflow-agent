@@ -1,3 +1,8 @@
+---
+name: acp-debug
+description: Diagnóstico paso a paso cuando un agente ACP falla, no responde o produce errores NDJSON. Usar cuando hay problemas de comunicación entre el main process y un agente.
+---
+
 # Skill: acp-debug
 
 Procedimiento de diagnostico cuando un agente ACP no responde, falla al conectar, o produce errores en la comunicacion NDJSON. Seguir en orden hasta encontrar el problema.
@@ -74,9 +79,6 @@ Si cualquier paso falla o se salta, la conexion se rompe. Verificar que `src/cli
 Si el agente falla y se relanza repetidamente pueden quedar procesos colgados:
 
 ```bash
-# Windows
-tasklist | grep bun
-
 # macOS/Linux
 ps aux | grep "bun run index.ts"
 ```
@@ -97,4 +99,4 @@ Versiones distintas pueden causar incompatibilidades de protocolo.
 ## Reporte de resultados
 
 Indicar en que paso fallo, el error exacto, y la solucion aplicada.
-Actualizar `max-memory.md` con el problema y la solucion para no repetir el diagnostico.
+Actualizar `.claude/agent-memory/max/MEMORY.md` con el problema y la solucion para no repetir el diagnostico.

@@ -74,8 +74,8 @@ describe('migrations', () => {
     const row = db.query<{ version: number }, never[]>(
       'SELECT MAX(version) as version FROM schema_version'
     ).get();
-    // There are 3 migrations (versions 1, 2, 3)
-    expect(row?.version).toBe(3);
+    // There are 5 migrations (versions 1, 2, 3, 4, 5)
+    expect(row?.version).toBe(5);
   });
 
   it('aplicar migrations es idempotente — segunda llamada no lanza error', () => {
@@ -85,6 +85,6 @@ describe('migrations', () => {
     const row = db.query<{ version: number }, never[]>(
       'SELECT MAX(version) as version FROM schema_version'
     ).get();
-    expect(row?.version).toBe(3);
+    expect(row?.version).toBe(5);
   });
 });

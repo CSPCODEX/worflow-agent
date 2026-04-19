@@ -2,7 +2,7 @@ import { BrowserWindow, PATHS } from 'electrobun/bun';
 import path from 'path';
 import { existsSync } from 'fs';
 import { createRpc, getPoller } from '../ipc/handlers';
-import { closeHistoryDb } from '../monitor/index';
+import { closeHistoryDb } from '../dev-tools/monitor/index';
 import { acpManager } from '../ipc/acpManager';
 import { initDatabase } from '../db/database';
 

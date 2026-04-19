@@ -67,6 +67,12 @@
 - Nota: `db.query()` re-compila el SQL cada vez. Si el numero de IDs es fijo usar `db.prepare()`.
 - Aplicado en: `historyRepository.queryAgentTrends` — 5 queries → 1
 
+### Full table scan para agregados — reutilizar WHERE ya construido
+- Patron: funcion con query paginada (WHERE + LIMIT/OFFSET) que hace una segunda query SIN WHERE para calcular agregados globales — full table scan innecesario y semanticamente incorrecto.
+- Fix: reutilizar la misma `where` y `args` ya construidos para la query paginada en la query de agregados.
+- Doble beneficio: (1) scan solo sobre el subset filtrado, O(filtered) en lugar de O(all); (2) los agregados reflejan el contexto del filtro activo.
+- Aplicado en: `complianceRepository.queryRejectionPatterns` — `allRows` sin WHERE → `aggRows` con WHERE reutilizado.
+
 ### Imports muertos en handlers.ts — verificar antes de asumir
 - Los imports del modulo monitor en handlers.ts pueden crecer con cada feature — siempre grep para detectar los que no se usan en ese archivo
 - `closeHistoryDb` estaba importado en handlers.ts pero solo se usa en desktop/index.ts

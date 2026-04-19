@@ -1,7 +1,8 @@
-import { defineElectrobunRPC } from 'electrobun/bun';
+import { defineElectrobunRPC, Utils } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
-import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult } from '../types/ipc';
+import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
+import { encryptApiKey } from '../utils/crypto';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -11,14 +12,33 @@ import { enhancePrompt } from '../enhancer/promptEnhancer';
 import {
   handleGenerateAgent,
   handleListAgents,
+  handleGetAgent,
+  handleUpdateAgent,
   handleCreateSession,
   handleSaveMessage,
   handleDeleteAgent,
   handleLoadSettings,
   handleSaveSettings,
+  handleCreatePipeline,
+  handleListPipelines,
+  handleGetPipeline,
+  handleUpdatePipeline,
+  handleDeletePipeline,
+  handleExecutePipeline,
+  handleGetPipelineRun,
+  handleListPipelineRuns,
+  handleRetryPipelineRun,
+  handleStopPipelineRun,
+  handleListPipelineTemplates,
+  handleGetPipelineTemplate,
+  handleDetectLocalProviders,
+  handleValidateProviderConnection,
+  handleGetOnboardingCompleted,
+  handleSetOnboardingCompleted,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline } from '../monitor/index';
-import type { PipelineSnapshot } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../dev-tools/monitor/index';
+import type { PipelineSnapshot } from '../dev-tools/monitor/index';
+import { pipelineRunner } from './pipelineRunner';
 
 // Agentes validos del pipeline — usados para whitelisting en handlers IPC.
 const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
@@ -40,8 +60,10 @@ function findDocsDir(): string {
 }
 const docsDir = findDocsDir();
 const repoRoot = path.dirname(docsDir);
-console.log('[monitor] docsDir:', docsDir);
-console.log('[monitor] repoRoot:', repoRoot);
+if (process.env.NODE_ENV !== 'production') {
+  console.log('[monitor] docsDir:', docsDir);
+  console.log('[monitor] repoRoot:', repoRoot);
+}
 const poller = new PipelinePoller({
   docsDir,
   pollIntervalMs: 30_000,
@@ -57,7 +79,7 @@ function sanitizeForIpc(s: string): string {
 
 function snapshotToIPC(snapshot: PipelineSnapshot): PipelineSnapshotIPC {
   return {
-    features: snapshot.features.map(({ filePath: _fp, ...f }) => ({
+    features: snapshot.features.map(({ filePath: _fp, leoContract: _lc, rejectionRecords: _rr, ...f }) => ({
       ...f,
       handoffs: f.handoffs,
       metrics: f.metrics,
@@ -147,6 +169,10 @@ export function createRpc() {
 
         listAgents: async () => handleListAgents(),
 
+        getAgent: async (params) => handleGetAgent(params),
+
+        updateAgent: async (params) => handleUpdateAgent(params),
+
         createSession: async (params) =>
           handleCreateSession(params, { agentRepository, acpManager }),
 
@@ -213,6 +239,51 @@ export function createRpc() {
         loadSettings: async () => handleLoadSettings(),
 
         saveSettings: async (params) => handleSaveSettings(params),
+
+        // --- Pipeline CRUD ---
+        createPipeline: async (params) => handleCreatePipeline(params),
+        listPipelines: async () => handleListPipelines(),
+        getPipeline: async (params) => handleGetPipeline(params),
+        updatePipeline: async (params) => handleUpdatePipeline(params),
+        deletePipeline: async (params) => handleDeletePipeline(params),
+
+        // --- Pipeline Execution ---
+        executePipeline: async (params) => handleExecutePipeline(params),
+        getPipelineRun: async (params) => handleGetPipelineRun(params),
+        listPipelineRuns: async (params) => handleListPipelineRuns(params),
+        retryPipelineRun: async (params) => handleRetryPipelineRun(params),
+        stopPipelineRun: async (params) => handleStopPipelineRun(params),
+
+        // --- Pipeline Templates ---
+        listPipelineTemplates: async () => handleListPipelineTemplates(),
+        getPipelineTemplate: async (params) => handleGetPipelineTemplate(params),
+
+        // --- Provider Detection ---
+        detectLocalProviders: async () => handleDetectLocalProviders(),
+        validateProviderConnection: async (params) => handleValidateProviderConnection(params),
+
+        // --- Onboarding ---
+        getOnboardingCompleted: async () => handleGetOnboardingCompleted(),
+        setOnboardingCompleted: async (params) => handleSetOnboardingCompleted(params.completed),
+
+        // --- Utilities ---
+        openExternal: async (params: { url: string }) => {
+          try {
+            const parsed = new URL(params.url);
+            if (!['https:', 'http:'].includes(parsed.protocol)) {
+              return { success: false };
+            }
+            Utils.openExternal(params.url);
+            return { success: true };
+          } catch {
+            return { success: false };
+          }
+        },
+
+        encryptApiKey: async (params: { plaintext: string }): Promise<{ encrypted: string }> => {
+          if (!params?.plaintext) return { encrypted: '' };
+          return { encrypted: encryptApiKey(params.plaintext) };
+        },
 
         getPipelineSnapshot: async () => {
           const snapshot = poller.getSnapshot();
@@ -305,6 +376,71 @@ export function createRpc() {
             return { points: [] };
           }
         },
+
+        getComplianceScores: async (params: GetComplianceScoresParams): Promise<GetComplianceScoresResult> => {
+          // Validar params
+          if (params.featureSlug && !/^[a-z0-9-]+$/.test(params.featureSlug)) {
+            return { scores: [], totalCount: 0 };
+          }
+          const limit = typeof params.limit === 'number' && params.limit > 0 && params.limit <= 500
+            ? params.limit : 100;
+          const offset = typeof params.offset === 'number' && params.offset >= 0
+            ? params.offset : 0;
+
+          const db = getHistoryDb();
+          if (!db) return { scores: [], totalCount: 0 };
+          try {
+            const raw = queryComplianceScores(db, { ...params, limit, offset });
+            return {
+              totalCount: raw.totalCount,
+              scores: raw.scores.map((s) => ({
+                ...s,
+                featureSlug: sanitizeForIpc(s.featureSlug),
+                branch: sanitizeForIpc(s.branch),
+                baseRef: sanitizeForIpc(s.baseRef),
+              })),
+            };
+          } catch (e: any) {
+            console.error('[handlers] getComplianceScores error:', e.message);
+            return { scores: [], totalCount: 0 };
+          }
+        },
+
+        getRejectionPatterns: async (params: GetRejectionPatternsParams): Promise<GetRejectionPatternsResult> => {
+          if (params.featureSlug && !/^[a-z0-9-]+$/.test(params.featureSlug)) {
+            return { records: [], totalCount: 0, aggregates: [] };
+          }
+          if (params.agentId && !(VALID_AGENTS as readonly string[]).includes(params.agentId)) {
+            return { records: [], totalCount: 0, aggregates: [] };
+          }
+          const limit = typeof params.limit === 'number' && params.limit > 0 && params.limit <= 500
+            ? params.limit : 100;
+          const offset = typeof params.offset === 'number' && params.offset >= 0
+            ? params.offset : 0;
+
+          const db = getHistoryDb();
+          if (!db) return { records: [], totalCount: 0, aggregates: [] };
+          try {
+            const raw = queryRejectionPatterns(db, { ...params, limit, offset });
+            return {
+              totalCount: raw.totalCount,
+              records: raw.records.map((r) => ({
+                ...r,
+                agentAtFault: sanitizeForIpc(r.agentAtFault),
+                instructionViolated: sanitizeForIpc(r.instructionViolated),
+              })),
+              aggregates: raw.aggregates.map((a) => ({
+                ...a,
+                mostFrequentViolation: a.mostFrequentViolation !== null
+                  ? sanitizeForIpc(a.mostFrequentViolation)
+                  : null,
+              })),
+            };
+          } catch (e: any) {
+            console.error('[handlers] getRejectionPatterns error:', e.message);
+            return { records: [], totalCount: 0, aggregates: [] };
+          }
+        },
       },
     },
   });
@@ -332,6 +468,27 @@ export function createRpc() {
     } else {
       (rpc as any).send.agentError({ sessionId, error: data || 'Unknown error' });
     }
+  });
+
+  // Wire PipelineRunner events to webview messages
+  pipelineRunner.onStepStart(({ runId, stepIndex }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'running' });
+  });
+
+  pipelineRunner.onStepComplete(({ runId, stepIndex, output }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'completed', output });
+  });
+
+  pipelineRunner.onStepError(({ runId, stepIndex, error }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'failed', error });
+  });
+
+  pipelineRunner.onPipelineComplete(({ runId }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'completed' });
+  });
+
+  pipelineRunner.onPipelineError(({ runId, error }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'failed', error });
   });
 
   return rpc;

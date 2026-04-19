@@ -24,14 +24,18 @@ const agentEntry = path.join(agentDir, 'index.ts');
 class InteractiveClient implements acp.Client {
   async sessionUpdate(params: acp.SessionNotification) {
     const update = params.update;
-    if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text') {
+    if (update.sessionUpdate === 'agent_message_chunk' && update.content?.type === 'text') {
       process.stdout.write(update.content.text);
     }
   }
 
   async requestPermission(params: acp.RequestPermissionRequest): Promise<acp.RequestPermissionResponse> {
     console.log(`\n[Permiso requerido]: ${params.toolCall.title}`);
-    return { outcome: { outcome: 'selected', optionId: params.options[0].optionId } };
+    const firstOption = params.options[0];
+    if (!firstOption) {
+      return { outcome: { outcome: 'cancelled' } };
+    }
+    return { outcome: { outcome: 'selected', optionId: firstOption.optionId } };
   }
 
   async readTextFile(): Promise<acp.ReadTextFileResponse> {
@@ -58,8 +62,8 @@ async function main() {
   });
 
   const stream = acp.ndJsonStream(
-    Writable.toWeb(agentProcess.stdin),
-    Readable.toWeb(agentProcess.stdout)
+    Writable.toWeb(agentProcess.stdin) as unknown as Parameters<typeof acp.ndJsonStream>[0],
+    Readable.toWeb(agentProcess.stdout) as unknown as Parameters<typeof acp.ndJsonStream>[1]
   );
 
   const connection = new acp.ClientSideConnection((_agent) => new InteractiveClient(), stream);

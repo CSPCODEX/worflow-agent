@@ -1,3 +1,9 @@
+---
+name: validate-handoff
+description: Valida que el handoff de un agente está completo y sin campos vacíos antes de invocar al siguiente en el pipeline Leo→Cloe→Max→Ada→Cipher
+argument-hint: "[nombre-feature] [fase: leo|cloe|max|ada]"
+---
+
 # Skill: validate-handoff
 
 Valida que el handoff de un agente esta completo antes de invocar al siguiente. Detecta campos vacios, texto de plantilla sin rellenar, y gaps sin declarar.

@@ -28,8 +28,12 @@ class AcpManager {
   private sessions = new Map<string, Session>();
   private onMessage?: MessageCallback;
 
-  setMessageCallback(cb: MessageCallback) {
+  setMessageCallback(cb: MessageCallback | undefined) {
     this.onMessage = cb;
+  }
+
+  getMessageCallback(): MessageCallback | undefined {
+    return this.onMessage;
   }
 
   async createSession(agentName: string, agentPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> {

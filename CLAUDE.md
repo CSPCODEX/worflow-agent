@@ -1,7 +1,21 @@
 # CLAUDE.md
 
+You only delegate work to the agents; you do not do anything yourself. Do not write a single line of code, not even an example. Your role is exclusively coordination, planning, and supervision of the agents. Whenever the user asks for anything that involves writing code, you must respond with a detailed plan explaining how the agents should implement it, following the established workflow: `@leo` → `@cloe` → `@max` → `@ada` → `@cipher`.
+If the task already exists, the flow is `@cloe` → `@max` → `@ada` → `@cipher` (without going through Ada or Cipher, who only get involved in new features or bugs with security implications).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 Be critical and constructive with your opinions and suggestions; if the user is mistaken, kindly correct them by explaining why and proposing the best solution.
+Never move to the next task without confirming that the previous one is complete and has produced the expected result, following the agent workflow: `@cloe` → `@max` → `@ada` → `@cipher`.
+
+## Project Overview
+
+**FlowTeam** (working title; repo name "worflow-agent") is a **multi-agent orchestration desktop platform** for non-technical users. The core concept: define a team of AI agents with specialized roles, arrange them into pipelines (sequential workflows), and execute tasks collaboratively — all from a visual UI with local models (no API keys required).
+
+The product documentation lives in `docs/product/`:
+- `docs/product/VISION.md` — Mission, target audience, differentiators, business model
+- `docs/product/ROADMAP.md` — Phased roadmap (Prep → MVP → V1 → V2)
+- `docs/product/SPECIFICATIONS.md` — Functional specs, UI flows, IPC contracts, pipeline templates
+- `docs/product/ARCHITECTURE.md` — What to reuse, modify, add; data model; architecture decisions
 
 ## Commands
 
@@ -126,6 +140,38 @@ estan mergeadas en main, cambiando el estado a `MERGEADO` o `ARCHIVADO`. Los age
 estos archivos — si no se sincronizan, pueden dar diagnosticos incorrectos sobre el estado
 del proyecto.
 
+### Sistema de tareas MVP
+
+Las tareas del MVP viven en `docs/tasks/`. Son el punto de entrada para saber qué implementar y en qué orden.
+
+```
+docs/tasks/
+  INDEX.md          ← board completo con todas las tareas, estados y dependencias
+  T-001-*.md        ← cada tarea con descripción, solución técnica y criterios de aceptación
+  T-002-*.md
+  ...
+```
+
+**Reglas para los agentes:**
+
+1. **Antes de implementar** — leer la tarea correspondiente (`T-XXX`). Contiene la solución técnica detallada, archivos afectados y criterios de aceptación.
+
+2. **Al empezar una tarea** — cambiar el `**Status:**` de `TODO` a `IN PROGRESS` en el archivo de la tarea y en `INDEX.md`.
+
+3. **Al terminar una tarea** — cambiar el `**Status:**` a `DONE` y marcar las subtareas completadas (`[x]`). Actualizar también `INDEX.md`.
+
+4. **Si hay un bloqueo** — cambiar a `BLOCKED` y añadir la razón en la sección "Notas" de la tarea.
+
+5. **Respetar dependencias** — no implementar una tarea si sus dependencias no están en `DONE`. Las dependencias están en `INDEX.md` y en cada tarea.
+
+**Orden de implementación recomendado:**
+```
+T-001 → T-002 → T-003 → T-004 → T-005 (Fase 0, secuencial)
+T-006 + T-007 + T-008 (en paralelo, dependen de Fase 0)
+T-009 + T-011 + T-013 (en paralelo)
+T-010 → T-012 (últimas)
+```
+
 ### Agent memory
 
 Each agent maintains persistent memory across sessions. **This is mandatory — not optional.**
@@ -163,53 +209,68 @@ Memory files live at:
 
 ## Architecture
 
+### Current state (pre-pivot)
+
+The codebase is a CLI + desktop app for generating and chatting with individual AI agents. The pivot adds multi-agent orchestration (pipelines) while reusing the existing agent infrastructure.
+
 ### 1. Agent Generator CLI (`src/`)
 
 An interactive CLI tool that scaffolds new AI agents via a step-by-step interview. The flow is:
 
 1. `src/index.ts` — Entry point. Calls `runInterview()` then `generateAgent()`.
-2. `src/cli/prompts.ts` — Collects user config (`AgentConfig`: name, description, role/system-prompt, workspace flag) using `@clack/prompts`.
+2. `src/cli/prompts.ts` — Collects user config (`AgentConfig`: name, description, role/system-prompt, workspace flag, provider, optional API key) using `@clack/prompts`.
 3. `src/cli/validations.ts` — Input validation functions used by the prompts.
-4. `src/generators/agentGenerator.ts` — Creates the agent directory, writes `package.json`, `.env`, optionally a `workspace/` folder, and the main `index.ts` by injecting config into templates. Exports `generateAgentCore()` (no terminal deps) for use by the Electrobun main process.
+4. `src/generators/agentGenerator.ts` — Creates the agent directory, writes `package.json`, `.env`, optionally a `workspace/` folder, and the main `index.ts` by injecting config into templates. Exports `scaffoldAgent()` and `installAgentDeps()` for use by the Electrobun main process.
 5. `src/generators/fileSystem.ts` — Low-level fs helpers; `copyTemplateAndInject()` replaces `{{KEY}}` placeholders in `.tpl` files.
-6. `src/templates/basic-agent/` — Templates (`index.ts.tpl`, `package.json.tpl`) for generated agents. Placeholders: `{{AGENT_NAME}}`, `{{AGENT_DESCRIPTION}}`, `{{AGENT_CLASS}}`, `{{SYSTEM_ROLE}}`.
+6. `src/templates/basic-agent/` — Templates for generated agents: `index.ts.tpl`, `package.json.tpl`, and provider modules (lmstudio, ollama, openai, anthropic, gemini).
 7. `src/utils/logger.ts` — Styled terminal output via `@clack/prompts` and `picocolors`.
 
-Generated agents use `@agentclientprotocol/sdk` (ACP standard) and `@lmstudio/sdk` (LM Studio). They communicate via **stdin/stdout** using `ndJsonStream` — not HTTP. LM Studio must be running locally at `localhost:1234` with a model loaded. The optional `LM_STUDIO_MODEL` env var selects a specific model; if omitted, the first available model is used.
-
-Generated agents support two modes automatically (detected via `process.stdin.isTTY`):
-- **TTY mode** (terminal): interactive REPL with LM Studio directly
+Generated agents use `@agentclientprotocol/sdk` (ACP standard) and support 5 providers via a factory pattern (`providers/factory.ts.tpl`). They communicate via **stdin/stdout** using `ndJsonStream`. Generated agents support two modes (detected via `process.stdin.isTTY`):
+- **TTY mode** (terminal): interactive REPL directly
 - **ACP mode** (subprocess): NDJSON protocol via stdin/stdout
 
-### 2. Electrobun Desktop App (`src/main.ts`, `src/renderer/`)
+### 2. Electrobun Desktop App (`src/desktop/index.ts`, `src/renderer/`)
 
-A cross-platform desktop GUI built with Electrobun (Bun + TypeScript + system webview). **In progress — see `docs/features/electrobun-migration/`.**
+A cross-platform desktop GUI built with Electrobun (Bun + TypeScript + system webview).
 
-- `src/main.ts` — Electrobun main process. Creates the window, registers IPC handlers.
-- `src/ipc/handlers.ts` — RPC handlers: `generateAgent`, `listAgents`, `createSession`, `sendMessage`.
+- `src/desktop/index.ts` — Electrobun main process. Creates the window, registers IPC handlers.
+- `src/ipc/handlers.ts` — RPC handlers: agent CRUD, sessions, conversations, messages, settings, monitor.
+- `src/ipc/handlerLogic.ts` — Business logic extracted from handlers (dependency injection pattern).
 - `src/ipc/acpManager.ts` — Manages active ACP sessions (spawn, connect, stream, cleanup).
-- `src/types/ipc.ts` — Typed contracts for all main ↔ renderer communication.
-- `src/renderer/` — Webview UI: agent list sidebar, create-agent form, chat interface.
+- `src/types/ipc.ts` — Typed contracts for all main ↔ renderer communication (`AppRPC` type).
+- `src/renderer/` — Webview UI: agent list sidebar, create-agent form, chat interface, settings, monitor.
 - `electrobun.config.ts` — Electrobun build configuration.
 
 The desktop app reuses `src/generators/` and `src/cli/validations.ts` without modification. The terminal CLI (`bun run dev`, `bun run chat`) remains fully functional alongside the desktop app.
 
-### 3. `cloe/` — Example Generated Agent
+### 3. Data Layer (`src/db/`)
 
-A concrete agent created by the generator. Demonstrates the expected output structure: `index.ts`, `package.json`, `.env`, `workspace/`. Optionally set `LM_STUDIO_MODEL` in its `.env` to target a specific LM Studio model.
+- `src/db/database.ts` — SQLite initialization with WAL mode and migration system.
+- `src/db/migrations.ts` — Incremental migrations (currently v1-v3).
+- `src/db/agentRepository.ts` — CRUD for agents.
+- `src/db/conversationRepository.ts` — CRUD for conversations and messages.
+- `src/db/settingsRepository.ts` — Key-value settings store.
 
-### 4. Documentation (`docs/`)
+### 4. Monitor / Dev Tools (`src/monitor/`)
 
-Architecture plans and technical specifications written by Leo.
+Internal monitoring system for the development pipeline (Leo→Cloe→Max→Ada→Cipher). Includes poller, history DB, behavior metrics, compliance tracking. **This is meta-tooling, not part of the end-user product.** Will be moved to `src/dev-tools/monitor/` during the pivot.
+
+### 5. `cloe/` — Example Generated Agent
+
+A concrete agent created by the generator. Demonstrates the expected output structure: `index.ts`, `package.json`, `.env`, `workspace/`.
+
+### 6. Documentation (`docs/`)
 
 ```
 docs/
-├── features/
-│   └── <feature-name>/
-│       ├── plan.md           # Architecture, folder structure, priority list
-│       ├── ipc-contracts.md  # Typed IPC contracts
-│       ├── data-flows.md     # End-to-end data flows
-│       └── acceptance.md     # Acceptance criteria checklist
+├── product/                  # Product-level documentation (pivot direction)
+│   ├── VISION.md             # Mission, audience, differentiators, business model
+│   ├── ROADMAP.md            # Phased roadmap with effort estimates
+│   ├── SPECIFICATIONS.md     # Functional specs, UI flows, IPC contracts
+│   └── ARCHITECTURE.md       # Reuse/modify/add analysis, data model, decisions
+├── tasks/                    # MVP task board
+│   ├── INDEX.md              # All tasks with status and dependency graph
+│   └── T-XXX-<slug>.md       # Individual tasks (description, tech solution, acceptance criteria)
 └── bugs/
     └── <id>-<slug>/
         └── status.md         # Created by /bug skill, filled by Max and Cloe
@@ -221,4 +282,7 @@ docs/
 - Generated agents use `bun.lock` and Bun as their runtime as well.
 - The `.env` at the repo root is for the generator itself; each generated agent has its own `.env` with `LM_STUDIO_MODEL` (optional).
 - Do NOT modify `src/index.ts`, `src/client.ts`, or the TTY mode of generated agents — the terminal workflow must remain intact.
-- Windows symlink issue: building Vercel-adapted Astro projects with pnpm on Windows requires Developer Mode enabled.
+- **Local models first:** LM Studio and Ollama are the default providers. Cloud APIs (OpenAI, Anthropic, Gemini) are optional. The product must work fully offline.
+- **Pipeline execution is sequential:** one agent at a time per pipeline run. No concurrency in the MVP. Each step spawns and kills an agent process.
+- **IPC types in `src/types/ipc.ts`:** All new pipeline-related IPC contracts must follow the same typed pattern. See `docs/product/SPECIFICATIONS.md` section 7 for the complete list of new handlers.
+- **SQLite migrations are incremental:** New tables (pipelines, pipeline_steps, pipeline_runs, pipeline_step_runs, pipeline_templates) go in migration v4+. See `docs/product/ARCHITECTURE.md` section 2.1 for the complete schema.

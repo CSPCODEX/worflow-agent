@@ -9,7 +9,29 @@
       "Bash(node:*)",
       "Bash(bun run:*)",
       "Bash(bun build:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(cd:*)",
+      "Bash(grep:*)",
+      "Bash(bun:*)",
+      "Bash(ls:*)",
+      "Bash(git:*)",
+      "Read(//d/work/worflow-agent/tests/async//**)",
+      "Read(//d/work/worflow-agent/tests/unit/monitor//**)",
+      "Read(//d/work/worflow-agent/tests/helpers//**)",
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git switch:*)",
+      "WebSearch",
+      "Bash(xxd)",
+      "Bash(bunx tsc *)",
+      "Bash(npx tsc *)",
+      "Bash(sed -i \"s|from '../../../src/monitor/|from '../../../src/dev-tools/monitor/|g\" /home/carles/work/worflow-agent/tests/unit/monitor/*.ts)",
+      "Bash(sed -i \"s|from '../src/monitor/|from '../src/dev-tools/monitor/|g\" /home/carles/work/worflow-agent/scripts/*.ts)",
+      "Bash(sort -k5 -rh)",
+      "Bash(kill %1)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(gh pr *)"
     ]
   }
 }

@@ -1,3 +1,9 @@
+---
+name: bug
+description: Abre un bug report — crea rama git, docs/bugs/<id>-<slug>/status.md, y encadena el flujo Max→Cloe→Max
+argument-hint: "[descripcion del bug]"
+---
+
 # Skill: bug
 
 Abre un bug report, crea la rama y el status.md, y encadena el flujo Max → Cloe → Max.

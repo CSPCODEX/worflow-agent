@@ -1,5 +1,6 @@
 import { mkdirSync } from 'fs';
 import { validateAgentName } from '../cli/validations';
+import { encryptApiKey, decryptIfNeeded } from '../utils/crypto';
 import type {
   AgentConfig,
   GenerateAgentResult,
@@ -18,21 +19,50 @@ import type {
   SaveSettingsParams,
   SaveSettingsResult,
 } from '../types/ipc';
+import type {
+  CreatePipelineParams,
+  CreatePipelineResult,
+  ListPipelinesResult,
+  GetPipelineParams,
+  GetPipelineResult,
+  UpdatePipelineParams,
+  UpdatePipelineResult,
+  DeletePipelineParams,
+  DeletePipelineResult,
+  ExecutePipelineParams,
+  ExecutePipelineResult,
+  GetPipelineRunParams,
+  GetPipelineRunResult,
+  ListPipelineRunsParams,
+  ListPipelineRunsResult,
+  RetryPipelineRunParams,
+  RetryPipelineRunResult,
+  StopPipelineRunParams,
+  StopPipelineRunResult,
+  ListPipelineTemplatesResult,
+  GetPipelineTemplateParams,
+  GetPipelineTemplateResult,
+} from '../types/pipeline';
 import { settingsRepository } from '../db/settingsRepository';
 import { USER_DATA_DIR } from '../db/userDataDir';
-import type { agentRepository as AgentRepo } from '../db/agentRepository';
+import { agentRepository, type AgentRepository as AgentRepo } from '../db/agentRepository';
 import type { acpManager as AcpMgr } from './acpManager';
 import type { scaffoldAgent as ScaffoldFn, installAgentDeps as InstallFn } from '../generators/agentGenerator';
-import { agentRepository } from '../db/agentRepository';
 import { messageRepository } from '../db/conversationRepository';
+import { pipelineRepository } from '../db/pipelineRepository';
+import { pipelineRunRepository } from '../db/pipelineRunRepository';
+import { pipelineTemplateRepository } from '../db/pipelineTemplateRepository';
+import { pipelineRunner } from './pipelineRunner';
+import { getDatabase } from '../db/database';
 
-const VALID_PROVIDERS: ProviderId[] = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'];
 const VALID_ROLES = ['user', 'assistant', 'system'] as const;
+const VALID_PROVIDERS = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'] as const;
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // --- Dependency injection interfaces ---
 
 export interface GenerateAgentDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findByName' | 'insert'>;
+  agentRepository: Pick<typeof agentRepository, 'findByName' | 'insert'>;
   scaffoldAgent: typeof ScaffoldFn;
   installAgentDeps: typeof InstallFn;
   enhanceAndPersist: (
@@ -48,12 +78,12 @@ export interface GenerateAgentDeps {
 }
 
 export interface CreateSessionDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findByName'>;
+  agentRepository: Pick<typeof agentRepository, 'findByName'>;
   acpManager: Pick<typeof AcpMgr, 'createSession'>;
 }
 
 export interface DeleteAgentDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findById' | 'delete'>;
+  agentRepository: Pick<typeof agentRepository, 'findById' | 'delete'>;
   acpManager: Pick<typeof AcpMgr, 'closeSessionByAgentName'>;
   rmSync: (path: string, options: { recursive: boolean; force: boolean }) => void;
 }
@@ -128,8 +158,45 @@ export async function handleListAgents(): Promise<ListAgentsResult> {
     status: r.status,
     createdAt: r.createdAt,
     provider: (r.provider ?? 'lmstudio') as ProviderId,
+    isDefault: r.isDefault,
   }));
   return { agents };
+}
+
+export async function handleGetAgent(params: { agentId: string }): Promise<{ agent: AgentInfo | null; error?: string }> {
+  if (!params?.agentId?.trim()) return { agent: null, error: 'agentId es requerido' };
+  const record = agentRepository.findById(params.agentId.trim());
+  if (!record) return { agent: null, error: 'Agente no encontrado' };
+  return {
+    agent: {
+      id: record.id,
+      name: record.name,
+      description: record.description,
+      hasWorkspace: record.hasWorkspace,
+      status: record.status,
+      createdAt: record.createdAt,
+      provider: record.provider as ProviderId,
+      isDefault: record.isDefault,
+    },
+  };
+}
+
+export async function handleUpdateAgent(params: { agentId: string; name?: string; description?: string; systemPrompt?: string }): Promise<{ success: boolean; error?: string }> {
+  if (!params?.agentId?.trim()) return { success: false, error: 'agentId es requerido' };
+  if (params.name !== undefined) {
+    const nameError = validateAgentName(params.name);
+    if (nameError) return { success: false, error: nameError };
+  }
+  try {
+    agentRepository.updateAgent(params.agentId.trim(), {
+      name: params.name,
+      description: params.description,
+      systemPrompt: params.systemPrompt,
+    });
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
 }
 
 export async function handleCreateSession(
@@ -205,15 +272,21 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
   try {
     const all = settingsRepository.getAll();
     return {
-      settings: { ...all, dataDir: USER_DATA_DIR },
+      settings: {
+        defaultProvider: all.defaultProvider,
+        defaultProviderConfig: typeof all.defaultProviderConfig === 'string'
+          ? all.defaultProviderConfig
+          : JSON.stringify(all.defaultProviderConfig),
+        dataDir: USER_DATA_DIR,
+      },
     };
   } catch {
     // DB no disponible -- retornar defaults
     return {
       settings: {
-        lmstudioHost: 'ws://127.0.0.1:1234',
-        enhancerModel: '',
         dataDir: USER_DATA_DIR,
+        defaultProvider: 'lmstudio',
+        defaultProviderConfig: '{}',
       },
     };
   }
@@ -222,21 +295,401 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
 export async function handleSaveSettings(
   params: SaveSettingsParams
 ): Promise<SaveSettingsResult> {
-  if (!params?.lmstudioHost?.trim()) {
-    return { success: false, error: 'lmstudioHost no puede estar vacio' };
+  try {
+    if (params.defaultProvider) {
+      settingsRepository.set('default_provider', params.defaultProvider.trim());
+    }
+
+    if (params.defaultProviderConfig !== undefined) {
+      // Normalize API key: decrypt if encrypted (to get plaintext), then encrypt for storage.
+      // This migrates legacy keys (without enc: prefix) to the encrypted format.
+      let configStr = params.defaultProviderConfig;
+      try {
+        const config = JSON.parse(configStr);
+        if (config.apiKey) {
+          // Normalize: decrypt if needed to get plaintext, then encrypt for storage
+          const plaintext = config.apiKey.startsWith('enc:')
+            ? decryptIfNeeded(config.apiKey)
+            : config.apiKey;
+          config.apiKey = encryptApiKey(plaintext);
+        }
+        configStr = JSON.stringify(config);
+      } catch {
+        // Not JSON or parse failed — store as-is
+      }
+      settingsRepository.set('default_provider_config', configStr);
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
   }
-  if (params.lmstudioHost.length > 256) {
-    return { success: false, error: 'lmstudioHost demasiado largo (max 256)' };
-  }
-  if ((params.enhancerModel ?? '').length > 128) {
-    return { success: false, error: 'enhancerModel demasiado largo (max 128)' };
+}
+
+// --- Pipeline CRUD ---
+
+export async function handleCreatePipeline(params: CreatePipelineParams): Promise<CreatePipelineResult> {
+  if (!params?.name?.trim()) return { success: false, error: 'name es requerido' };
+  if (!params?.steps?.length) return { success: false, error: 'Al menos un paso es requerido' };
+
+  for (const s of params.steps) {
+    if (!UUID_V4_REGEX.test(s.agentId)) {
+      return { success: false, error: 'agentId debe ser un UUID v4 valido' };
+    }
   }
 
   try {
-    settingsRepository.set('lmstudio_host', params.lmstudioHost.trim());
-    settingsRepository.set('enhancer_model', (params.enhancerModel ?? '').trim());
+    const db = getDatabase();
+    const result = pipelineRepository.createPipeline(db, {
+      name: params.name.trim(),
+      description: params.description?.trim() ?? '',
+      templateId: params.templateId ?? null,
+      steps: params.steps.map((s) => ({
+        name: s.name,
+        agentId: s.agentId,
+        inputTemplate: s.inputTemplate,
+      })),
+    });
+    return { success: true, pipelineId: result.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleListPipelines(): Promise<ListPipelinesResult> {
+  const db = getDatabase();
+  const pipelines = pipelineRepository.listPipelines(db);
+  return {
+    pipelines: pipelines.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      stepCount: p.stepCount,
+      lastRunAt: p.lastRun ?? null,
+      createdAt: p.createdAt,
+    })),
+  };
+}
+
+export async function handleGetPipeline(params: GetPipelineParams): Promise<GetPipelineResult> {
+  if (!params?.pipelineId?.trim()) return { pipeline: null };
+  const db = getDatabase();
+  const pipeline = pipelineRepository.getPipeline(db, params.pipelineId.trim());
+  if (!pipeline) return { pipeline: null };
+
+  const agentIds = pipeline.steps.map((s) => s.agentId);
+  const agentsMap = agentRepository.findByIds(agentIds);
+
+  return {
+    pipeline: {
+      id: pipeline.id,
+      name: pipeline.name,
+      description: pipeline.description,
+      templateId: pipeline.templateId,
+      steps: pipeline.steps.map((s) => {
+        const agent = agentsMap.get(s.agentId);
+        return {
+          id: s.id,
+          order: s.stepOrder,
+          name: s.name,
+          agentId: s.agentId,
+          agentName: agent?.name ?? 'Unknown',
+          inputTemplate: s.inputTemplate,
+        };
+      }),
+    },
+  };
+}
+
+export async function handleUpdatePipeline(params: UpdatePipelineParams): Promise<UpdatePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+  if (params.steps) {
+    for (const s of params.steps) {
+      if (!UUID_V4_REGEX.test(s.agentId)) {
+        return { success: false, error: 'agentId debe ser un UUID v4 valido' };
+      }
+    }
+  }
+  try {
+    const db = getDatabase();
+    pipelineRepository.updatePipeline(db, params.pipelineId.trim(), {
+      name: params.name?.trim(),
+      description: params.description?.trim(),
+      steps: params.steps?.map((s) => ({
+        name: s.name,
+        agentId: s.agentId,
+        inputTemplate: s.inputTemplate,
+      })),
+    });
     return { success: true };
   } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleDeletePipeline(params: DeletePipelineParams): Promise<DeletePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+  try {
+    const db = getDatabase();
+    pipelineRepository.deletePipeline(db, params.pipelineId.trim());
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// --- Pipeline Execution ---
+
+export async function handleExecutePipeline(params: ExecutePipelineParams): Promise<ExecutePipelineResult> {
+  if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+
+  try {
+    const db = getDatabase();
+    const pipeline = pipelineRepository.getPipeline(db, params.pipelineId.trim());
+    if (!pipeline) return { success: false, error: 'Pipeline no encontrado' };
+
+    const run = pipelineRunRepository.createRun(db, params.pipelineId.trim(), params.variables ?? {});
+
+    // Fire-and-forget: launch runner async, return runId immediately
+    pipelineRunner.execute({
+      pipelineId: params.pipelineId.trim(),
+      variables: params.variables ?? {},
+      runId: run.id,
+    }).catch((e) => console.error('[pipelineRunner] execute error:', e));
+
+    return { success: true, runId: run.id };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleGetPipelineRun(params: GetPipelineRunParams): Promise<GetPipelineRunResult> {
+  if (!params?.runId?.trim()) return { run: null };
+  const db = getDatabase();
+  const run = pipelineRunRepository.getRun(db, params.runId.trim());
+  if (!run) return { run: null };
+
+  const pipeline = pipelineRepository.getPipeline(db, run.pipelineId);
+
+  return {
+    run: {
+      id: run.id,
+      pipelineId: run.pipelineId,
+      pipelineName: pipeline?.name ?? 'Unknown',
+      status: run.status,
+      variables: run.variables,
+      steps: run.stepRuns.map((sr) => ({
+        stepName: sr.agentName,
+        agentName: sr.agentName,
+        status: sr.status,
+        output: sr.output,
+        startedAt: sr.startedAt,
+        completedAt: sr.completedAt,
+      })),
+      startedAt: run.startedAt ?? run.createdAt,
+      completedAt: run.completedAt,
+      error: run.error,
+    },
+  };
+}
+
+export async function handleListPipelineRuns(params: ListPipelineRunsParams): Promise<ListPipelineRunsResult> {
+  if (!params?.pipelineId?.trim()) return { runs: [], totalCount: 0 };
+  const db = getDatabase();
+  const pipelineId = params.pipelineId.trim();
+  const runs = pipelineRunRepository.listRuns(db, pipelineId, params.limit ?? 20, params.offset ?? 0);
+  const total = pipelineRunRepository.countRuns(db, pipelineId);
+  return {
+    runs: runs.map((r) => ({
+      id: r.id,
+      status: r.status,
+      variables: r.variables,
+      startedAt: r.startedAt ?? r.createdAt,
+      completedAt: r.completedAt,
+    })),
+    totalCount: total,
+  };
+}
+
+export async function handleRetryPipelineRun(params: RetryPipelineRunParams): Promise<RetryPipelineRunResult> {
+  if (!params?.runId?.trim()) return { success: false, error: 'runId es requerido' };
+  try {
+    const db = getDatabase();
+    const run = pipelineRunRepository.getRun(db, params.runId.trim());
+    if (!run) return { success: false, error: 'Run no encontrado' };
+
+    const failedStep = run.stepRuns.find((sr) => sr.status === 'failed');
+    const fromStepIndex = failedStep?.stepOrder ?? 0;
+
+    pipelineRunner.resume({ runId: params.runId.trim(), fromStepIndex }).catch((e) =>
+      console.error('[pipelineRunner] resume error:', e)
+    );
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleStopPipelineRun(params: StopPipelineRunParams): Promise<StopPipelineRunResult> {
+  if (!params?.runId?.trim()) return { success: false, error: 'runId es requerido' };
+  try {
+    pipelineRunner.stop(params.runId.trim());
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// --- Templates ---
+
+export async function handleListPipelineTemplates(): Promise<ListPipelineTemplatesResult> {
+  const db = getDatabase();
+  const templates = pipelineTemplateRepository.listTemplates(db);
+  return {
+    templates: templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      category: t.category,
+      stepCount: t.stepCount,
+      isBuiltin: t.isBuiltin,
+      recommendedModel: t.recommendedModel,
+    })),
+  };
+}
+
+export async function handleGetPipelineTemplate(params: GetPipelineTemplateParams): Promise<GetPipelineTemplateResult> {
+  if (!params?.templateId?.trim()) return { template: null };
+  const db = getDatabase();
+  const template = pipelineTemplateRepository.getTemplate(db, params.templateId.trim());
+  if (!template) return { template: null };
+
+  return {
+    template: {
+      id: template.id,
+      name: template.name,
+      description: template.description,
+      category: template.category,
+      variables: template.variables,
+      steps: template.steps,
+      isBuiltin: template.isBuiltin,
+    },
+  };
+}
+
+// --- Onboarding ---
+
+export async function handleGetOnboardingCompleted(): Promise<{ completed: boolean }> {
+  const value = settingsRepository.get('onboarding_completed');
+  return { completed: value === 'true' };
+}
+
+export async function handleSetOnboardingCompleted(completed: boolean): Promise<{ success: boolean }> {
+  try {
+    settingsRepository.set('onboarding_completed', completed ? 'true' : 'false');
+    return { success: true };
+  } catch (e: any) {
+    return { success: false };
+  }
+}
+
+// --- Provider Detection ---
+
+export async function handleDetectLocalProviders(): Promise<{ providers: Array<{ id: string; label: string; available: boolean; host: string }> }> {
+  const providers = [
+    { id: 'lmstudio', label: 'LM Studio', host: 'http://127.0.0.1:1234' },
+    { id: 'ollama', label: 'Ollama', host: 'http://127.0.0.1:11434' },
+  ];
+
+  const results = await Promise.all(
+    providers.map(async (p) => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const endpoint = p.id === 'lmstudio' ? '/v1/models' : '/api/tags';
+        const res = await fetch(p.host + endpoint, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        return { ...p, available: res.ok };
+      } catch {
+        return { ...p, available: false };
+      }
+    })
+  );
+
+  return { providers: results };
+}
+
+export async function handleValidateProviderConnection(params: { providerId: string; apiKey?: string }): Promise<{ success: boolean; error?: string }> {
+  if (!params?.providerId) return { success: false, error: 'providerId es requerido' };
+  if (!VALID_PROVIDERS.includes(params.providerId as ProviderId)) {
+    return { success: false, error: 'Provider no soportado' };
+  }
+
+  // Local providers
+  const localHosts: Record<string, string> = {
+    lmstudio: 'http://127.0.0.1:1234',
+    ollama: 'http://127.0.0.1:11434',
+  };
+
+  const localHost = localHosts[params.providerId];
+  if (localHost) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
+      const localEndpoints: Record<string, string> = {
+        lmstudio: '/v1/models',
+        ollama: '/api/tags',
+      };
+      const endpoint = localEndpoints[params.providerId] ?? '/api/tags';
+      const res = await fetch(localHost + endpoint, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      return { success: res.ok };
+    } catch (e: any) {
+      return { success: false, error: e.message };
+    }
+  }
+
+  // Cloud providers — validate via API
+  const { providerId, apiKey } = params;
+
+  if (!apiKey) return { success: false, error: 'API key requerida para proveedores cloud' };
+
+  // VULNERABILITY FIX: decrypt if encrypted before using in API requests
+  const apiKeyForRequest = apiKey.startsWith('enc:') ? decryptIfNeeded(apiKey) : apiKey;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    let res: Response;
+
+    if (providerId === 'openai') {
+      res = await fetch('https://api.openai.com/v1/models', {
+        headers: { Authorization: `Bearer ${apiKeyForRequest}` },
+        signal: controller.signal,
+      });
+    } else if (providerId === 'anthropic') {
+      // HEAD request to /v1/messages — returns 200 if key is valid
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'HEAD',
+        headers: {
+          'x-api-key': apiKeyForRequest,
+          'anthropic-version': '2023-06-01',
+        },
+        signal: controller.signal,
+      });
+    } else if (providerId === 'gemini') {
+      res = await fetch('https://generativelanguage.googleapis.com/v1/models', {
+        headers: { 'x-goog-api-key': apiKeyForRequest },
+        signal: controller.signal,
+      });
+    } else {
+      return { success: false, error: 'Provider no soportado para validacion' };
+    }
+
+    clearTimeout(timeoutId);
+    return { success: res.ok, error: res.ok ? undefined : `HTTP ${res.status}` };
+  } catch (e: any) {
+    if (e.name === 'AbortError') return { success: false, error: 'Timeout — el servidor no respondio' };
     return { success: false, error: e.message };
   }
 }

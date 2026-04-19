@@ -1,0 +1,41 @@
+{
+  "id": "builtin-data-analyst",
+  "name": "Data Analyst",
+  "description": "Pipeline de análisis de datos en texto. Limpia, estructura, analiza y genera un informe ejecutivo. Recomendado: modelos de 13B o superiores.",
+  "category": "data",
+  "recommendedModel": "13B+",
+  "variables": [
+    {
+      "name": "datos",
+      "label": "Datos a analizar",
+      "type": "textarea",
+      "required": true,
+      "placeholder": "Pega aquí los datos que quieres analizar"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "name": "Limpiador",
+      "agentRoleHint": "limpiador",
+      "inputTemplate": "Limpia y estructura estos datos para análisis. Identifica el formato, corrige inconsistencias:\n\n{{datos}}",
+      "description": "Limpia y estructura los datos"
+    },
+    {
+      "order": 2,
+      "name": "Analista",
+      "agentRoleHint": "analista",
+      "inputTemplate": "Analiza estos datos. Identifica patrones, tendencias, outliers y estadísticas clave:\n\n{{output_paso_1}}",
+      "description": "Analiza los datos y encuentra patrones"
+    },
+    {
+      "order": 3,
+      "name": "Visualizador textual",
+      "agentRoleHint": "visualizador",
+      "inputTemplate": "Crea un informe ejecutivo basado en este análisis. Incluye resumen, hallazgos principales y recomendaciones:\n\n{{output_paso_2}}",
+      "description": "Genera el informe ejecutivo"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "isBuiltin": true
+}

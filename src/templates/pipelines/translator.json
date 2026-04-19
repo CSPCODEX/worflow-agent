@@ -1,0 +1,41 @@
+{
+  "id": "builtin-translator",
+  "name": "Traductor",
+  "description": "Pipeline de traducción con revisión cultural. Traduce manteniendo el tono y estilo original, luego adapta expresiones idiomáticas. Recomendado: modelos de 7B o superiores.",
+  "category": "translation",
+  "recommendedModel": "7B+",
+  "variables": [
+    {
+      "name": "texto",
+      "label": "Texto a traducir",
+      "type": "textarea",
+      "required": true,
+      "placeholder": "Pega aquí el texto que quieres traducir"
+    },
+    {
+      "name": "idioma_destino",
+      "label": "Idioma de destino",
+      "type": "text",
+      "required": true,
+      "placeholder": "Ej: Inglés, Francés, Portugués"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "name": "Traductor",
+      "agentRoleHint": "traductor",
+      "inputTemplate": "Traduce el siguiente texto al {{idioma_destino}}. Mantén el tono y estilo original:\n\n{{texto}}",
+      "description": "Realiza la traducción inicial"
+    },
+    {
+      "order": 2,
+      "name": "Revisor cultural",
+      "agentRoleHint": "revisor-cultural",
+      "inputTemplate": "Revisa esta traducción al {{idioma_destino}}. Ajusta expresiones idiomáticas, tono cultural y fluidez:\n\n{{output_paso_1}}\n\nTexto original:\n{{texto}}",
+      "description": "Revisa y naturaliza la traducción"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "isBuiltin": true
+}

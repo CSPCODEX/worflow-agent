@@ -1,3 +1,10 @@
+---
+name: commit
+description: Genera commits siguiendo Conventional Commits con co-author devlitus. Solo Max puede invocar esta skill.
+disable-model-invocation: true
+argument-hint: "[--push]"
+---
+
 # Skill: commit
 
 Genera commits siguiendo Conventional Commits. **Solo Max puede invocar esta skill.**
@@ -68,7 +75,7 @@ Antes de stagear nada, clasificar TODOS los archivos modificados/nuevos en grupo
 | `docs(skills)` | `.claude/skills/**/*.md` |
 | `docs(features/<slug>)` | `docs/features/<slug>/` |
 | `docs(bugs/<id>)` | `docs/bugs/<id>-*/` |
-| `docs(metrics)` | `docs/metrics/` |
+| `docs(tasks)` | `docs/tasks/` |
 | `chore(config)` | `electrobun.config.ts`, `package.json`, config files |
 
 **Si todos los archivos pertenecen al mismo scope**, crear un unico commit.

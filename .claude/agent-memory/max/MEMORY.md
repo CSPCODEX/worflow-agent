@@ -144,6 +144,8 @@
 - electrobun dev "Bundle failed" no muestra el error real: SIEMPRE correr `bun run tsc --noEmit` para obtener los TS errors exactos
 - Import paths relativos en renderer/components: verificar que resuelven al archivo real — `../types/ipc` desde `components/` es incorrecto, debe ser `../../types/ipc`
 
+- Handlers IPC que retornan queries de texto libre (rejection records, violation strings): SIEMPRE mapear el resultado y aplicar sanitizeForIpc() campo a campo antes de retornar. No basta con usar escapeHtml en el renderer — el IPC corrompe el payload antes de llegar. Detectado en compliance-tracking-diff-rework: handlers.ts:344 retornaba queryRejectionPatterns sin sanitizar instructionViolated/mostFrequentViolation
+- document.getElementById en modulos con closure container: usar container.querySelector para consistencia y seguridad; document.getElementById es fragil si hay multiples instancias o reuse del DOM
 ## Checklist de QA — electrobun-migration
 - Estado: 2/7 verificables estáticamente, 5/7 requieren runtime
 - Build, bundle size y flujos ACP pendientes de verificación con `bun run desktop`

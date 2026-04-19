@@ -1,0 +1,1 @@
+export const OUTPUT_TRUNCATE_LIMIT = 50 * 1024;
