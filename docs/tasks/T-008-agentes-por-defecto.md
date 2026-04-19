@@ -1,6 +1,6 @@
 # T-008 — Agentes por defecto pre-instalados
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 1
 **Agente responsable:** Cloe
 **Depende de:** T-003
@@ -50,10 +50,10 @@ Cada agente se crea con:
 
 ## Subtareas
 
-- [ ] Añadir lógica de seed de los 6 agentes en `src/db/database.ts`
-- [ ] Escribir los system prompts completos basándose en SPECIFICATIONS.md sección 4.3
-- [ ] Verificar que `deleteAgent` en `handlerLogic.ts` rechaza agentes con `is_default = 1`
-- [ ] Verificar que los 6 agentes aparecen en la UI de gestión de agentes (T-011)
+- [x] Añadir lógica de seed de los 6 agentes en `src/db/database.ts`
+- [x] Escribir los system prompts completos basándose en SPECIFICATIONS.md sección 4.3
+- [x] Verificar que `deleteAgent` en `handlerLogic.ts` rechaza agentes con `is_default = 1`
+- [x] Verificar que los 6 agentes aparecen en la UI de gestión de agentes (T-011)
 
 ## Notas
 

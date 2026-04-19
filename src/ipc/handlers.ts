@@ -1,7 +1,8 @@
-import { defineElectrobunRPC } from 'electrobun/bun';
+import { defineElectrobunRPC, Utils } from 'electrobun/bun';
 import { rmSync, existsSync } from 'fs';
 import path, { join } from 'path';
 import type { AppRPC, AgentEnhanceDone, ProviderId, PipelineSnapshotIPC, AgentMetricsIPC, GetHistoryParams, GetHistoryResult, GetAgentTrendsResult, GetAgentTimelineParams, GetAgentTimelineResult, GetAgentBehaviorTimelineParams, GetAgentBehaviorTimelineResult, GetComplianceScoresParams, GetComplianceScoresResult, GetRejectionPatternsParams, GetRejectionPatternsResult } from '../types/ipc';
+import { encryptApiKey } from '../utils/crypto';
 import { scaffoldAgent, installAgentDeps, rewriteAgentIndexTs } from '../generators/agentGenerator';
 import { acpManager } from './acpManager';
 import { AGENTS_DIR, USER_DATA_DIR } from '../db/userDataDir';
@@ -11,14 +12,33 @@ import { enhancePrompt } from '../enhancer/promptEnhancer';
 import {
   handleGenerateAgent,
   handleListAgents,
+  handleGetAgent,
+  handleUpdateAgent,
   handleCreateSession,
   handleSaveMessage,
   handleDeleteAgent,
   handleLoadSettings,
   handleSaveSettings,
+  handleCreatePipeline,
+  handleListPipelines,
+  handleGetPipeline,
+  handleUpdatePipeline,
+  handleDeletePipeline,
+  handleExecutePipeline,
+  handleGetPipelineRun,
+  handleListPipelineRuns,
+  handleRetryPipelineRun,
+  handleStopPipelineRun,
+  handleListPipelineTemplates,
+  handleGetPipelineTemplate,
+  handleDetectLocalProviders,
+  handleValidateProviderConnection,
+  handleGetOnboardingCompleted,
+  handleSetOnboardingCompleted,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../monitor/index';
-import type { PipelineSnapshot } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../dev-tools/monitor/index';
+import type { PipelineSnapshot } from '../dev-tools/monitor/index';
+import { pipelineRunner } from './pipelineRunner';
 
 // Agentes validos del pipeline — usados para whitelisting en handlers IPC.
 const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
@@ -147,6 +167,10 @@ export function createRpc() {
 
         listAgents: async () => handleListAgents(),
 
+        getAgent: async (params) => handleGetAgent(params),
+
+        updateAgent: async (params) => handleUpdateAgent(params),
+
         createSession: async (params) =>
           handleCreateSession(params, { agentRepository, acpManager }),
 
@@ -213,6 +237,47 @@ export function createRpc() {
         loadSettings: async () => handleLoadSettings(),
 
         saveSettings: async (params) => handleSaveSettings(params),
+
+        // --- Pipeline CRUD ---
+        createPipeline: async (params) => handleCreatePipeline(params),
+        listPipelines: async () => handleListPipelines(),
+        getPipeline: async (params) => handleGetPipeline(params),
+        updatePipeline: async (params) => handleUpdatePipeline(params),
+        deletePipeline: async (params) => handleDeletePipeline(params),
+
+        // --- Pipeline Execution ---
+        executePipeline: async (params) => handleExecutePipeline(params),
+        getPipelineRun: async (params) => handleGetPipelineRun(params),
+        listPipelineRuns: async (params) => handleListPipelineRuns(params),
+        retryPipelineRun: async (params) => handleRetryPipelineRun(params),
+        stopPipelineRun: async (params) => handleStopPipelineRun(params),
+
+        // --- Pipeline Templates ---
+        listPipelineTemplates: async () => handleListPipelineTemplates(),
+        getPipelineTemplate: async (params) => handleGetPipelineTemplate(params),
+
+        // --- Provider Detection ---
+        detectLocalProviders: async () => handleDetectLocalProviders(),
+        validateProviderConnection: async (params) => handleValidateProviderConnection(params),
+
+        // --- Onboarding ---
+        getOnboardingCompleted: async () => handleGetOnboardingCompleted(),
+        setOnboardingCompleted: async (params) => handleSetOnboardingCompleted(params.completed),
+
+        // --- Utilities ---
+        openExternal: async (params: { url: string }) => {
+          try {
+            Utils.openExternal(params.url);
+            return { success: true };
+          } catch (e: any) {
+            return { success: false };
+          }
+        },
+
+        encryptApiKey: async (params: { plaintext: string }): Promise<{ encrypted: string }> => {
+          if (!params?.plaintext) return { encrypted: '' };
+          return { encrypted: encryptApiKey(params.plaintext) };
+        },
 
         getPipelineSnapshot: async () => {
           const snapshot = poller.getSnapshot();
@@ -397,6 +462,27 @@ export function createRpc() {
     } else {
       (rpc as any).send.agentError({ sessionId, error: data || 'Unknown error' });
     }
+  });
+
+  // Wire PipelineRunner events to webview messages
+  pipelineRunner.onStepStart(({ runId, stepIndex }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'running' });
+  });
+
+  pipelineRunner.onStepComplete(({ runId, stepIndex, output }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'completed', output });
+  });
+
+  pipelineRunner.onStepError(({ runId, stepIndex, error }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'failed', error });
+  });
+
+  pipelineRunner.onPipelineComplete(({ runId }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'completed' });
+  });
+
+  pipelineRunner.onPipelineError(({ runId, error }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'failed', error });
   });
 
   return rpc;

@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite';
-import type { AgentBehaviorPointIPC } from '../../types/ipc';
+import type { AgentBehaviorPointIPC } from '../../../types/ipc';
 
 interface BehaviorRow {
   agent_id: string;

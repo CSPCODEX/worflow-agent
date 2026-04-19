@@ -1,6 +1,6 @@
 # T-006 — Contratos IPC para pipelines
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 1
 **Agente responsable:** Cloe
 **Depende de:** T-002

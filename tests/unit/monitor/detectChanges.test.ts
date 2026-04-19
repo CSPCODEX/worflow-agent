@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
-import { detectChanges } from '../../../src/monitor/core/changeDetector';
-import type { PipelineSnapshot, FeatureRecord, BugRecord } from '../../../src/monitor/core/types';
+import { detectChanges } from '../../../src/dev-tools/monitor/core/changeDetector';
+import type { PipelineSnapshot, FeatureRecord, BugRecord } from '../../../src/dev-tools/monitor/core/types';
 
 // Helper para construir un snapshot minimo valido
 function makeSnapshot(

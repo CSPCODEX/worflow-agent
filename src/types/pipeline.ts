@@ -205,6 +205,15 @@ export interface RetryPipelineRunResult {
   error?: string;
 }
 
+export interface StopPipelineRunParams {
+  runId: string;
+}
+
+export interface StopPipelineRunResult {
+  success: boolean;
+  error?: string;
+}
+
 export interface ListPipelineTemplatesResult {
   templates: Array<{
     id: string;
@@ -213,6 +222,7 @@ export interface ListPipelineTemplatesResult {
     category: string;
     stepCount: number;
     isBuiltin: boolean;
+    recommendedModel: string | null;
   }>;
 }
 

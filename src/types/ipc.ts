@@ -18,6 +18,8 @@ import type {
   ListPipelineRunsResult,
   RetryPipelineRunParams,
   RetryPipelineRunResult,
+  StopPipelineRunParams,
+  StopPipelineRunResult,
   ListPipelineTemplatesResult,
   GetPipelineTemplateParams,
   GetPipelineTemplateResult,
@@ -60,6 +62,28 @@ export interface AgentInfo {
   id: string;
   createdAt: string;
   provider: ProviderId;
+  isDefault: boolean;
+}
+
+export interface GetAgentParams {
+  agentId: string;
+}
+
+export interface GetAgentResult {
+  agent: AgentInfo | null;
+  error?: string;
+}
+
+export interface UpdateAgentParams {
+  agentId: string;
+  name?: string;
+  description?: string;
+  systemPrompt?: string;
+}
+
+export interface UpdateAgentResult {
+  success: boolean;
+  error?: string;
 }
 
 export interface ListAgentsResult {
@@ -421,6 +445,8 @@ export interface AppSettings {
   lmstudioHost: string;
   enhancerModel: string;
   dataDir: string;          // readonly, valor de USER_DATA_DIR
+  defaultProvider: string;
+  defaultProviderConfig: string;
 }
 
 export interface LoadSettingsResult {
@@ -430,6 +456,8 @@ export interface LoadSettingsResult {
 export interface SaveSettingsParams {
   lmstudioHost: string;
   enhancerModel: string;
+  defaultProvider?: string;
+  defaultProviderConfig?: string;
 }
 
 export interface SaveSettingsResult {
@@ -442,6 +470,8 @@ export type AppRPC = {
     requests: {
       generateAgent: { params: AgentConfig; response: GenerateAgentResult };
       listAgents: { params: undefined; response: ListAgentsResult };
+      getAgent: { params: GetAgentParams; response: GetAgentResult };
+      updateAgent: { params: UpdateAgentParams; response: UpdateAgentResult };
       listProviders: { params: undefined; response: ListProvidersResult };
       createSession: { params: CreateSessionParams; response: CreateSessionResult };
       sendMessage: { params: SendMessageParams; response: SendMessageResult };
@@ -472,12 +502,19 @@ export type AppRPC = {
       getPipelineRun: { params: GetPipelineRunParams; response: GetPipelineRunResult };
       listPipelineRuns: { params: ListPipelineRunsParams; response: ListPipelineRunsResult };
       retryPipelineRun: { params: RetryPipelineRunParams; response: RetryPipelineRunResult };
+      stopPipelineRun: { params: StopPipelineRunParams; response: StopPipelineRunResult };
       // Templates
       listPipelineTemplates: { params: undefined; response: ListPipelineTemplatesResult };
       getPipelineTemplate: { params: GetPipelineTemplateParams; response: GetPipelineTemplateResult };
       // Provider Detection
       detectLocalProviders: { params: undefined; response: DetectLocalProvidersResult };
       validateProviderConnection: { params: ValidateConnectionParams; response: ValidateConnectionResult };
+      // Onboarding
+      getOnboardingCompleted: { params: undefined; response: { completed: boolean } };
+      setOnboardingCompleted: { params: { completed: boolean }; response: { success: boolean } };
+      // Utilities
+      openExternal: { params: { url: string }; response: { success: boolean } };
+      encryptApiKey: { params: { plaintext: string }; response: { encrypted: string } };
     };
     messages: {};
   }>;

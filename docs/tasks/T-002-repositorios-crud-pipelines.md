@@ -1,6 +1,6 @@
 # T-002 — Repositorios CRUD para tablas de pipelines
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 0.1
 **Agente responsable:** Cloe
 **Depende de:** T-001
@@ -39,20 +39,20 @@ Todos los métodos reciben la instancia `db` de SQLite como parámetro (igual qu
 
 ## Criterios de aceptación
 
-- [ ] `pipelineTemplateRepository.ts` exporta todas las funciones listadas
-- [ ] `pipelineRepository.ts` exporta todas las funciones listadas
-- [ ] `pipelineRunRepository.ts` exporta todas las funciones listadas
-- [ ] Las operaciones de create/update/delete que afectan a múltiples tablas usan transacciones
-- [ ] `listPipelines()` devuelve `stepCount` correcto (query con COUNT + JOIN)
-- [ ] `getPipeline()` devuelve los steps ordenados por `step_order`
-- [ ] Los campos JSON (`variables`, `steps` en pipeline_templates) se serializan/deserializan correctamente
+- [x] `pipelineTemplateRepository.ts` exporta todas las funciones listadas
+- [x] `pipelineRepository.ts` exporta todas las funciones listadas
+- [x] `pipelineRunRepository.ts` exporta todas las funciones listadas
+- [x] Las operaciones de create/update/delete que afectan a múltiples tablas usan transacciones
+- [x] `listPipelines()` devuelve `stepCount` correcto (query con COUNT + JOIN)
+- [x] `getPipeline()` devuelve los steps ordenados por `step_order`
+- [x] Los campos JSON (`variables`, `steps` en pipeline_templates) se serializan/deserializan correctamente
 
 ## Subtareas
 
-- [ ] Crear `src/db/pipelineTemplateRepository.ts`
-- [ ] Crear `src/db/pipelineRepository.ts` con transacciones para create/update
-- [ ] Crear `src/db/pipelineRunRepository.ts`
-- [ ] Importar y exponer los repos desde `src/db/database.ts` (o donde se inicializa la DB)
+- [x] Crear `src/db/pipelineTemplateRepository.ts`
+- [x] Crear `src/db/pipelineRepository.ts` con transacciones para create/update
+- [x] Crear `src/db/pipelineRunRepository.ts`
+- [x] Importar y exponer los repos desde `src/db/database.ts` (o donde se inicializa la DB)
 
 ## Notas
 

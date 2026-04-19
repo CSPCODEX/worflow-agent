@@ -1,7 +1,7 @@
 # Bug #006 — RPC timeout al crear agente (solo primera vez)
 
 ## Status
-`verified`
+`DONE`
 
 ## Reported
 2026-03-08

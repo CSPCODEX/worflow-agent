@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { setupHistoryTestDb, teardownHistoryTestDb, getHistoryTestDb } from '../../helpers/testHistoryDb';
-import { queryHistory } from '../../../src/monitor/core/historyRepository';
+import { queryHistory } from '../../../src/dev-tools/monitor/core/historyRepository';
 
 function seedEvents(db: ReturnType<typeof getHistoryTestDb>, events: Array<{
   event_type: string;

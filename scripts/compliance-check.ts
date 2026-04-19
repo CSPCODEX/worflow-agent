@@ -20,7 +20,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { parseLeoContract } from '../src/monitor/core/complianceParser';
+import { parseLeoContract } from '../src/dev-tools/monitor/core/complianceParser';
 
 // ── Parse args ──
 
