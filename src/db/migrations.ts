@@ -120,4 +120,12 @@ export const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS idx_step_runs_run ON pipeline_step_runs(run_id, step_order);
     `,
   },
+  {
+    version: 5,
+    up: `ALTER TABLE agents ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0;`,
+  },
+  {
+    version: 6,
+    up: `ALTER TABLE pipeline_templates ADD COLUMN recommended_model TEXT;`,
+  },
 ];

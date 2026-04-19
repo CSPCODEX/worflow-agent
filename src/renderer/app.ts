@@ -5,6 +5,7 @@ import { renderCreateAgent } from './views/create-agent';
 import { renderChat, type ChatHandle } from './views/chat';
 import { renderSettings } from './views/settings';
 import { renderMonitor, type MonitorViewHandle } from './views/monitor';
+import { renderPipelineList } from './views/pipeline-list';
 
 const rpc = Electroview.defineRPC<AppRPC>({
   handlers: {
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeAgentName: string | null = null;
   let activeSettingsHandle: { cleanup(): void } | null = null;
   let activeMonitorHandle: MonitorViewHandle | null = null;
+  let activePipelineListCleanup: (() => void) | null = null;
 
   function teardownCurrentView() {
     activeChatHandle?.cleanup();
@@ -56,6 +58,10 @@ document.addEventListener('DOMContentLoaded', () => {
     activeSettingsHandle = null;
     activeMonitorHandle?.cleanup();
     activeMonitorHandle = null;
+    if (activePipelineListCleanup) {
+      activePipelineListCleanup();
+      activePipelineListCleanup = null;
+    }
   }
 
   function showCreate() {
@@ -117,6 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(console.error);
   }
 
+  function showPipelineList() {
+    teardownCurrentView();
+    renderPipelineList(mainContentEl);
+  }
+
   btnNewAgent.addEventListener('click', showCreate);
 
   const btnSettings = document.getElementById('btn-settings')!;
@@ -124,6 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btnMonitor = document.getElementById('btn-monitor')!;
   btnMonitor.addEventListener('click', showMonitor);
+
+  const btnNewPipeline = document.getElementById('btn-new-pipeline')!;
+  btnNewPipeline.addEventListener('click', showPipelineList);
+
+  const pipelineSidebarHeader = document.getElementById('pipeline-sidebar-header')!;
+  pipelineSidebarHeader.addEventListener('click', showPipelineList);
 
   // Refresh agent list when an agent is created
   document.addEventListener('agent:created', () => {

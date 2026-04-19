@@ -464,6 +464,7 @@ export async function handleListPipelineTemplates(): Promise<ListPipelineTemplat
       category: t.category,
       stepCount: t.stepCount,
       isBuiltin: t.isBuiltin,
+      recommendedModel: t.recommendedModel,
     })),
   };
 }
@@ -480,8 +481,8 @@ export async function handleGetPipelineTemplate(params: GetPipelineTemplateParam
       name: template.name,
       description: template.description,
       category: template.category,
-      variables: template.variables as any,
-      steps: template.steps as any,
+      variables: template.variables,
+      steps: template.steps,
       isBuiltin: template.isBuiltin,
     },
   };

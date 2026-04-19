@@ -68,8 +68,8 @@ function seedBuiltinTemplates(db: Database): void {
 
   for (const template of builtinTemplates) {
     db.run(
-      `INSERT OR IGNORE INTO pipeline_templates (id, name, description, category, variables, steps, is_builtin, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO pipeline_templates (id, name, description, category, variables, steps, is_builtin, recommended_model, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         template.id,
         template.name,
@@ -78,6 +78,7 @@ function seedBuiltinTemplates(db: Database): void {
         JSON.stringify(template.variables),
         JSON.stringify(template.steps),
         1,
+        template.recommendedModel ?? null,
         template.createdAt,
       ]
     );

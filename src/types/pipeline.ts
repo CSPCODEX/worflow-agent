@@ -213,6 +213,7 @@ export interface ListPipelineTemplatesResult {
     category: string;
     stepCount: number;
     isBuiltin: boolean;
+    recommendedModel: string | null;
   }>;
 }
 
