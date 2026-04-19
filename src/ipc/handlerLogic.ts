@@ -45,10 +45,9 @@ import type {
 } from '../types/pipeline';
 import { settingsRepository } from '../db/settingsRepository';
 import { USER_DATA_DIR } from '../db/userDataDir';
-import type { agentRepository as AgentRepo } from '../db/agentRepository';
+import { agentRepository, type AgentRepository as AgentRepo } from '../db/agentRepository';
 import type { acpManager as AcpMgr } from './acpManager';
 import type { scaffoldAgent as ScaffoldFn, installAgentDeps as InstallFn } from '../generators/agentGenerator';
-import { agentRepository } from '../db/agentRepository';
 import { messageRepository } from '../db/conversationRepository';
 import { pipelineRepository } from '../db/pipelineRepository';
 import { pipelineRunRepository } from '../db/pipelineRunRepository';
@@ -57,11 +56,13 @@ import { pipelineRunner } from './pipelineRunner';
 import { getDatabase } from '../db/database';
 
 const VALID_ROLES = ['user', 'assistant', 'system'] as const;
+const VALID_PROVIDERS = ['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'] as const;
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 // --- Dependency injection interfaces ---
 
 export interface GenerateAgentDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findByName' | 'insert'>;
+  agentRepository: Pick<typeof agentRepository, 'findByName' | 'insert'>;
   scaffoldAgent: typeof ScaffoldFn;
   installAgentDeps: typeof InstallFn;
   enhanceAndPersist: (
@@ -77,12 +78,12 @@ export interface GenerateAgentDeps {
 }
 
 export interface CreateSessionDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findByName'>;
+  agentRepository: Pick<typeof agentRepository, 'findByName'>;
   acpManager: Pick<typeof AcpMgr, 'createSession'>;
 }
 
 export interface DeleteAgentDeps {
-  agentRepository: Pick<typeof AgentRepo, 'findById' | 'delete'>;
+  agentRepository: Pick<typeof agentRepository, 'findById' | 'delete'>;
   acpManager: Pick<typeof AcpMgr, 'closeSessionByAgentName'>;
   rmSync: (path: string, options: { recursive: boolean; force: boolean }) => void;
 }
@@ -98,7 +99,7 @@ export async function handleGenerateAgent(
   const nameError = validateAgentName(config.name);
   if (nameError) return { success: false, error: nameError };
 
-  if (config.provider && !(['lmstudio', 'ollama', 'openai', 'anthropic', 'gemini'] as const).includes(config.provider as ProviderId)) {
+  if (config.provider && !VALID_PROVIDERS.includes(config.provider as ProviderId)) {
     return { success: false, error: `Proveedor invalido: "${config.provider}".` };
   }
 
@@ -272,8 +273,6 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
     const all = settingsRepository.getAll();
     return {
       settings: {
-        lmstudioHost: all.lmstudioHost,
-        enhancerModel: all.enhancerModel,
         defaultProvider: all.defaultProvider,
         defaultProviderConfig: typeof all.defaultProviderConfig === 'string'
           ? all.defaultProviderConfig
@@ -285,8 +284,6 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
     // DB no disponible -- retornar defaults
     return {
       settings: {
-        lmstudioHost: 'ws://127.0.0.1:1234',
-        enhancerModel: '',
         dataDir: USER_DATA_DIR,
         defaultProvider: 'lmstudio',
         defaultProviderConfig: '{}',
@@ -298,20 +295,7 @@ export async function handleLoadSettings(): Promise<LoadSettingsResult> {
 export async function handleSaveSettings(
   params: SaveSettingsParams
 ): Promise<SaveSettingsResult> {
-  if (!params?.lmstudioHost?.trim()) {
-    return { success: false, error: 'lmstudioHost no puede estar vacio' };
-  }
-  if (params.lmstudioHost.length > 256) {
-    return { success: false, error: 'lmstudioHost demasiado largo (max 256)' };
-  }
-  if ((params.enhancerModel ?? '').length > 128) {
-    return { success: false, error: 'enhancerModel demasiado largo (max 128)' };
-  }
-
   try {
-    settingsRepository.set('lmstudio_host', params.lmstudioHost.trim());
-    settingsRepository.set('enhancer_model', (params.enhancerModel ?? '').trim());
-
     if (params.defaultProvider) {
       settingsRepository.set('default_provider', params.defaultProvider.trim());
     }
@@ -348,6 +332,12 @@ export async function handleCreatePipeline(params: CreatePipelineParams): Promis
   if (!params?.name?.trim()) return { success: false, error: 'name es requerido' };
   if (!params?.steps?.length) return { success: false, error: 'Al menos un paso es requerido' };
 
+  for (const s of params.steps) {
+    if (!UUID_V4_REGEX.test(s.agentId)) {
+      return { success: false, error: 'agentId debe ser un UUID v4 valido' };
+    }
+  }
+
   try {
     const db = getDatabase();
     const result = pipelineRepository.createPipeline(db, {
@@ -376,7 +366,6 @@ export async function handleListPipelines(): Promise<ListPipelinesResult> {
       description: p.description,
       stepCount: p.stepCount,
       lastRunAt: p.lastRun ?? null,
-      lastRunStatus: null,
       createdAt: p.createdAt,
     })),
   };
@@ -414,6 +403,13 @@ export async function handleGetPipeline(params: GetPipelineParams): Promise<GetP
 
 export async function handleUpdatePipeline(params: UpdatePipelineParams): Promise<UpdatePipelineResult> {
   if (!params?.pipelineId?.trim()) return { success: false, error: 'pipelineId es requerido' };
+  if (params.steps) {
+    for (const s of params.steps) {
+      if (!UUID_V4_REGEX.test(s.agentId)) {
+        return { success: false, error: 'agentId debe ser un UUID v4 valido' };
+      }
+    }
+  }
   try {
     const db = getDatabase();
     pipelineRepository.updatePipeline(db, params.pipelineId.trim(), {
@@ -625,6 +621,9 @@ export async function handleDetectLocalProviders(): Promise<{ providers: Array<{
 
 export async function handleValidateProviderConnection(params: { providerId: string; apiKey?: string }): Promise<{ success: boolean; error?: string }> {
   if (!params?.providerId) return { success: false, error: 'providerId es requerido' };
+  if (!VALID_PROVIDERS.includes(params.providerId as ProviderId)) {
+    return { success: false, error: 'Provider no soportado' };
+  }
 
   // Local providers
   const localHosts: Record<string, string> = {
@@ -679,7 +678,8 @@ export async function handleValidateProviderConnection(params: { providerId: str
         signal: controller.signal,
       });
     } else if (providerId === 'gemini') {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKeyForRequest}`, {
+      res = await fetch('https://generativelanguage.googleapis.com/v1/models', {
+        headers: { 'x-goog-api-key': apiKeyForRequest },
         signal: controller.signal,
       });
     } else {

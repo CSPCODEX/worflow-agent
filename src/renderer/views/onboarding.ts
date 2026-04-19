@@ -95,7 +95,7 @@ export function renderOnboarding(
           </div>
         `;
 
-      case 3:
+      case 3: {
         const hasProvider = providersDetected.some((p) => p.available);
         const providerLabels = providersDetected
           .filter((p) => p.available)
@@ -130,6 +130,7 @@ export function renderOnboarding(
             </div>
           </div>
         `;
+      }
 
       default:
         return '';

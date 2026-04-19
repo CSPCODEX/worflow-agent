@@ -1,5 +1,6 @@
 import { renderPipelineBuilder } from './pipeline-builder';
 import { renderTemplateSelector } from './pipeline-template-selector';
+import { showConfirmDialog } from '../components/confirm-dialog';
 import { escapeHtml } from '../utils/html';
 
 interface PipelineListItem {
@@ -8,47 +9,7 @@ interface PipelineListItem {
   description: string;
   stepCount: number;
   lastRunAt: string | null;
-  lastRunStatus: string | null;
   createdAt: string;
-}
-
-function showConfirm(title: string, message: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'confirm-dialog-overlay';
-    overlay.innerHTML = `
-      <div class="confirm-dialog">
-        <div class="confirm-dialog-title">${escapeHtml(title)}</div>
-        <div class="confirm-dialog-message">${escapeHtml(message)}</div>
-        <div class="confirm-dialog-actions">
-          <button id="confirm-cancel" class="btn-secondary">Cancelar</button>
-          <button id="confirm-ok" class="btn-danger">Eliminar</button>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    const cancelBtn = overlay.querySelector<HTMLButtonElement>('#confirm-cancel')!;
-    const okBtn = overlay.querySelector<HTMLButtonElement>('#confirm-ok')!;
-
-    cancelBtn.addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve(false);
-    });
-
-    okBtn.addEventListener('click', () => {
-      document.body.removeChild(overlay);
-      resolve(true);
-    });
-
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) {
-        document.body.removeChild(overlay);
-        resolve(false);
-      }
-    });
-  });
 }
 
 export interface PipelineListCallbacks {
@@ -147,23 +108,22 @@ export function renderPipelineList(container: HTMLElement, callbacks?: PipelineL
 
     // Delete button handlers
     contentEl.querySelectorAll<HTMLButtonElement>('.btn-pipeline-delete').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', () => {
         const id = btn.dataset.pipelineId!;
         const pipeline = pipelines.find((p) => p.id === id);
-        const confirmed = await showConfirm(
-          'Eliminar Pipeline',
-          `Estas seguro de que quieres eliminar "${pipeline?.name || id}"? Esta accion no se puede deshacer.`
-        );
-        if (!confirmed) return;
-
-        try {
-          const result = await rpc.request.deletePipeline({ pipelineId: id });
-          if (result.success) {
-            await loadPipelines();
-          }
-        } catch (e: any) {
-          console.error('Error deleting pipeline:', e);
-        }
+        showConfirmDialog({
+          title: 'Eliminar Pipeline',
+          message: `Estas seguro de que quieres eliminar "${pipeline?.name || id}"? Esta accion no se puede deshacer.`,
+          onConfirm: async () => {
+            try {
+              const result = await rpc.request.deletePipeline({ pipelineId: id });
+              if (result.success) await loadPipelines();
+            } catch (e: any) {
+              console.error('Error deleting pipeline:', e);
+            }
+          },
+          onCancel: () => {},
+        });
       });
     });
 

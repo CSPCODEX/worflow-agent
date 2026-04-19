@@ -31,6 +31,9 @@ export interface AgentRecord {
   isDefault: boolean;
 }
 
+/** Type alias so consumers can import a single type name for the repository interface. */
+export type AgentRepository = AgentRecord;
+
 function rowToRecord(row: AgentRow): AgentRecord {
   return {
     id: row.id,
