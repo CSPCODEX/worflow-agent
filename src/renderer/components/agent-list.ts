@@ -1,5 +1,6 @@
 import type { AgentInfo } from '../../types/ipc';
 import { showConfirmDialog } from './confirm-dialog';
+import { showToast } from '../utils/toast';
 
 type SelectCallback = (agent: AgentInfo) => void;
 type EditCallback = (agent: AgentInfo) => void;
@@ -43,11 +44,17 @@ export function renderAgentList(container: HTMLElement, onSelect: SelectCallback
           ${isBroken ? '<div class="agent-item-broken-badge">Sin conexion</div>' : ''}
           ${!agent.isDefault && !isBroken ? `<button class="agent-item-delete" title="Eliminar agente" data-agent-id="${agent.id}" data-agent-name="${escapeHtml(agent.name)}">Eliminar</button>` : ''}
         `;
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
           if ((e.target as HTMLElement).classList.contains('agent-item-delete')) return;
           if (isBroken) return;
           listItems.querySelectorAll('.agent-item').forEach(el => el.classList.remove('active'));
           item.classList.add('active');
+          try {
+            await navigator.clipboard.writeText(agent.id);
+            showToast('ID copiado');
+          } catch {
+            // Silently fail if clipboard is not available
+          }
           onEdit(agent);
         });
         const deleteBtn = item.querySelector<HTMLButtonElement>('.agent-item-delete');

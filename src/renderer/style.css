@@ -524,6 +524,27 @@ body {
   cursor: not-allowed;
 }
 
+#toast-notification {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: #1a1a2e;
+  color: #e0e0e0;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.25s ease-out;
+  pointer-events: none;
+  border: 1px solid #333;
+}
+#toast-notification.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* Agent list items */
 .agent-item-provider {
   font-size: 10px;

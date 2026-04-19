@@ -31,7 +31,9 @@
       "Bash(sort -k5 -rh)",
       "Bash(kill %1)",
       "Bash(echo \"Exit: $?\")",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(xdg-open \"/home/carles/Imágenes/Captura de pantalla de 2026-04-19 16-43-07.png\")",
+      "Bash(identify -verbose \"/home/carles/Imágenes/Captura de pantalla de 2026-04-19 16-43-07.png\")"
     ]
   }
 }
