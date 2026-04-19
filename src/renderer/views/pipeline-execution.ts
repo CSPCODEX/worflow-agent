@@ -22,7 +22,7 @@ interface StepDisplayState {
   completedAt: string | null;
 }
 
-export function renderPipelineExecution(container: HTMLElement, params: PipelineExecutionParams) {
+export function renderPipelineExecution(container: HTMLElement, params: PipelineExecutionParams): { cleanup(): void } {
   const rpc = (window as any).appRpc;
 
   let stepStates: StepDisplayState[] = [];
@@ -221,8 +221,8 @@ export function renderPipelineExecution(container: HTMLElement, params: Pipeline
     }
   };
 
-  (window as any).appRpc?.messages?.pipelineRunStepUpdated?.subscribe(msgHandler);
-  (window as any).appRpc?.messages?.pipelineRunCompleted?.subscribe(msgHandler);
+  const unsubStep = (window as any).appRpc?.messages?.pipelineRunStepUpdated?.subscribe(msgHandler);
+  const unsubCompleted = (window as any).appRpc?.messages?.pipelineRunCompleted?.subscribe(msgHandler);
 
   stopBtn.addEventListener('click', async () => {
     if (!currentRunId) return;
@@ -331,6 +331,13 @@ export function renderPipelineExecution(container: HTMLElement, params: Pipeline
   } else {
     startExecution({});
   }
+
+  return {
+    cleanup() {
+      if (typeof unsubStep === 'function') unsubStep();
+      if (typeof unsubCompleted === 'function') unsubCompleted();
+    },
+  };
 }
 
 // Show variables modal before execution

@@ -285,9 +285,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const result = await rpc.request.getPipeline({ pipelineId });
       if (result.pipeline) {
+        let variables: Array<{ name: string; label: string; type: string; required: boolean; placeholder?: string }> = [];
+
+        if (result.pipeline.templateId) {
+          const templateResult = await rpc.request.getPipelineTemplate({ templateId: result.pipeline.templateId });
+          variables = templateResult.template?.variables ?? [];
+        }
+
         pipelineInfo = {
           name: result.pipeline.name,
-          variables: result.pipeline.variables || [],
+          variables,
         };
       }
     } catch (e) {
@@ -307,13 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showPipelineList();
     };
 
-    renderPipelineExecution(mainContentEl, {
+    const handle = renderPipelineExecution(mainContentEl, {
       pipelineId,
       pipelineName: pipelineInfo.name,
       variables: pipelineInfo.variables,
       onComplete: handleComplete,
       onCancel: handleCancel,
     });
+    activePipelineExecutionCleanup = handle.cleanup;
   }
 
   function showPipelineResults(runId: string) {
