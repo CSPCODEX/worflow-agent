@@ -1,6 +1,6 @@
 # T-010 — UI — Vista de ejecución en tiempo real
 
-**Status:** TODO
+**Status:** DONE
 **Phase:** Fase 1
 **Agente responsable:** Cloe
 **Depende de:** T-009, T-004
@@ -64,13 +64,13 @@ UI durante ejecución:
 
 ## Subtareas
 
-- [ ] Crear `src/renderer/views/pipeline-execution.ts` con modal de variables y vista de pasos
-- [ ] Implementar escucha de mensajes push `pipelineRunStepUpdated` y `pipelineRunCompleted`
-- [ ] Crear `src/renderer/views/pipeline-results.ts` con output final y pasos intermedios
-- [ ] Crear `src/renderer/views/pipeline-history.ts` con tabla de ejecuciones
-- [ ] Implementar streaming de output en tiempo real (acumular chunks del `pipelineRunStepUpdated`)
-- [ ] Añadir "Copiar al portapapeles" con `navigator.clipboard.writeText()`
-- [ ] Actualizar `src/renderer/style.css` con estilos para estados de pasos (pendiente/ejecutando/completado/error)
+- [x] Crear `src/renderer/views/pipeline-execution.ts` con modal de variables y vista de pasos
+- [x] Implementar escucha de mensajes push `pipelineRunStepUpdated` y `pipelineRunCompleted`
+- [x] Crear `src/renderer/views/pipeline-results.ts` con output final y pasos intermedios
+- [x] Crear `src/renderer/views/pipeline-history.ts` con tabla de ejecuciones
+- [x] Implementar streaming de output en tiempo real (acumular chunks del `pipelineRunStepUpdated`)
+- [x] Añadir "Copiar al portapapeles" con `navigator.clipboard.writeText()`
+- [x] Actualizar `src/renderer/style.css` con estilos para estados de pasos (pendiente/ejecutando/completado/error)
 
 ## Notas
 

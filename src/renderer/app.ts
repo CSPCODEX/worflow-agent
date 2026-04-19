@@ -6,6 +6,9 @@ import { renderChat, type ChatHandle } from './views/chat';
 import { renderSettings } from './views/settings';
 import { renderMonitor, type MonitorViewHandle } from './views/monitor';
 import { renderPipelineList } from './views/pipeline-list';
+import { renderPipelineExecution } from './views/pipeline-execution';
+import { renderPipelineResults } from './views/pipeline-results';
+import { renderPipelineHistory } from './views/pipeline-history';
 
 const rpc = Electroview.defineRPC<AppRPC>({
   handlers: {
@@ -49,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeSettingsHandle: { cleanup(): void } | null = null;
   let activeMonitorHandle: MonitorViewHandle | null = null;
   let activePipelineListCleanup: (() => void) | null = null;
+  let activePipelineExecutionCleanup: (() => void) | null = null;
 
   function teardownCurrentView() {
     activeChatHandle?.cleanup();
@@ -61,6 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activePipelineListCleanup) {
       activePipelineListCleanup();
       activePipelineListCleanup = null;
+    }
+    if (activePipelineExecutionCleanup) {
+      activePipelineExecutionCleanup();
+      activePipelineExecutionCleanup = null;
     }
   }
 
@@ -128,6 +136,80 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPipelineList(mainContentEl);
   }
 
+  async function showPipelineExecution(pipelineId: string) {
+    teardownCurrentView();
+    const rpc = (window as any).appRpc;
+    let pipelineInfo: { name: string; variables: Array<{ name: string; label: string; type: string; required: boolean; placeholder?: string }> } | null = null;
+
+    try {
+      const result = await rpc.request.getPipeline({ pipelineId });
+      if (result.pipeline) {
+        pipelineInfo = {
+          name: result.pipeline.name,
+          variables: result.pipeline.variables || [],
+        };
+      }
+    } catch (e) {
+      console.error('Error loading pipeline:', e);
+    }
+
+    if (!pipelineInfo) {
+      mainContentEl.innerHTML = '<div class="empty-state"><p>Pipeline no encontrado.</p></div>';
+      return;
+    }
+
+    let cleanupFn: (() => void) | null = null;
+
+    const handleComplete = (runId: string) => {
+      // Navigate to results after completion
+      showPipelineResults(runId);
+    };
+
+    const handleCancel = () => {
+      showPipelineList();
+    };
+
+    renderPipelineExecution(mainContentEl, {
+      pipelineId,
+      pipelineName: pipelineInfo.name,
+      variables: pipelineInfo.variables,
+      onComplete: handleComplete,
+      onCancel: handleCancel,
+    });
+
+    // Store cleanup function from render return (if any)
+    // The renderPipelineExecution handles its own lifecycle
+  }
+
+  function showPipelineResults(runId: string) {
+    teardownCurrentView();
+    renderPipelineResults(mainContentEl, {
+      runId,
+      isHistory: false,
+      onRerun: () => {
+        // Re-run: go back to pipeline list to select again
+        showPipelineList();
+      },
+      onBack: () => {
+        showPipelineList();
+      },
+    });
+  }
+
+  function showPipelineHistory(pipelineId: string, pipelineName: string) {
+    teardownCurrentView();
+    renderPipelineHistory(mainContentEl, {
+      pipelineId,
+      pipelineName,
+      onSelectRun: (runId: string) => {
+        showPipelineResults(runId);
+      },
+      onBack: () => {
+        showPipelineList();
+      },
+    });
+  }
+
   btnNewAgent.addEventListener('click', showCreate);
 
   const btnSettings = document.getElementById('btn-settings')!;
@@ -160,4 +242,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   renderAgentList(agentListEl, showChat);
+
+  // Expose pipeline navigation functions to window for use by views
+  (window as any).showPipelineExecution = showPipelineExecution;
+  (window as any).showPipelineResults = showPipelineResults;
+  (window as any).showPipelineHistory = showPipelineHistory;
 });

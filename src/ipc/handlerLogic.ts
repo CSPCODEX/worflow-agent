@@ -36,6 +36,8 @@ import type {
   ListPipelineRunsResult,
   RetryPipelineRunParams,
   RetryPipelineRunResult,
+  StopPipelineRunParams,
+  StopPipelineRunResult,
   ListPipelineTemplatesResult,
   GetPipelineTemplateParams,
   GetPipelineTemplateResult,
@@ -445,6 +447,16 @@ export async function handleRetryPipelineRun(params: RetryPipelineRunParams): Pr
     pipelineRunner.resume({ runId: params.runId.trim(), fromStepIndex: 0 }).catch((e) =>
       console.error('[pipelineRunner] resume error:', e)
     );
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function handleStopPipelineRun(params: StopPipelineRunParams): Promise<StopPipelineRunResult> {
+  if (!params?.runId?.trim()) return { success: false, error: 'runId es requerido' };
+  try {
+    pipelineRunner.stop(params.runId.trim());
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };

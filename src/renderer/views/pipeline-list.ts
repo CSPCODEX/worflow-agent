@@ -97,6 +97,19 @@ export function renderPipelineList(container: HTMLElement) {
               </div>
             </div>
             <div class="pipeline-item-actions">
+              <button class="btn-pipeline-execute" data-pipeline-id="${escapeHtml(p.id)}" title="Ejecutar">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M4 2l8 5-8 5V2z" fill="currentColor"/>
+                </svg>
+                Ejecutar
+              </button>
+              <button class="btn-pipeline-history" data-pipeline-id="${escapeHtml(p.id)}" data-pipeline-name="${escapeHtml(p.name)}" title="Historial">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+                  <path d="M7 4v3.5l2.5 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                </svg>
+                Historial
+              </button>
               <button class="btn-pipeline-edit" data-pipeline-id="${escapeHtml(p.id)}" title="Editar">
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <path d="M10 2l2 2-7 7H3v-2l7-7z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
@@ -140,6 +153,29 @@ export function renderPipelineList(container: HTMLElement) {
           }
         } catch (e: any) {
           console.error('Error deleting pipeline:', e);
+        }
+      });
+    });
+
+    // Execute button handlers
+    contentEl.querySelectorAll<HTMLButtonElement>('.btn-pipeline-execute').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.pipelineId!;
+        const navFn = (window as any).showPipelineExecution;
+        if (navFn) {
+          navFn(id);
+        }
+      });
+    });
+
+    // History button handlers
+    contentEl.querySelectorAll<HTMLButtonElement>('.btn-pipeline-history').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.pipelineId!;
+        const name = btn.dataset.pipelineName || '';
+        const navFn = (window as any).showPipelineHistory;
+        if (navFn) {
+          navFn(id, name);
         }
       });
     });

@@ -18,6 +18,8 @@ import type {
   ListPipelineRunsResult,
   RetryPipelineRunParams,
   RetryPipelineRunResult,
+  StopPipelineRunParams,
+  StopPipelineRunResult,
   ListPipelineTemplatesResult,
   GetPipelineTemplateParams,
   GetPipelineTemplateResult,
@@ -472,6 +474,7 @@ export type AppRPC = {
       getPipelineRun: { params: GetPipelineRunParams; response: GetPipelineRunResult };
       listPipelineRuns: { params: ListPipelineRunsParams; response: ListPipelineRunsResult };
       retryPipelineRun: { params: RetryPipelineRunParams; response: RetryPipelineRunResult };
+      stopPipelineRun: { params: StopPipelineRunParams; response: StopPipelineRunResult };
       // Templates
       listPipelineTemplates: { params: undefined; response: ListPipelineTemplatesResult };
       getPipelineTemplate: { params: GetPipelineTemplateParams; response: GetPipelineTemplateResult };

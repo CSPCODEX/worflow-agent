@@ -25,6 +25,7 @@ import {
   handleGetPipelineRun,
   handleListPipelineRuns,
   handleRetryPipelineRun,
+  handleStopPipelineRun,
   handleListPipelineTemplates,
   handleGetPipelineTemplate,
   handleDetectLocalProviders,
@@ -240,6 +241,7 @@ export function createRpc() {
         getPipelineRun: async (params) => handleGetPipelineRun(params),
         listPipelineRuns: async (params) => handleListPipelineRuns(params),
         retryPipelineRun: async (params) => handleRetryPipelineRun(params),
+        stopPipelineRun: async (params) => handleStopPipelineRun(params),
 
         // --- Pipeline Templates ---
         listPipelineTemplates: async () => handleListPipelineTemplates(),
