@@ -1,0 +1,41 @@
+{
+  "id": "builtin-code-review",
+  "name": "Code Review",
+  "description": "Pipeline de revisión y mejora de código. Identifica bugs, code smells y problemas de seguridad, luego refactoriza. Recomendado: modelos de 7B fine-tuned para código.",
+  "category": "code",
+  "recommendedModel": "7B (code fine-tuned)",
+  "variables": [
+    {
+      "name": "codigo",
+      "label": "Código a revisar",
+      "type": "code",
+      "required": true,
+      "placeholder": "Pega aquí el código que quieres revisar"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "name": "Auditor",
+      "agentRoleHint": "auditor",
+      "inputTemplate": "Analiza este código. Identifica bugs, code smells, y problemas de seguridad:\n\n{{codigo}}",
+      "description": "Analiza el código y detecta problemas"
+    },
+    {
+      "order": 2,
+      "name": "Refactorizador",
+      "agentRoleHint": "refactorizador",
+      "inputTemplate": "Refactoriza este código abordando estos problemas:\n\nCódigo original:\n{{codigo}}\n\nProblemas:\n{{output_paso_1}}",
+      "description": "Refactoriza el código solucionando los problemas"
+    },
+    {
+      "order": 3,
+      "name": "Verificador",
+      "agentRoleHint": "verificador",
+      "inputTemplate": "Verifica que este código refactorizado es correcto y mejora al original:\n\nOriginal:\n{{codigo}}\n\nRefactorizado:\n{{output_paso_2}}",
+      "description": "Verifica que la refactorización es correcta"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "isBuiltin": true
+}

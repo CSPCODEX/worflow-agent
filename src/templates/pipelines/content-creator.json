@@ -1,0 +1,41 @@
+{
+  "id": "builtin-content-creator",
+  "name": "Content Creator",
+  "description": "Pipeline de creación de contenido que toma un tema y produce un artículo pulido. Recomendado: modelos de 13B o superiores.",
+  "category": "content",
+  "recommendedModel": "13B+",
+  "variables": [
+    {
+      "name": "tema",
+      "label": "Tema del artículo",
+      "type": "text",
+      "required": true,
+      "placeholder": "Ej: Inteligencia artificial en educación"
+    }
+  ],
+  "steps": [
+    {
+      "order": 1,
+      "name": "Investigador",
+      "agentRoleHint": "investigador",
+      "inputTemplate": "Investiga sobre {{tema}}. Busca los puntos clave, datos relevantes y tendencias actuales.",
+      "description": "Investiga el tema y recopila información clave"
+    },
+    {
+      "order": 2,
+      "name": "Redactor",
+      "agentRoleHint": "redactor",
+      "inputTemplate": "Basándose en esta investigación, escribe un artículo completo sobre {{tema}}:\n\n{{output_paso_1}}",
+      "description": "Escribe un borrador del artículo"
+    },
+    {
+      "order": 3,
+      "name": "Revisor",
+      "agentRoleHint": "revisor",
+      "inputTemplate": "Revisa este artículo. Mejora la estructura, claridad y estilo. Corrige errores:\n\n{{output_paso_2}}",
+      "description": "Revisa y mejora el artículo final"
+    }
+  ],
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "isBuiltin": true
+}
