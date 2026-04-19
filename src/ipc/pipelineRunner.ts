@@ -288,6 +288,14 @@ export class PipelineRunner {
       }
     }
 
+    const stepOutputs: string[] = [];
+    for (let i = 0; i < fromStepIndex && i < run.stepRuns.length; i++) {
+      const stepRun = run.stepRuns[i]!;
+      if (stepRun.output) {
+        stepOutputs.push(stepRun.output);
+      }
+    }
+
     pipelineRunRepository.updateRunStatus(this.db, runId, 'running');
 
     for (let i = fromStepIndex; i < pipeline.steps.length; i++) {
@@ -359,10 +367,12 @@ export class PipelineRunner {
       this.onStepCompleteCb?.({ runId, stepIndex: i, output: truncated });
 
       previousOutputs.set(stepOrder, truncated);
+      stepOutputs.push(truncated);
     }
 
+    const finalOutput = stepOutputs.join('\n\n');
     pipelineRunRepository.updateRunStatus(this.db, runId, 'completed');
-    this.onPipelineCompleteCb?.({ runId, finalOutput: '' });
+    this.onPipelineCompleteCb?.({ runId, finalOutput });
   }
 
   async stop(runId: string): Promise<void> {
