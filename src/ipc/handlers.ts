@@ -16,9 +16,23 @@ import {
   handleDeleteAgent,
   handleLoadSettings,
   handleSaveSettings,
+  handleCreatePipeline,
+  handleListPipelines,
+  handleGetPipeline,
+  handleUpdatePipeline,
+  handleDeletePipeline,
+  handleExecutePipeline,
+  handleGetPipelineRun,
+  handleListPipelineRuns,
+  handleRetryPipelineRun,
+  handleListPipelineTemplates,
+  handleGetPipelineTemplate,
+  handleDetectLocalProviders,
+  handleValidateProviderConnection,
 } from './handlerLogic';
-import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../monitor/index';
-import type { PipelineSnapshot } from '../monitor/index';
+import { PipelinePoller, getHistoryDb, queryHistory, queryAgentTrends, queryAgentTimeline, queryAgentBehaviorTimeline, queryComplianceScores, queryRejectionPatterns } from '../dev-tools/monitor/index';
+import type { PipelineSnapshot } from '../dev-tools/monitor/index';
+import { pipelineRunner } from './pipelineRunner';
 
 // Agentes validos del pipeline — usados para whitelisting en handlers IPC.
 const VALID_AGENTS = ['leo', 'cloe', 'max', 'ada', 'cipher'] as const;
@@ -214,6 +228,27 @@ export function createRpc() {
 
         saveSettings: async (params) => handleSaveSettings(params),
 
+        // --- Pipeline CRUD ---
+        createPipeline: async (params) => handleCreatePipeline(params),
+        listPipelines: async () => handleListPipelines(),
+        getPipeline: async (params) => handleGetPipeline(params),
+        updatePipeline: async (params) => handleUpdatePipeline(params),
+        deletePipeline: async (params) => handleDeletePipeline(params),
+
+        // --- Pipeline Execution ---
+        executePipeline: async (params) => handleExecutePipeline(params),
+        getPipelineRun: async (params) => handleGetPipelineRun(params),
+        listPipelineRuns: async (params) => handleListPipelineRuns(params),
+        retryPipelineRun: async (params) => handleRetryPipelineRun(params),
+
+        // --- Pipeline Templates ---
+        listPipelineTemplates: async () => handleListPipelineTemplates(),
+        getPipelineTemplate: async (params) => handleGetPipelineTemplate(params),
+
+        // --- Provider Detection ---
+        detectLocalProviders: async () => handleDetectLocalProviders(),
+        validateProviderConnection: async (params) => handleValidateProviderConnection(params),
+
         getPipelineSnapshot: async () => {
           const snapshot = poller.getSnapshot();
           return { snapshot: snapshotToIPC(snapshot) };
@@ -397,6 +432,27 @@ export function createRpc() {
     } else {
       (rpc as any).send.agentError({ sessionId, error: data || 'Unknown error' });
     }
+  });
+
+  // Wire PipelineRunner events to webview messages
+  pipelineRunner.onStepStart(({ runId, stepIndex }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'running' });
+  });
+
+  pipelineRunner.onStepComplete(({ runId, stepIndex, output }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'completed', output });
+  });
+
+  pipelineRunner.onStepError(({ runId, stepIndex, error }) => {
+    (rpc as any).send.pipelineRunStepUpdated({ runId, stepIndex, status: 'failed', error });
+  });
+
+  pipelineRunner.onPipelineComplete(({ runId }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'completed' });
+  });
+
+  pipelineRunner.onPipelineError(({ runId, error }) => {
+    (rpc as any).send.pipelineRunCompleted({ runId, status: 'failed', error });
   });
 
   return rpc;

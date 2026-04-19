@@ -14,6 +14,7 @@ export interface AgentRow {
   created_at: string;
   enhance_status: string;
   provider: string;
+  is_default: number;
 }
 
 export interface AgentRecord {
@@ -27,6 +28,7 @@ export interface AgentRecord {
   status: 'active' | 'broken';
   createdAt: string;
   provider: string;
+  isDefault: boolean;
 }
 
 function rowToRecord(row: AgentRow): AgentRecord {
@@ -41,6 +43,7 @@ function rowToRecord(row: AgentRow): AgentRecord {
     status: row.status as 'active' | 'broken',
     createdAt: row.created_at,
     provider: row.provider ?? 'lmstudio',
+    isDefault: row.is_default === 1,
   };
 }
 
@@ -76,6 +79,42 @@ export const agentRepository = {
       status: 'active',
       createdAt: now,
       provider: params.provider,
+      isDefault: false,
+    };
+  },
+
+  /** Insert a default (pre-installed) agent with is_default=1. */
+  createDefaultAgent(params: {
+    name: string;
+    description: string;
+    systemPrompt: string;
+    model: string;
+    hasWorkspace: boolean;
+    path: string;
+    provider: string;
+  }): AgentRecord {
+    const db = getDatabase();
+    const id = randomUUID();
+    const now = new Date().toISOString();
+
+    db.run(
+      `INSERT INTO agents (id, name, description, system_prompt, model, has_workspace, path, status, created_at, provider, is_default)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 1)`,
+      [id, params.name, params.description, params.systemPrompt, params.model, params.hasWorkspace ? 1 : 0, params.path, now, params.provider]
+    );
+
+    return {
+      id,
+      name: params.name,
+      description: params.description,
+      systemPrompt: params.systemPrompt,
+      model: params.model,
+      hasWorkspace: params.hasWorkspace,
+      path: params.path,
+      status: 'active',
+      createdAt: now,
+      provider: params.provider,
+      isDefault: true,
     };
   },
 
@@ -125,9 +164,13 @@ export const agentRepository = {
     db.run('UPDATE agents SET status = ? WHERE id = ?', [status, id]);
   },
 
-  /** Delete an agent row. Also cascades to conversations + messages. */
+  /** Delete an agent row. Also cascades to conversations + messages. Throws if is_default=1. */
   delete(id: string): void {
     const db = getDatabase();
+    const row = db.query<{ is_default: number }, [string]>('SELECT is_default FROM agents WHERE id = ?').get([id]);
+    if (row && row.is_default === 1) {
+      throw new Error('No se puede borrar un agente por defecto');
+    }
     db.run('DELETE FROM agents WHERE id = ?', [id]);
   },
 
