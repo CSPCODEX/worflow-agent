@@ -84,7 +84,6 @@ function truncateOutput(output: string, maxBytes: number): string {
 
 export class PipelineRunner {
   private config: PipelineRunnerConfig;
-  private _db?: Database;
   private onStepStartCb?: StepCallback;
   private onStepChunkCb?: ChunkCallback;
   private onStepCompleteCb?: StepCompleteCallback;
@@ -96,10 +95,6 @@ export class PipelineRunner {
 
   constructor(config: Partial<PipelineRunnerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  private get db(): Database {
-    return getDatabase();
   }
 
   onStepStart(cb: StepCallback): void {
@@ -130,20 +125,20 @@ export class PipelineRunner {
     const { pipelineId, variables, runId } = params;
     this.stoppedRuns.delete(runId);
 
-    const pipeline = pipelineRepository.getPipeline(this.db, pipelineId);
+    const pipeline = pipelineRepository.getPipeline(getDatabase(), pipelineId);
     if (!pipeline) {
       this.onPipelineErrorCb?.({ runId, error: `Pipeline not found: ${pipelineId}` });
       return;
     }
 
-    pipelineRunRepository.updateRunStatus(this.db, runId, 'running');
+    pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'running');
 
     const previousOutputs = new Map<number, string>();
     const stepOutputs: string[] = [];
 
     for (let i = 0; i < pipeline.steps.length; i++) {
       if (this.stoppedRuns.has(runId)) {
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused');
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused');
         return;
       }
 
@@ -151,22 +146,22 @@ export class PipelineRunner {
       const stepOrder = i + 1;
 
       const stepRunResult = pipelineRunRepository.createStepRun(
-        this.db,
+        getDatabase(),
         runId,
         step.id,
         stepOrder,
         step.name
       );
-      const stepRunIdStrExecute = stepRunResult.id;
+      const stepRunId = stepRunResult.id;
 
       this.onStepStartCb?.({ runId, stepIndex: i, stepName: step.name });
 
       const agent = agentRepository.findById(step.agentId);
       if (!agent) {
         const errorMsg = `Agent not found: ${step.agentId}`;
-        pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecute, 'failed', undefined, errorMsg);
+        pipelineRunRepository.updateStepRun(getDatabase(), stepRunId, 'failed', undefined, errorMsg);
         this.onStepErrorCb?.({ runId, stepIndex: i, error: errorMsg });
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused', errorMsg);
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused', errorMsg);
         this.onPipelineErrorCb?.({ runId, error: errorMsg });
         return;
       }
@@ -175,7 +170,7 @@ export class PipelineRunner {
       const sessionId = await this.runStepWithTimeout({
         runId,
         stepId: step.id,
-        stepRunId: stepRunIdStrExecute,
+        stepRunId: stepRunId,
         agentPath: agent.path,
         inputTemplate: step.inputTemplate,
         variables,
@@ -189,16 +184,16 @@ export class PipelineRunner {
       });
 
       if (this.stoppedRuns.has(runId)) {
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused');
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused');
         if (sessionId) acpManager.closeSession(sessionId);
         return;
       }
 
       if (!sessionId) {
         const errorMsg = 'Step timed out or agent failed to start';
-        pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecute, 'failed', undefined, errorMsg);
+        pipelineRunRepository.updateStepRun(getDatabase(), stepRunId, 'failed', undefined, errorMsg);
         this.onStepErrorCb?.({ runId, stepIndex: i, error: errorMsg });
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused', errorMsg);
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused', errorMsg);
         this.onPipelineErrorCb?.({ runId, error: errorMsg });
         return;
       }
@@ -206,7 +201,7 @@ export class PipelineRunner {
       acpManager.closeSession(sessionId);
 
       const truncated = truncateOutput(fullOutput, this.config.maxStepOutputBytes);
-      pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecute, 'completed', truncated);
+      pipelineRunRepository.updateStepRun(getDatabase(), stepRunId, 'completed', truncated);
       this.onStepCompleteCb?.({ runId, stepIndex: i, output: truncated });
 
       previousOutputs.set(stepOrder, truncated);
@@ -214,7 +209,7 @@ export class PipelineRunner {
     }
 
     const finalOutput = stepOutputs.join('\n\n');
-    pipelineRunRepository.updateRunStatus(this.db, runId, 'completed');
+    pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'completed');
     this.onPipelineCompleteCb?.({ runId, finalOutput });
   }
 
@@ -268,13 +263,13 @@ export class PipelineRunner {
     const { runId, fromStepIndex } = params;
     this.stoppedRuns.delete(runId);
 
-    const run = pipelineRunRepository.getRun(this.db, runId);
+    const run = pipelineRunRepository.getRun(getDatabase(), runId);
     if (!run) {
       this.onPipelineErrorCb?.({ runId, error: `Run not found: ${runId}` });
       return;
     }
 
-    const pipeline = pipelineRepository.getPipeline(this.db, run.pipelineId);
+    const pipeline = pipelineRepository.getPipeline(getDatabase(), run.pipelineId);
     if (!pipeline) {
       this.onPipelineErrorCb?.({ runId, error: `Pipeline not found: ${run.pipelineId}` });
       return;
@@ -296,11 +291,11 @@ export class PipelineRunner {
       }
     }
 
-    pipelineRunRepository.updateRunStatus(this.db, runId, 'running');
+    pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'running');
 
     for (let i = fromStepIndex; i < pipeline.steps.length; i++) {
       if (this.stoppedRuns.has(runId)) {
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused');
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused');
         return;
       }
 
@@ -308,22 +303,22 @@ export class PipelineRunner {
       const stepOrder = i + 1;
 
       const stepRunResult = pipelineRunRepository.createStepRun(
-        this.db,
+        getDatabase(),
         runId,
         step.id,
         stepOrder,
         step.name
       );
-      const stepRunIdStrExecuteResume = stepRunResult.id;
+      const stepRunIdResume = stepRunResult.id;
 
       this.onStepStartCb?.({ runId, stepIndex: i, stepName: step.name });
 
       const agent = agentRepository.findById(step.agentId);
       if (!agent) {
         const errorMsg = `Agent not found: ${step.agentId}`;
-        pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecuteResume, 'failed', undefined, errorMsg);
+        pipelineRunRepository.updateStepRun(getDatabase(), stepRunIdResume, 'failed', undefined, errorMsg);
         this.onStepErrorCb?.({ runId, stepIndex: i, error: errorMsg });
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused', errorMsg);
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused', errorMsg);
         this.onPipelineErrorCb?.({ runId, error: errorMsg });
         return;
       }
@@ -332,7 +327,7 @@ export class PipelineRunner {
       const sessionId = await this.runStepWithTimeout({
         runId,
         stepId: step.id,
-        stepRunId: stepRunIdStrExecuteResume,
+        stepRunId: stepRunIdResume,
         agentPath: agent.path,
         inputTemplate: step.inputTemplate,
         variables: run.variables,
@@ -346,16 +341,16 @@ export class PipelineRunner {
       });
 
       if (this.stoppedRuns.has(runId)) {
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused');
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused');
         if (sessionId) acpManager.closeSession(sessionId);
         return;
       }
 
       if (!sessionId) {
         const errorMsg = 'Step timed out or agent failed to start';
-        pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecuteResume, 'failed', undefined, errorMsg);
+        pipelineRunRepository.updateStepRun(getDatabase(), stepRunIdResume, 'failed', undefined, errorMsg);
         this.onStepErrorCb?.({ runId, stepIndex: i, error: errorMsg });
-        pipelineRunRepository.updateRunStatus(this.db, runId, 'paused', errorMsg);
+        pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused', errorMsg);
         this.onPipelineErrorCb?.({ runId, error: errorMsg });
         return;
       }
@@ -363,7 +358,7 @@ export class PipelineRunner {
       acpManager.closeSession(sessionId);
 
       const truncated = truncateOutput(fullOutput, this.config.maxStepOutputBytes);
-      pipelineRunRepository.updateStepRun(this.db, stepRunIdStrExecuteResume, 'completed', truncated);
+      pipelineRunRepository.updateStepRun(getDatabase(), stepRunIdResume, 'completed', truncated);
       this.onStepCompleteCb?.({ runId, stepIndex: i, output: truncated });
 
       previousOutputs.set(stepOrder, truncated);
@@ -371,7 +366,7 @@ export class PipelineRunner {
     }
 
     const finalOutput = stepOutputs.join('\n\n');
-    pipelineRunRepository.updateRunStatus(this.db, runId, 'completed');
+    pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'completed');
     this.onPipelineCompleteCb?.({ runId, finalOutput });
   }
 
@@ -382,7 +377,7 @@ export class PipelineRunner {
       acpManager.closeSession(sessionId);
       this.activeSessions.delete(runId);
     }
-    pipelineRunRepository.updateRunStatus(this.db, runId, 'paused');
+    pipelineRunRepository.updateRunStatus(getDatabase(), runId, 'paused');
   }
 }
 
