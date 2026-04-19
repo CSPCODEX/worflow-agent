@@ -388,6 +388,9 @@ export async function handleGetPipeline(params: GetPipelineParams): Promise<GetP
   const pipeline = pipelineRepository.getPipeline(db, params.pipelineId.trim());
   if (!pipeline) return { pipeline: null };
 
+  const agentIds = pipeline.steps.map((s) => s.agentId);
+  const agentsMap = agentRepository.findByIds(agentIds);
+
   return {
     pipeline: {
       id: pipeline.id,
@@ -395,7 +398,7 @@ export async function handleGetPipeline(params: GetPipelineParams): Promise<GetP
       description: pipeline.description,
       templateId: pipeline.templateId,
       steps: pipeline.steps.map((s) => {
-        const agent = agentRepository.findById(s.agentId);
+        const agent = agentsMap.get(s.agentId);
         return {
           id: s.id,
           order: s.stepOrder,
@@ -497,7 +500,9 @@ export async function handleGetPipelineRun(params: GetPipelineRunParams): Promis
 export async function handleListPipelineRuns(params: ListPipelineRunsParams): Promise<ListPipelineRunsResult> {
   if (!params?.pipelineId?.trim()) return { runs: [], totalCount: 0 };
   const db = getDatabase();
-  const runs = pipelineRunRepository.listRuns(db, params.pipelineId.trim(), params.limit ?? 20, params.offset ?? 0);
+  const pipelineId = params.pipelineId.trim();
+  const runs = pipelineRunRepository.listRuns(db, pipelineId, params.limit ?? 20, params.offset ?? 0);
+  const total = pipelineRunRepository.countRuns(db, pipelineId);
   return {
     runs: runs.map((r) => ({
       id: r.id,
@@ -506,7 +511,7 @@ export async function handleListPipelineRuns(params: ListPipelineRunsParams): Pr
       startedAt: r.startedAt ?? r.createdAt,
       completedAt: r.completedAt,
     })),
-    totalCount: runs.length,
+    totalCount: total,
   };
 }
 
@@ -517,7 +522,10 @@ export async function handleRetryPipelineRun(params: RetryPipelineRunParams): Pr
     const run = pipelineRunRepository.getRun(db, params.runId.trim());
     if (!run) return { success: false, error: 'Run no encontrado' };
 
-    pipelineRunner.resume({ runId: params.runId.trim(), fromStepIndex: 0 }).catch((e) =>
+    const failedStep = run.stepRuns.find((sr) => sr.status === 'failed');
+    const fromStepIndex = failedStep?.stepOrder ?? 0;
+
+    pipelineRunner.resume({ runId: params.runId.trim(), fromStepIndex }).catch((e) =>
       console.error('[pipelineRunner] resume error:', e)
     );
     return { success: true };

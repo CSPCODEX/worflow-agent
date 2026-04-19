@@ -75,8 +75,6 @@ export function renderPipelineExecution(container: HTMLElement, params: Pipeline
       if (runResult.run) {
         initializeSteps(runResult.run);
       }
-
-      params.onComplete(result.runId);
     } catch (e: any) {
       showError(e.message || 'Error de comunicacion.');
     }
@@ -297,7 +295,36 @@ export function renderPipelineExecution(container: HTMLElement, params: Pipeline
       stepStates[stepIndex].output += msg.output;
     }
 
-    renderSteps();
+    updateStepElement(stepIndex);
+  }
+
+  function updateStepElement(stepIndex: number) {
+    const step = stepStates[stepIndex];
+    if (!step) return;
+
+    const stepEl = stepsListEl.querySelector<HTMLDivElement>('[data-step-index="' + stepIndex + '"]');
+    if (!stepEl) {
+      // Fallback: first render or element not yet in DOM
+      renderSteps();
+      return;
+    }
+
+    // Update container class
+    stepEl.className = 'pipeline-execution-step pipeline-execution-step-' + step.status;
+
+    // Update status icon and label
+    const statusEl = stepEl.querySelector<HTMLDivElement>('.pipeline-execution-step-status');
+    if (statusEl) {
+      const statusIcon = getStatusIcon(step.status);
+      const statusLabel = getStatusLabel(step.status);
+      statusEl.innerHTML = statusIcon + '<span class="pipeline-execution-step-status-label">' + statusLabel + '</span>';
+    }
+
+    // Update output content
+    const outputEl = stepsListEl.querySelector<HTMLDivElement>('#pe-step-output-' + stepIndex);
+    if (outputEl) {
+      outputEl.innerHTML = getStepOutputHtml(step, stepIndex);
+    }
   }
 
   function handleRunCompleted(msg: PipelineRunCompleted) {
@@ -314,6 +341,8 @@ export function renderPipelineExecution(container: HTMLElement, params: Pipeline
         }
       });
       renderSteps();
+    } else if (msg.status === 'completed') {
+      params.onComplete(currentRunId);
     }
   }
 

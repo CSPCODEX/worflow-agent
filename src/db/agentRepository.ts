@@ -136,6 +136,22 @@ export const agentRepository = {
     return row ? rowToRecord(row) : null;
   },
 
+  /** Find multiple agents by ids. Returns a Map keyed by id for O(1) lookup. Deduplicates ids before querying. */
+  findByIds(ids: string[]): Map<string, AgentRecord> {
+    const uniqueIds = [...new Set(ids)];
+    if (uniqueIds.length === 0) return new Map();
+    const db = getDatabase();
+    const placeholders = uniqueIds.map(() => '?').join(', ');
+    const rows = db.query<AgentRow, string[]>(
+      `SELECT * FROM agents WHERE id IN (${placeholders})`
+    ).all(...uniqueIds);
+    const map = new Map<string, AgentRecord>();
+    for (const row of rows) {
+      map.set(row.id, rowToRecord(row));
+    }
+    return map;
+  },
+
   /**
    * Return all agents. For each agent whose path no longer exists on disk,
    * mark status='broken' in the DB before returning it (but do NOT delete the row).
