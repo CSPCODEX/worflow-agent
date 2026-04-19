@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { setupHistoryTestDb, teardownHistoryTestDb, getHistoryTestDb } from '../../helpers/testHistoryDb';
-import { queryAgentTrends } from '../../../src/monitor/core/historyRepository';
-import type { AgentId } from '../../../src/monitor/core/types';
+import { queryAgentTrends } from '../../../src/dev-tools/monitor/core/historyRepository';
+import type { AgentId } from '../../../src/dev-tools/monitor/core/types';
 
 function seedMetricsForTrends(db: ReturnType<typeof getHistoryTestDb>, rows: Array<{
   agent_id: string;

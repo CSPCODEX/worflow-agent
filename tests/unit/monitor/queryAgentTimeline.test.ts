@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { setupHistoryTestDb, teardownHistoryTestDb, getHistoryTestDb } from '../../helpers/testHistoryDb';
-import { queryAgentTimeline } from '../../../src/monitor/core/timelineRepository';
+import { queryAgentTimeline } from '../../../src/dev-tools/monitor/core/timelineRepository';
 
 function seedMetrics(db: ReturnType<typeof getHistoryTestDb>, rows: Array<{
   agent_id: string;
