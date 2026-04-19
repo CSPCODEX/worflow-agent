@@ -137,6 +137,13 @@ export const pipelineRunRepository = {
     return rows.map(rowToRecord);
   },
 
+  countRuns(db: Database, pipelineId: string): number {
+    const row = db.query<{ count: number }, string>(
+      'SELECT COUNT(*) as count FROM pipeline_runs WHERE pipeline_id = ?'
+    ).get(pipelineId);
+    return row?.count ?? 0;
+  },
+
   updateRunStatus(db: Database, id: string, status: PipelineRunStatus, error?: string): void {
     const now = new Date().toISOString();
     if (status === 'running') {
