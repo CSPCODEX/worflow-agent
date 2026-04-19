@@ -113,6 +113,7 @@ export interface GetPipelineResult {
     id: string;
     name: string;
     description: string;
+    templateId: string | null;
     steps: Array<{
       id: string;
       order: number;

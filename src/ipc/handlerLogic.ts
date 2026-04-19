@@ -393,6 +393,7 @@ export async function handleGetPipeline(params: GetPipelineParams): Promise<GetP
       id: pipeline.id,
       name: pipeline.name,
       description: pipeline.description,
+      templateId: pipeline.templateId,
       steps: pipeline.steps.map((s) => {
         const agent = agentRepository.findById(s.agentId);
         return {
@@ -601,7 +602,8 @@ export async function handleDetectLocalProviders(): Promise<{ providers: Array<{
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000);
-        const res = await fetch(p.host + '/api/tags', { signal: controller.signal });
+        const endpoint = p.id === 'lmstudio' ? '/v1/models' : '/api/tags';
+        const res = await fetch(p.host + endpoint, { signal: controller.signal });
         clearTimeout(timeoutId);
         return { ...p, available: res.ok };
       } catch {
@@ -627,7 +629,12 @@ export async function handleValidateProviderConnection(params: { providerId: str
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(localHost + '/api/tags', { signal: controller.signal });
+      const localEndpoints: Record<string, string> = {
+        lmstudio: '/v1/models',
+        ollama: '/api/tags',
+      };
+      const endpoint = localEndpoints[params.providerId] ?? '/api/tags';
+      const res = await fetch(localHost + endpoint, { signal: controller.signal });
       clearTimeout(timeoutId);
       return { success: res.ok };
     } catch (e: any) {
