@@ -15,7 +15,7 @@
 import { Database } from 'bun:sqlite';
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseFeatureStatus, parseBugStatus } from '../src/monitor/core/statusParser';
+import { parseFeatureStatus, parseBugStatus } from '../src/dev-tools/monitor/core/statusParser';
 
 // ─── Rutas ────────────────────────────────────────────────────────────────────
 

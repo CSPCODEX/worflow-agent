@@ -13,7 +13,7 @@ import type {
   GetRejectionPatternsParams,
   GetRejectionPatternsResult,
   GetComplianceScoresResult,
-} from '../../types/ipc';
+} from '../../../types/ipc';
 
 // ── Filas raw de SQLite ──
 

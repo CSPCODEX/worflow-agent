@@ -22,7 +22,7 @@ import type {
   GetRejectionPatternsResult,
   GetComplianceScoresParams,
   GetRejectionPatternsParams,
-} from '../../types/ipc';
+} from '../../../types/ipc';
 
 // NOTA: el import de types/ipc.ts es el UNICO acoplamiento con el host.
 // Si el modulo se extrae a un repo separado, se reemplaza por tipos locales equivalentes.

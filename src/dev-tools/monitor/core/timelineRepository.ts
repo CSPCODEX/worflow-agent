@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite';
-import type { AgentTimelinePoint } from '../../types/ipc';
+import type { AgentTimelinePoint } from '../../../types/ipc';
 
 interface TimelineRow {
   agent_id: string;
